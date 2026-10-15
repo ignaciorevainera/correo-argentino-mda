@@ -20,6 +20,11 @@ vi.mock("@/lib/autogestion/ruleState", () => ({
 
 vi.mock("@db/index", () => ({
   db: {
+    select: vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue([{ lastAutogestionAssignedAt: null }]),
+      }),
+    }),
     update: vi.fn().mockReturnValue({
       set: vi.fn().mockReturnValue({
         where: vi.fn().mockResolvedValue(undefined),

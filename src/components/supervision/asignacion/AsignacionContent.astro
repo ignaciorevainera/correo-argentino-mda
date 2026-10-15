@@ -18,6 +18,8 @@ import { getUnassignedTicketsByHelpdesk } from "@/lib/invgate/agsTickets";
 import { AGS_HELPDESK_ID } from "@/lib/invgate/agsHelpdesk";
 import { AUTOGESTION_AUTOMATION_RULES } from "@/lib/autogestion/rulesEngine";
 import { getAutogestionRuleStates, resolveRuleEnabled } from "@/lib/autogestion/ruleState";
+import { readPersistedCache } from "@/lib/invgate/cache";
+import type { AutoAssignCycleResult } from "@/lib/autogestion/autoAssignRunner";
 import { getCsrfTokenForSession } from "@lib/csrf";
 import { can } from "@lib/roleConfig";
 
@@ -146,6 +148,29 @@ const nextSuggestedOperators = availableOperators.length > 0
 const unassignedRes = await getUnassignedTicketsByHelpdesk(AGS_HELPDESK_ID);
 const unassignedTickets = unassignedRes.tickets;
 const unassignedCount = unassignedTickets.length;
+
+// Antigüedad del ticket más viejo sin asignar (Issues #294, #292)
+const oldestTicket = unassignedTickets.length > 0 ? unassignedTickets[0] : null;
+let oldestAgeMin = 0;
+let oldestAgeStr = "";
+let isOldestWarning = false;
+if (oldestTicket?.created_at) {
+  oldestAgeMin = Math.floor((Date.now() - oldestTicket.created_at * 1000) / 60000);
+  oldestAgeStr = formatWaitTime(oldestAgeMin);
+  isOldestWarning = oldestAgeMin >= 20; // Más de 2 ciclos (20 min)
+}
+
+// Última corrida del ciclo de autoasignación (Issue #293)
+const lastCycle = readPersistedCache<AutoAssignCycleResult>("autogestion_last_cycle_result");
+const lastCycleTimeStr = lastCycle?.lastRunAt
+  ? new Date(lastCycle.lastRunAt).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })
+  : null;
+const lastCycleReasonsMap: Record<number, string> = {};
+if (lastCycle?.unassignedDetails) {
+  for (const d of lastCycle.unassignedDetails) {
+    lastCycleReasonsMap[d.ticketId] = d.reason;
+  }
+}
 
 
 
@@ -291,6 +316,15 @@ function formatWiseMinutes(min: number | undefined | null): string {
         Monitoreo de Operadores
       </button>
     </div>
+
+    <!-- Acceso a Métricas y Analítica -->
+    <a
+      href={`${cleanBase}supervision/autogestiones-metricas`}
+      class="btn btn-sm btn-outline rounded-xl font-bold uppercase tracking-wider text-xs gap-2 ml-auto"
+    >
+      <Icon name="boxicons:bar-chart-big-filled" size={18} />
+      Métricas y Estadísticas
+    </a>
   </div>
 
   <!-- Pestaña 1: Asignación Operativa -->
@@ -364,6 +398,67 @@ function formatWiseMinutes(min: number | undefined | null): string {
               </h3>
             </div>
             <div class="flex items-center gap-2 shrink-0">
+              {lastCycle && (
+                <div
+                  id="stat-last-cycle-badge"
+                  class="dropdown dropdown-end shrink-0"
+                  title="Detalle de la última corrida del ciclo de autoasignación"
+                >
+                  <label
+                    tabindex="0"
+                    class="badge badge-xs sm:badge-sm font-mono cursor-pointer gap-1 py-1 px-2 border border-base-300 bg-base-200/60 hover:bg-base-200 text-base-content/70"
+                  >
+                    <Icon name="boxicons:sync" size={13} class="text-secondary shrink-0" />
+                    <span>ciclo: <strong class="text-base-content/90 font-bold">{lastCycleTimeStr || "--"}</strong> ({lastCycle.assignedCount}/{lastCycle.evaluatedCount})</span>
+                  </label>
+                  <div
+                    tabindex="0"
+                    class="dropdown-content z-20 menu p-3 shadow-lg bg-base-100 rounded-box w-72 text-xs border border-base-300"
+                  >
+                    <div class="font-bold text-xs uppercase tracking-wider text-base-content/70 border-b border-base-200 pb-1.5 mb-2 flex items-center justify-between">
+                      <span>Último Ciclo Automático</span>
+                      <span class="font-mono text-[11px] font-normal">{lastCycleTimeStr}</span>
+                    </div>
+                    <div class="space-y-1 mb-2">
+                      <div class="flex justify-between">
+                        <span class="text-base-content/60">Tickets evaluados:</span>
+                        <strong class="font-mono">{lastCycle.evaluatedCount}</strong>
+                      </div>
+                      <div class="flex justify-between">
+                        <span class="text-base-content/60">Autoasignados:</span>
+                        <strong class="font-mono text-success">{lastCycle.assignedCount}</strong>
+                      </div>
+                      {lastCycle.errors && lastCycle.errors.length > 0 && (
+                        <div class="flex justify-between text-error">
+                          <span>Errores registrados:</span>
+                          <strong class="font-mono">{lastCycle.errors.length}</strong>
+                        </div>
+                      )}
+                    </div>
+                    {lastCycle.unassignedDetails && lastCycle.unassignedDetails.length > 0 && (
+                      <div class="border-t border-base-200 pt-1.5 mt-1">
+                        <span class="font-semibold text-base-content/80 block mb-1">Sin asignar por motivo:</span>
+                        <ul class="space-y-1 max-h-36 overflow-y-auto">
+                          {lastCycle.unassignedDetails.map((u) => (
+                            <li class="bg-base-200/50 p-1.5 rounded text-[11px] leading-tight">
+                              <span class="font-mono font-bold text-secondary">{u.ticketNumber}:</span>{" "}
+                              <span class="text-base-content/80">{u.reason}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              <span
+                id="stat-oldest-age-badge"
+                class={`badge badge-xs sm:badge-sm font-mono font-bold gap-1 py-1 px-2 ${unassignedCount === 0 || !oldestAgeStr ? "hidden" : isOldestWarning ? "badge-error text-error-content animate-pulse" : "badge-secondary badge-outline text-secondary"}`}
+                title={isOldestWarning ? "Atención: El ticket más antiguo lleva más de 20 min en espera" : "Antigüedad del ticket sin asignar más antiguo"}
+              >
+                <Icon name="boxicons:clock" size={14} class="shrink-0" />
+                <span>espera máx: <strong id="stat-oldest-age-text">{oldestAgeStr || "--"}</strong></span>
+              </span>
               <span
                 class={`font-mono font-bold text-sm ${unassignedCount > 0 ? "text-secondary" : "text-base-content/50"}`}
                 id="stat-unassigned-count"
@@ -474,6 +569,12 @@ function formatWiseMinutes(min: number | undefined | null): string {
                         <span class="truncate block min-w-0 max-w-[260px] sm:max-w-[340px] md:max-w-[420px]">
                           Ubicación: <strong class="text-base-content/85 font-semibold">{t.location_name}</strong>
                         </span>
+                      </div>
+                    )}
+                    {lastCycleReasonsMap[t.id] && (
+                      <div class="flex items-start gap-1.5 text-[11px] font-mono text-base-content/70 bg-base-200/60 rounded px-2 py-1 mt-0.5" title="Motivo de no asignación en la última corrida automática">
+                        <Icon name="boxicons:info-circle" size={14} class="text-secondary shrink-0 mt-0.5" />
+                        <span class="truncate">{lastCycleReasonsMap[t.id]}</span>
                       </div>
                     )}
                   </div>
@@ -3118,6 +3219,22 @@ function formatWiseMinutes(min: number | undefined | null): string {
         if (countEl) {
           countEl.textContent = String(count);
           countEl.className = `font-mono font-bold text-sm ${count > 0 ? "text-secondary" : "text-base-content/50"}`;
+        }
+
+        // Actualizar indicador de antigüedad máxima (Issues #294, #292)
+        const oldestBadge = document.getElementById("stat-oldest-age-badge");
+        const oldestText = document.getElementById("stat-oldest-age-text");
+        if (oldestBadge && oldestText) {
+          const oldest = latestUnassignedTickets[0];
+          if (count > 0 && oldest?.created_at) {
+            const ageMin = Math.floor((Date.now() - oldest.created_at * 1000) / 60000);
+            oldestText.textContent = formatWaitTime(ageMin);
+            const isWarning = ageMin >= 20;
+            oldestBadge.className = `badge badge-xs sm:badge-sm font-mono font-bold gap-1 py-1 px-2 ${isWarning ? "badge-error text-error-content animate-pulse" : "badge-secondary badge-outline text-secondary"}`;
+            oldestBadge.classList.remove("hidden");
+          } else {
+            oldestBadge.classList.add("hidden");
+          }
         }
         if (listEl) {
           const prevScroll = listEl.scrollTop;

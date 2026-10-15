@@ -1,0 +1,417 @@
+---
+import { getCleanBase, getBaseNoSlash } from "@lib/baseUrl";
+import { getResolvedSearchParams } from "@lib/navigation";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import { Icon } from "astro-icon/components";
+import { getAutogestionesMetricasData } from "@/lib/autogestion/metricasService";
+
+const cleanBase = getCleanBase();
+const baseNoSlash = getBaseNoSlash();
+
+const searchParams = getResolvedSearchParams(Astro.request, Astro.url);
+const initialPreset = searchParams.get("preset") || "ultimos_7_dias";
+const initialFrom = searchParams.get("from") || "";
+const initialTo = searchParams.get("to") || "";
+const initialMock = searchParams.get("mock") === "1" || searchParams.get("demo") === "1" || true;
+
+const data = await getAutogestionesMetricasData(initialPreset, initialFrom, initialTo, initialMock);
+const { kpis, recentAssignments, range, lastSyncAt } = data;
+
+const invgateApiBase =
+  import.meta.env.INVGATE_QA_BASE_URL || import.meta.env.INVGATE_BASE_URL || "";
+const invgateWebBase = invgateApiBase
+  ? invgateApiBase.replace(/\/api\/v1\/?$/, "").replace(/\/$/, "")
+  : "";
+
+const MODALITY_CONFIG: Record<
+  string,
+  { label: string; badgeClass: string }
+> = {
+  cyclic: {
+    label: "Cíclica General",
+    badgeClass: "badge-secondary text-secondary-content font-bold",
+  },
+  batch_suggested: {
+    label: "Sugerida por Creador",
+    badgeClass: "badge-secondary badge-outline font-bold",
+  },
+  batch_all: {
+    label: "Masiva en Cola",
+    badgeClass: "badge-info text-info-content font-bold",
+  },
+  manual: {
+    label: "Manual Supervisor",
+    badgeClass: "badge-primary text-primary-content font-bold",
+  },
+  revision: {
+    label: "Revisión Pospuesta",
+    badgeClass: "badge-neutral text-neutral-content font-bold",
+  },
+  undo: {
+    label: "Deshecha / Anulada",
+    badgeClass: "badge-error text-error-content font-bold",
+  },
+};
+---
+
+<PageContainer class="flex min-h-0 flex-1 flex-col gap-6 pb-20">
+  <!-- Encabezado de Página -->
+  <div class="flex flex-col gap-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <a
+        href={`${baseNoSlash}/supervision/asignacion-autogestiones`}
+        class="btn btn-ghost btn-sm gap-2 text-base-content/70 hover:text-base-content -ml-2 w-fit font-medium text-xs tracking-wide"
+      >
+        <Icon name="boxicons:arrow-left-stroke-filled" size={18} />
+        Volver a Asignación
+      </a>
+      <div class="flex flex-wrap items-center gap-2">
+        <a
+          id="btn-export-csv"
+          href={`${cleanBase}api/autogestion/metricas/export.csv?preset=${initialPreset}${initialFrom ? `&from=${initialFrom}` : ""}${initialTo ? `&to=${initialTo}` : ""}`}
+          class="btn btn-sm btn-secondary rounded-xl font-bold uppercase tracking-wider text-xs gap-2 shadow-sm"
+          download
+        >
+          <Icon name="boxicons:file-detail-filled" size={18} />
+          Exportar CSV
+        </a>
+      </div>
+    </div>
+
+    <PageHeader
+      title="Métricas de Autogestiones"
+      description="Tablero analítico, distribución operativa y auditoría de asignaciones de AGS"
+    />
+  </div>
+
+  <!-- Barra de Filtros y Controles -->
+  <div
+    class="bg-base-100 border-base-300 flex flex-col gap-4 rounded-2xl border p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between"
+  >
+    <!-- Selector de Presets -->
+    <div id="presets-filter-bar" class="flex flex-wrap items-center gap-1.5 shrink-0">
+      <button
+        type="button"
+        data-preset="hoy"
+        class={`btn btn-xs rounded-lg font-bold uppercase tracking-wider text-tiny ${initialPreset === "hoy" ? "btn-secondary text-secondary-content" : "btn-ghost text-base-content/70"}`}
+      >
+        Hoy
+      </button>
+      <button
+        type="button"
+        data-preset="ayer"
+        class={`btn btn-xs rounded-lg font-bold uppercase tracking-wider text-tiny ${initialPreset === "ayer" ? "btn-secondary text-secondary-content" : "btn-ghost text-base-content/70"}`}
+      >
+        Ayer
+      </button>
+      <button
+        type="button"
+        data-preset="ultimos_7_dias"
+        class={`btn btn-xs rounded-lg font-bold uppercase tracking-wider text-tiny ${initialPreset === "ultimos_7_dias" ? "btn-secondary text-secondary-content" : "btn-ghost text-base-content/70"}`}
+      >
+        Últimos 7 días
+      </button>
+      <button
+        type="button"
+        data-preset="ultimos_30_dias"
+        class={`btn btn-xs rounded-lg font-bold uppercase tracking-wider text-tiny ${initialPreset === "ultimos_30_dias" ? "btn-secondary text-secondary-content" : "btn-ghost text-base-content/70"}`}
+      >
+        Últimos 30 días
+      </button>
+      <button
+        type="button"
+        data-preset="mes_actual"
+        class={`btn btn-xs rounded-lg font-bold uppercase tracking-wider text-tiny ${initialPreset === "mes_actual" ? "btn-secondary text-secondary-content" : "btn-ghost text-base-content/70"}`}
+      >
+        Mes actual
+      </button>
+    </div>
+
+    <!-- Fechas Personalizadas y Sincronización -->
+    <div class="flex flex-wrap items-center gap-3 lg:justify-end">
+      <!-- Selector de Fechas Desde / Hasta -->
+      <div class="flex flex-wrap items-center gap-2">
+        <label class="text-xs font-bold text-base-content/60 uppercase tracking-wider">Desde</label>
+        <input
+          type="date"
+          id="filter-date-from"
+          class="input input-xs input-bordered rounded-lg bg-base-200/50 text-xs font-mono"
+          value={initialFrom}
+        />
+        <label class="text-xs font-bold text-base-content/60 uppercase tracking-wider">Hasta</label>
+        <input
+          type="date"
+          id="filter-date-to"
+          class="input input-xs input-bordered rounded-lg bg-base-200/50 text-xs font-mono"
+          value={initialTo}
+        />
+        <button
+          type="button"
+          id="btn-apply-custom-dates"
+          class="btn btn-xs btn-outline rounded-lg font-bold uppercase tracking-wider text-tiny"
+        >
+          Filtrar
+        </button>
+      </div>
+
+      <!-- Sincronizar y Estado -->
+      <div class="flex items-center gap-2 border-t sm:border-t-0 sm:border-l border-base-300 pt-2 sm:pt-0 sm:pl-3">
+        <button
+          type="button"
+          id="btn-refresh-metrics"
+          class="btn btn-xs btn-outline rounded-lg font-bold uppercase tracking-wider text-tiny gap-1.5"
+          title="Actualizar datos y cola de InvGate"
+        >
+          <Icon name="boxicons:refresh-cw" size={16} id="icon-refresh" />
+          <span>Sincronizar</span>
+        </button>
+        <span class="text-tiny font-mono text-base-content/50" id="sync-timestamp" data-timestamp={lastSyncAt}>
+          {new Date(lastSyncAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </span>
+        <span class="badge badge-xs badge-info badge-outline font-semibold gap-1 py-2 px-2.5 ml-1" title="Visualizando datos de demostración aleatorios">
+          <span class="size-1.5 rounded-full bg-info animate-pulse"></span>
+          Demo
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grilla de Tarjetas KPI -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- Total Asignadas: Secondary Institucional (Steel Azure) -->
+    <div class="card bg-base-100 border border-secondary/25 shadow-sm p-5 rounded-2xl relative overflow-hidden group hover:border-secondary/50 transition-all">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-bold uppercase tracking-widest text-base-content/60">Total Asignadas</span>
+        <div class="p-2.5 rounded-xl bg-secondary/15 text-secondary">
+          <Icon name="boxicons:badge-check-filled" size={24} />
+        </div>
+      </div>
+      <div class="flex items-baseline gap-2">
+        <span class="text-4xl font-black tracking-tight text-secondary font-mono" id="kpi-total-asignadas">
+          {kpis.totalAsignadas}
+        </span>
+        <span class="text-xs text-base-content/60 font-semibold">tickets entregados</span>
+      </div>
+    </div>
+
+    <!-- Cola Pendiente InvGate: Primary (School-bus yellow suave como llamado de atención) -->
+    <div class="card bg-base-100 border border-primary/30 shadow-sm p-5 rounded-2xl relative overflow-hidden group hover:border-primary/60 transition-all">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-bold uppercase tracking-widest text-base-content/60">Cola en Espera</span>
+        <div class="p-2.5 rounded-xl bg-primary/20 text-base-content">
+          <Icon name="boxicons:clock" size={24} class="text-amber-600 dark:text-primary" />
+        </div>
+      </div>
+      <div class="flex items-baseline gap-2">
+        <span class="text-4xl font-black tracking-tight text-base-content font-mono" id="kpi-cola-pendiente">
+          {kpis.colaPendiente}
+        </span>
+        <span class="text-xs text-base-content/60 font-semibold">tickets sin asignar</span>
+      </div>
+    </div>
+
+    <!-- Tasa de Automatización: Variante Secondary / Indigo Suave -->
+    <div class="card bg-base-100 border border-secondary/20 shadow-sm p-5 rounded-2xl relative overflow-hidden group hover:border-secondary/40 transition-all">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-bold uppercase tracking-widest text-base-content/60">Automatización</span>
+        <div class="p-2.5 rounded-xl bg-secondary/10 text-secondary">
+          <Icon name="boxicons:chip-filled" size={24} />
+        </div>
+      </div>
+      <div class="flex items-baseline gap-2">
+        <span class="text-4xl font-black tracking-tight text-secondary font-mono" id="kpi-tasa-automatizacion">
+          {kpis.tasaAutomatizacion}%
+        </span>
+        <span class="text-xs text-base-content/60 font-semibold">cíclicas / en lote</span>
+      </div>
+    </div>
+
+    <!-- Operadores Activos: Info / Celeste Institucional -->
+    <div class="card bg-base-100 border border-info/20 shadow-sm p-5 rounded-2xl relative overflow-hidden group hover:border-info/40 transition-all">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-bold uppercase tracking-widest text-base-content/60">Operadores con Carga</span>
+        <div class="p-2.5 rounded-xl bg-info/15 text-info">
+          <Icon name="boxicons:group" size={24} />
+        </div>
+      </div>
+      <div class="flex items-baseline gap-2">
+        <span class="text-4xl font-black tracking-tight text-info font-mono" id="kpi-operadores-activos">
+          {kpis.operadoresActivos}
+        </span>
+        <span class="text-xs text-base-content/60 font-semibold">miembros del equipo</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gráficos Fila 1: Modalidades y Volumen Temporal -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Doughnut: Desglose por Modalidad -->
+    <div class="card bg-base-100 border border-base-300 shadow-sm rounded-2xl p-5 flex flex-col justify-between">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="font-bold text-sm text-base-content tracking-tight">Modalidad de Asignación</h3>
+          <p class="text-tiny text-base-content/50 font-medium">Proporción por tipo de derivación</p>
+        </div>
+        <Icon name="boxicons:pie-chart-alt-2" size={20} class="text-base-content/40" />
+      </div>
+      <div class="relative flex h-64 w-full items-center justify-center">
+        <canvas id="chart-modalidades"></canvas>
+      </div>
+    </div>
+
+    <!-- Bar: Evolución Temporal -->
+    <div class="card bg-base-100 border border-base-300 shadow-sm rounded-2xl p-5 lg:col-span-2 flex flex-col justify-between">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="font-bold text-sm text-base-content tracking-tight">Volumen de Asignaciones en el Tiempo</h3>
+          <p class="text-tiny text-base-content/50 font-medium" id="temporal-grouping-hint">
+            Agrupado por {range.grouping === "hour" ? "hora" : "día"}
+          </p>
+        </div>
+        <Icon name="boxicons:chart-line" size={20} class="text-base-content/40" />
+      </div>
+      <div class="relative flex h-64 w-full items-center justify-center">
+        <canvas id="chart-temporal"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gráficos Fila 2: Carga por Operador y Categorías en Cola -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Horizontal Bar: Carga por Operador -->
+    <div class="card bg-base-100 border border-base-300 shadow-sm rounded-2xl p-5 lg:col-span-2 flex flex-col justify-between">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="font-bold text-sm text-base-content tracking-tight">Distribución de Carga por Operador</h3>
+          <p class="text-tiny text-base-content/50 font-medium">Cantidad de tickets entregados en el período</p>
+        </div>
+        <Icon name="boxicons:bar-chart" size={20} class="text-base-content/40" />
+      </div>
+      <div class="relative flex h-72 w-full items-center justify-center">
+        <canvas id="chart-operadores"></canvas>
+      </div>
+    </div>
+
+    <!-- Doughnut: Categorías en Cola InvGate -->
+    <div class="card bg-base-100 border border-base-300 shadow-sm rounded-2xl p-5 flex flex-col justify-between">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="font-bold text-sm text-base-content tracking-tight">Categorías en Cola (InvGate)</h3>
+          <p class="text-tiny text-base-content/50 font-medium">Composición temática de tickets sin asignar</p>
+        </div>
+        <Icon name="boxicons:doughnut-chart" size={20} class="text-base-content/40" />
+      </div>
+      <div class="relative flex h-72 w-full items-center justify-center">
+        <canvas id="chart-categorias"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gráfico Fila 3: Top Solicitantes / Dependencias -->
+  <div class="card bg-base-100 border border-base-300 shadow-sm rounded-2xl p-5">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h3 class="font-bold text-sm text-base-content tracking-tight">Top Orígenes / Solicitantes en Cola</h3>
+        <p class="text-tiny text-base-content/50 font-medium">Dependencias o usuarios con mayor volumen de tickets pendientes</p>
+      </div>
+      <Icon name="boxicons:building" size={20} class="text-base-content/40" />
+    </div>
+    <div class="relative flex h-56 w-full items-center justify-center">
+      <canvas id="chart-creadores"></canvas>
+    </div>
+  </div>
+
+  <!-- Tabla de Auditoría: Asignaciones Recientes -->
+  <div class="card bg-base-100 border border-base-300 shadow-sm rounded-2xl overflow-hidden">
+    <div class="p-5 border-b border-base-300 flex items-center justify-between bg-base-200/30">
+      <div>
+        <h3 class="font-bold text-sm text-base-content tracking-tight">Asignaciones Recientes</h3>
+        <p class="text-tiny text-base-content/50 font-medium">Registro de auditoría del período seleccionado</p>
+      </div>
+      <span class="badge badge-sm badge-outline font-mono text-tiny" id="table-records-count">
+        {recentAssignments.length} registros
+      </span>
+    </div>
+
+    <div class="overflow-x-auto max-h-96">
+      <table class="table table-zebra table-sm w-full text-xs">
+        <thead class="bg-base-200 text-base-content sticky top-0 z-10 border-b border-base-300">
+          <tr>
+            <th class="font-bold uppercase tracking-wider text-tiny text-base-content/70">Ticket</th>
+            <th class="font-bold uppercase tracking-wider text-tiny text-base-content/70">Operador</th>
+            <th class="font-bold uppercase tracking-wider text-tiny text-base-content/70">Asignado Por</th>
+            <th class="font-bold uppercase tracking-wider text-tiny text-base-content/70">Modalidad</th>
+            <th class="font-bold uppercase tracking-wider text-tiny text-base-content/70 text-right">Fecha / Hora</th>
+          </tr>
+        </thead>
+        <tbody id="table-assignments-body">
+          {recentAssignments.length === 0 ? (
+            <tr>
+              <td colspan="5" class="text-center py-8 text-base-content/40 font-medium">
+                No hay asignaciones registradas en el período seleccionado.
+              </td>
+            </tr>
+          ) : (
+            recentAssignments.map((r) => {
+              const ticketIdNum = r.ticketNumber?.replace(/[^0-9]/g, "");
+              const invgateLink = invgateWebBase && ticketIdNum ? `${invgateWebBase}/incident/view/id/${ticketIdNum}` : null;
+              const modality = MODALITY_CONFIG[r.type] || {
+                label: r.type,
+                badgeClass: "badge-ghost",
+              };
+
+              return (
+                <tr class="hover:bg-base-200/40 transition-colors">
+                  <td class="font-mono font-bold">
+                    {invgateLink ? (
+                      <a href={invgateLink} target="_blank" rel="noopener noreferrer" class="link link-hover text-secondary">
+                        {r.ticketNumber || "—"}
+                      </a>
+                    ) : (
+                      <span>{r.ticketNumber || "—"}</span>
+                    )}
+                  </td>
+                  <td class="font-semibold text-base-content">{r.agentName}</td>
+                  <td class="text-base-content/70">{r.assignedBy}</td>
+                  <td>
+                    <span class={`badge badge-sm py-2 px-2.5 text-tiny uppercase tracking-wider ${modality.badgeClass}`}>
+                      {modality.label}
+                    </span>
+                  </td>
+                  <td class="text-right font-mono text-tiny text-base-content/60">
+                    {new Date(r.assignedAt).toLocaleString([], {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </td>
+                </tr>
+              );
+            })
+          )}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Inyección de Datos Iniciales en DOM para Chart.js -->
+  <script
+    id="initial-metrics-payload"
+    type="application/json"
+    set:html={JSON.stringify(data)}
+  ></script>
+
+  <!-- Script CDN de Chart.js -->
+  <script
+    is:inline
+    src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"
+  ></script>
+
+  <!-- Lógica Interactiva en Cliente -->
+  <script>
+    import "./lib/autogestiones-metricas-client";
+  </script>
+</PageContainer>

@@ -119,6 +119,86 @@ export const AUTOGESTION_AUTOMATION_RULES: AutogestionRuleDoc[] = [
  * 2. Los tickets restantes se distribuyen en cascada entre los operadores disponibles por turno cíclico
  *    (un ticket por operador disponible por ciclo hasta agotar tickets o disponibilidad).
  */
+export function evaluateAllAutogestionRulesDetailed(
+  tickets: Array<{
+    id: number;
+    pretty_id?: string;
+    category_name?: string;
+    category_last_name?: string;
+    creator_id?: number;
+    creator_username?: string;
+    creator_name?: string;
+  }>,
+  allOperators: AgentDisponibilidad[],
+  disabledRules: Set<string> = new Set()
+): {
+  actionableResults: RuleEvaluationResult[];
+  unassignedReasons: Array<{ ticketId: number; ticketNumber: string; reason: string }>;
+} {
+  const actionableResults: RuleEvaluationResult[] = [];
+  const assignedAgentIdsInCycle = new Set<number>();
+  const unhandledTickets: typeof tickets = [];
+  const reasonsMap = new Map<number, { ticketNumber: string; reason: string }>();
+
+  // Paso 1: Precedencia estricta - Evaluar regla 1 (Solicitudes rechazadas en revisión)
+  const p1Disabled = disabledRules.has(RULE_IDS.rejected);
+  for (const ticket of tickets) {
+    if (!p1Disabled) {
+      const eligibleForP1 = allOperators.filter((op) => !assignedAgentIdsInCycle.has(op.agentId));
+      const rejectedEval = evaluateRejectedRequestRule(ticket, eligibleForP1);
+      if (rejectedEval.canAssign && rejectedEval.targetOperator) {
+        rejectedEval.skipQueueUpdate = true;
+        actionableResults.push(rejectedEval);
+        assignedAgentIdsInCycle.add(rejectedEval.targetOperator.agentId);
+        continue;
+      } else if (rejectedEval.reason) {
+        reasonsMap.set(ticket.id, {
+          ticketNumber: ticket.pretty_id || `#${ticket.id}`,
+          reason: rejectedEval.reason,
+        });
+      }
+    }
+    unhandledTickets.push(ticket);
+  }
+
+  // Paso 2: Evaluar regla 2 (Asignación cíclica general en cascada sobre los tickets restantes)
+  if (!disabledRules.has(RULE_IDS.cyclic)) {
+    for (const ticket of unhandledTickets) {
+      const availableOperatorsForCyclic = allOperators.filter(
+        (op) => !assignedAgentIdsInCycle.has(op.agentId)
+      );
+      if (availableOperatorsForCyclic.length === 0) {
+        reasonsMap.set(ticket.id, {
+          ticketNumber: ticket.pretty_id || `#${ticket.id}`,
+          reason: "No quedan operadores disponibles en cola cíclica en este ciclo.",
+        });
+        continue;
+      }
+
+      const cyclicEval = evaluateGeneralCyclicRule(ticket, availableOperatorsForCyclic, {
+        includeRejected: true,
+      });
+      if (cyclicEval.canAssign && cyclicEval.targetOperator) {
+        actionableResults.push(cyclicEval);
+        assignedAgentIdsInCycle.add(cyclicEval.targetOperator.agentId);
+        reasonsMap.delete(ticket.id);
+      } else if (cyclicEval.reason) {
+        reasonsMap.set(ticket.id, {
+          ticketNumber: ticket.pretty_id || `#${ticket.id}`,
+          reason: cyclicEval.reason,
+        });
+      }
+    }
+  }
+
+  const assignedTicketIds = new Set(actionableResults.map((r) => r.ticketId));
+  const unassignedReasons = Array.from(reasonsMap.entries())
+    .filter(([id]) => !assignedTicketIds.has(id))
+    .map(([ticketId, data]) => ({ ticketId, ...data }));
+
+  return { actionableResults, unassignedReasons };
+}
+
 export function evaluateAllAutogestionRules(
   tickets: Array<{
     id: number;
@@ -132,51 +212,7 @@ export function evaluateAllAutogestionRules(
   allOperators: AgentDisponibilidad[],
   disabledRules: Set<string> = new Set()
 ): RuleEvaluationResult[] {
-  const actionableResults: RuleEvaluationResult[] = [];
-  const assignedAgentIdsInCycle = new Set<number>();
-  const unhandledTickets: typeof tickets = [];
-
-  // Paso 1: Precedencia estricta - Evaluar regla 1 (Solicitudes rechazadas en revisión)
-  // Si está deshabilitada NO se descarta el ticket: cae en unhandledTickets y lo
-  // evalúa P2, que internamente ignora la categoría rechazada (isRejectedCategory).
-  const p1Disabled = disabledRules.has(RULE_IDS.rejected);
-  for (const ticket of tickets) {
-    if (!p1Disabled) {
-      const eligibleForP1 = allOperators.filter((op) => !assignedAgentIdsInCycle.has(op.agentId));
-      const rejectedEval = evaluateRejectedRequestRule(ticket, eligibleForP1);
-      if (rejectedEval.canAssign && rejectedEval.targetOperator) {
-        rejectedEval.skipQueueUpdate = true;
-        actionableResults.push(rejectedEval);
-        assignedAgentIdsInCycle.add(rejectedEval.targetOperator.agentId);
-        continue; // Asignado por P1, no pasa a P2
-      }
-    }
-    unhandledTickets.push(ticket);
-  }
-
-  // Paso 2: Evaluar regla 2 (Asignación cíclica general en cascada sobre los tickets restantes)
-  if (!disabledRules.has(RULE_IDS.cyclic)) {
-    for (const ticket of unhandledTickets) {
-      const availableOperatorsForCyclic = allOperators.filter(
-        (op) => !assignedAgentIdsInCycle.has(op.agentId)
-      );
-      if (availableOperatorsForCyclic.length === 0) {
-        break;
-      }
-
-      // Lo que llega acá ya quedó fuera de la regla de rechazadas (sin creador
-      // disponible, o con esa regla apagada): se asigna cíclicamente y rota la cola.
-      const cyclicEval = evaluateGeneralCyclicRule(ticket, availableOperatorsForCyclic, {
-        includeRejected: true,
-      });
-      if (cyclicEval.canAssign && cyclicEval.targetOperator) {
-        actionableResults.push(cyclicEval);
-        assignedAgentIdsInCycle.add(cyclicEval.targetOperator.agentId);
-      }
-    }
-  }
-
-  return actionableResults;
+  return evaluateAllAutogestionRulesDetailed(tickets, allOperators, disabledRules).actionableResults;
 }
 
 /**
@@ -236,11 +272,18 @@ export async function executeAutoAssignment(
     // 3. Si la regla requiere rotar la cola (skipQueueUpdate === false), actualizar timestamp en agents
     if (skipQueueUpdate === false) {
       try {
+        const [targetAgentRow] = await db
+          .select({ lastAutogestionAssignedAt: agents.lastAutogestionAssignedAt })
+          .from(agents)
+          .where(eq(agents.id, targetOperator.agentId));
+        const prevValue = targetAgentRow?.lastAutogestionAssignedAt ?? null;
+
         await db
           .update(agents)
           .set({
             lastAutogestionAssignedAt: now,
             lastAutogestionAssignedBy: `${authorName} (${ruleName})`,
+            lastAutogestionUndo: prevValue,
           })
           .where(eq(agents.id, targetOperator.agentId));
       } catch (dbErr) {

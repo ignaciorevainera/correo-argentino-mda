@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { reassignTicketToAgent } from "@lib/invgate/agsTickets";
+import { reassignTicketToAgent, addTicketComment, MDA_COMMENT_PREFIX } from "@lib/invgate/agsTickets";
 import { AGS_HELPDESK_ID } from "@lib/invgate/agsHelpdesk";
 import { getDisponibilidadHoy } from "@lib/disponibilidad";
 import { db } from "@db/index";
@@ -85,6 +85,16 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const reassignRes = await reassignTicketToAgent(numericId, 0, AGS_HELPDESK_ID, authorInvgateId);
     if (!reassignRes.ok) {
       return jsonResponse({ success: false, error: `Error al desasignar ticket #${numericId} en InvGate: ${reassignRes.message}` }, 400);
+    }
+
+    // Publicar comentario de reversión en InvGate para que no quede el comentario público
+    // de asignación automática visible sin responsable asignado (Issue #288)
+    try {
+      const undoAuthorName = locals.user?.username || "Supervisión";
+      const undoComment = `${MDA_COMMENT_PREFIX}Asignación revertida por supervisión (${undoAuthorName}). El ticket regresa a la cola sin asignar.`;
+      await addTicketComment(numericId, undoComment, authorInvgateId, 1);
+    } catch (cErr) {
+      console.warn(`Error agregando comentario de reversión al ticket #${numericId}:`, cErr);
     }
 
     // Log history undo event con el operador real: el cooldown de la P1 y la

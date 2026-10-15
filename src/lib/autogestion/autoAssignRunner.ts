@@ -1,8 +1,13 @@
 import { getUnassignedTicketsByHelpdesk } from "@/lib/invgate/agsTickets";
 import { AGS_HELPDESK_ID } from "@/lib/invgate/agsHelpdesk";
 import { getDisponibilidadHoy } from "@lib/disponibilidad";
-import { evaluateAllAutogestionRules, executeAutoAssignment, AUTOGESTION_AUTOMATION_RULES } from "./rulesEngine";
+import {
+  evaluateAllAutogestionRulesDetailed,
+  executeAutoAssignment,
+  AUTOGESTION_AUTOMATION_RULES,
+} from "./rulesEngine";
 import { getAutogestionRuleStates, resolveRuleEnabled } from "./ruleState";
+import { writePersistedCache } from "@/lib/invgate/cache";
 
 export interface AutoAssignCycleResult {
   evaluatedCount: number;
@@ -13,7 +18,13 @@ export interface AutoAssignCycleResult {
     assignedTo: string;
     ruleId: string;
   }>;
+  unassignedDetails?: Array<{
+    ticketId: number;
+    ticketNumber: string;
+    reason: string;
+  }>;
   errors: string[];
+  lastRunAt?: number;
   skippedDueToLock?: boolean;
 }
 
@@ -88,11 +99,12 @@ export async function runAutoAssignCycle(
     const assignableOperators = allOperators.filter((op) => op.asignableAgs !== false);
 
     // 3. Evaluar reglas de automatización
-    const actionable = evaluateAllAutogestionRules(tickets, assignableOperators, disabledRules);
-
-    if (actionable.length === 0) {
-      return result;
-    }
+    const { actionableResults: actionable, unassignedReasons } = evaluateAllAutogestionRulesDetailed(
+      tickets,
+      assignableOperators,
+      disabledRules
+    );
+    result.unassignedDetails = unassignedReasons;
 
     // 4. Ejecutar asignaciones automáticas encontradas
     for (const ruleMatch of actionable) {
@@ -119,11 +131,22 @@ export async function runAutoAssignCycle(
       }
     }
 
+    result.lastRunAt = Date.now();
+    try {
+      writePersistedCache("autogestion_last_cycle_result", result, 24 * 60 * 60 * 1000);
+    } catch (cErr) {
+      console.warn("[AutoAssignRunner] No se pudo persistir el resultado del ciclo en cache:", cErr);
+    }
+
     return result;
   } catch (globalErr: any) {
     const msg = `Error inesperado en ciclo de autoasignación: ${globalErr?.message || globalErr}`;
     console.error(`[AutoAssignRunner] ${msg}`);
     result.errors.push(msg);
+    result.lastRunAt = Date.now();
+    try {
+      writePersistedCache("autogestion_last_cycle_result", result, 24 * 60 * 60 * 1000);
+    } catch {}
     return result;
   } finally {
     isRunning = false;

@@ -8,9 +8,11 @@ vi.mock("@lib/invgateClient", () => ({
 
 vi.mock("@db/index", () => ({
   db: {
-    select: vi.fn().mockReturnThis(),
-    from: vi.fn().mockReturnThis(),
-    where: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockResolvedValue([{ lastAutogestionAssignedAt: null }]),
+      }),
+    }),
     update: vi.fn().mockReturnValue({
       set: vi.fn().mockReturnValue({
         where: vi.fn().mockResolvedValue(undefined),

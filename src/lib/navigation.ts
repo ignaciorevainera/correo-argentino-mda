@@ -41,6 +41,11 @@ export const navSections: NavSection[] = [
             icon: "boxicons:git-branch-filled",
           },
           {
+            href: "/supervision/autogestiones-metricas",
+            label: "Métricas de autogestiones",
+            icon: "boxicons:line-chart-filled",
+          },
+          {
             href: "/supervision/asistencia",
             label: "Control de asistencia",
             icon: "boxicons:clock-filled",
