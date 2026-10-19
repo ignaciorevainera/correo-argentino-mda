@@ -105,7 +105,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
       })
       .from(offices)
       .leftJoin(provinces, eq(provinces.code, offices.provinceCode))
-      .leftJoin(regions, eq(regions.id, offices.regionId))
+      .leftJoin(regions, eq(regions.id, provinces.regionId))
       .leftJoin(officeInvgateLinks, eq(officeInvgateLinks.officeId, offices.id));
 
     const terminalCounts = new Map<string, number>();
@@ -116,7 +116,19 @@ export const GET: APIRoute = async ({ url, locals }) => {
       if (row.nis) terminalCounts.set(row.nis, row.total);
     }
 
-    const provinceByCode = new Map(officeRows.map((r) => [r.code, r.provinceName]));
+    const filteredRows = officeRows.filter((row) => {
+      if (provinciaFilter && row.provinceName !== provinciaFilter) return false;
+      if (regionFilter && row.regionName !== regionFilter) return false;
+      if (tipoFilter && row.type !== tipoFilter) return false;
+      if (search) {
+        const name = row.name.toLowerCase();
+        const code = row.code.toLowerCase();
+        if (!name.includes(search) && !code.includes(search)) return false;
+      }
+      return true;
+    });
+
+    const provinceByCode = new Map(filteredRows.map((r) => [r.code, r.provinceName]));
     const parentRows = (
       await db
         .select({
@@ -142,7 +154,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
     try {
       const byLocation = await getOpenOfficeIncidentsByLocation();
       const locationToCode = new Map<number, string>();
-      for (const row of officeRows) {
+      for (const row of filteredRows) {
         if (row.invgateLocationId != null) {
           locationToCode.set(row.invgateLocationId, row.code);
         }
@@ -156,23 +168,23 @@ export const GET: APIRoute = async ({ url, locals }) => {
       console.error("[API oficinas/estadisticas] InvGate no disponible:", error);
     }
 
-    const activeRows = officeRows.filter((r) => r.active);
+    const activeRows = filteredRows.filter((r) => r.active);
     const usuariosLinked = activeRows.filter((r) => r.usuarios != null);
     const kpis = {
       oficinasActivas: activeRows.length,
-      oficinasTotal: officeRows.length,
+      oficinasTotal: filteredRows.length,
       usuarios:
         usuariosLinked.length > 0
           ? usuariosLinked.reduce((sum, r) => sum + (r.usuarios ?? 0), 0)
           : null,
-      terminales: officeRows.reduce((sum, r) => sum + (terminalCounts.get(r.code) ?? 0), 0),
+      terminales: filteredRows.reduce((sum, r) => sum + (terminalCounts.get(r.code) ?? 0), 0),
       incidentesAbiertos: invgateOk
         ? [...openIncidentsByCode.values()].reduce((sum, n) => sum + n, 0)
         : null,
       eventosMasivosActivos: invgateOk ? massEvents.length : null,
     };
 
-    let ranking: RankingRow[] = officeRows.map((row) => ({
+    const ranking: RankingRow[] = filteredRows.map((row) => ({
       code: row.code,
       name: row.name,
       provincia: row.provinceName ?? null,
@@ -183,20 +195,6 @@ export const GET: APIRoute = async ({ url, locals }) => {
       terminales: terminalCounts.get(row.code) ?? 0,
       activa: row.active ?? false,
     }));
-
-    if (provinciaFilter) ranking = ranking.filter((r) => r.provincia === provinciaFilter);
-    if (regionFilter) ranking = ranking.filter((r) => r.region === regionFilter);
-    if (tipoFilter) {
-      const codes = new Set(
-        officeRows.filter((r) => r.type === tipoFilter).map((r) => r.code),
-      );
-      ranking = ranking.filter((r) => codes.has(r.code));
-    }
-    if (search) {
-      ranking = ranking.filter(
-        (r) => r.name.toLowerCase().includes(search) || r.code.toLowerCase().includes(search),
-      );
-    }
 
     const direction = dir === "asc" ? 1 : -1;
     ranking.sort((a, b) => {
@@ -241,7 +239,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
         provincias: [
           ...new Set(
             event.officeCodes
-              .map((code) => officeRows.find((r) => r.code === code)?.provinceName)
+              .map((code) => filteredRows.find((r) => r.code === code)?.provinceName)
               .filter(Boolean),
           ),
         ],
