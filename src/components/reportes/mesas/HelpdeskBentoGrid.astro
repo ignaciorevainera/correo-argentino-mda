@@ -11,7 +11,39 @@ interface Props {
 const { data } = Astro.props;
 const { overview, items } = data;
 
-const labels = items.map((item) => item.displayName || item.name);
+// 1. Top 10 mesas por volumen mensual total (Ingresos)
+const topByVolume = [...items]
+  .sort((a, b) => b.incomingTicketsMonth - a.incomingTicketsMonth)
+  .slice(0, 10);
+const volumeLabels = topByVolume.map((item) => item.displayName || item.name);
+
+// 2. Distribución del Backlog: Top 5 + Acumulado "Otras Mesas"
+const sortedByBacklog = [...items].sort((a, b) => {
+  const bTotal = b.backlog.active + b.backlog.waiting;
+  const aTotal = a.backlog.active + a.backlog.waiting;
+  return bTotal - aTotal;
+});
+const top5Backlog = sortedByBacklog.slice(0, 5);
+const otherBacklogSum = sortedByBacklog
+  .slice(5)
+  .reduce((acc, curr) => acc + (curr.backlog.active + curr.backlog.waiting), 0);
+
+const backlogLabels = top5Backlog.map((item) => item.displayName || item.name);
+const backlogData = top5Backlog.map(
+  (item) => item.backlog.active + item.backlog.waiting,
+);
+
+if (otherBacklogSum > 0) {
+  backlogLabels.push(`Otras (${items.length - 5} mesas)`);
+  backlogData.push(otherBacklogSum);
+}
+
+// 3. Cumplimiento de SLA: Top 10 mesas por actividad representativa (horizontal para legibilidad)
+const topSlaItems = [...topByVolume];
+const slaLabels = topSlaItems.map((item) => item.displayName || item.name);
+
+// 4. CSAT: Top 10 mesas de mayor representatividad (más volumen y respuestas)
+const csatLabels = topSlaItems.map((item) => item.displayName || item.name);
 ---
 
 <div class="space-y-6" aria-label="Métricas y estadísticas de mesas de ayuda">
@@ -61,17 +93,17 @@ const labels = items.map((item) => item.displayName || item.name);
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <ChartCard
       type="bar"
-      title="Volumen Mensual: Ingresos vs Resoluciones"
-      subtitle="Comparativa de tickets ingresados y resueltos en el período"
-      labels={labels}
+      title="Volumen Mensual: Top 10 Mesas"
+      subtitle="Ingresos vs Resoluciones en las colas con mayor demanda"
+      labels={volumeLabels}
       series={[
         {
           label: "Ingresados",
-          data: items.map((item) => item.incomingTicketsMonth),
+          data: topByVolume.map((item) => item.incomingTicketsMonth),
         },
         {
           label: "Resueltos",
-          data: items.map((item) => item.resolvedTicketsMonth),
+          data: topByVolume.map((item) => item.resolvedTicketsMonth),
         },
       ]}
       class="lg:col-span-2"
@@ -80,25 +112,28 @@ const labels = items.map((item) => item.displayName || item.name);
     <ChartCard
       type="doughnut"
       title="Distribución del Backlog Pendiente"
-      subtitle="Tickets pendientes acumulados (activos + en espera)"
-      labels={labels}
+      subtitle="Top 5 mesas con mayor cola + resto consolidado"
+      labels={backlogLabels}
       series={[
         {
           label: "Tickets Pendientes",
-          data: items.map((item) => item.backlog.active + item.backlog.waiting),
+          data: backlogData,
         },
       ]}
     />
 
     <ChartCard
       type="bar"
+      indexAxis="y"
       title="Cumplimiento de SLA de Resolución (%)"
-      subtitle="Porcentaje de cumplimiento de SLA de resolución por mesa"
-      labels={labels}
+      subtitle="Porcentaje de SLA en las 10 mesas con mayor volumen"
+      labels={slaLabels}
       series={[
         {
           label: "% Cumplimiento SLA",
-          data: items.map((item) => item.serviceTimes.slaResolutionCompliancePercent),
+          data: topSlaItems.map(
+            (item) => item.serviceTimes.slaResolutionCompliancePercent,
+          ),
         },
       ]}
       class="lg:col-span-2"
@@ -106,13 +141,14 @@ const labels = items.map((item) => item.displayName || item.name);
 
     <ChartCard
       type="bar"
+      indexAxis="y"
       title="Índice de Satisfacción (CSAT)"
-      subtitle="Calificación promedio de satisfacción del usuario (escala 1 a 5)"
-      labels={labels}
+      subtitle="Puntaje promedio (1 a 5) en colas principales"
+      labels={csatLabels}
       series={[
         {
           label: "Puntaje CSAT",
-          data: items.map((item) => item.csat.averageRating),
+          data: topSlaItems.map((item) => item.csat.averageRating),
         },
       ]}
     />
