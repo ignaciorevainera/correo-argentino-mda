@@ -1,9 +1,10 @@
 ---
-import { Icon } from "astro-icon/components";
+import TableShell from "@components/ui/TableShell.astro";
 import ActionButton from "@components/ui/ActionButton.astro";
-import DataTable from "@components/ui/DataTable.astro";
-import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
-import type { WorkflowProcessInstance, WorkflowStatus } from "@/types/workflows";
+import type {
+  WorkflowProcessInstance,
+  WorkflowStatus,
+} from "@/types/workflows";
 
 interface Props {
   instances: WorkflowProcessInstance[];
@@ -28,128 +29,108 @@ function getStatusBadgeClass(status: WorkflowStatus): string {
       return "badge-neutral";
   }
 }
-
-const headerGridClass =
-  "grid-cols-[110px_minmax(200px,2fr)_120px_170px_150px_140px_110px_130px] gap-3";
-const rowGridClass = `grid ${headerGridClass} items-center`;
 ---
 
-<DataTable
-  id="table-workflows"
-  ariaLabel="Instancias de workflow"
-  headerGridClass={headerGridClass}
-  rowGridClass={rowGridClass}
-  minWidthClass="min-w-0 md:min-w-max"
-  headerVariant="subtle"
+<TableShell
+  label="Instancias monitoreadas del proceso"
   fullscreen
   stackOnMobile
-  whenEmpty
-  emptyStateTitle="Sin instancias"
-  emptyStateDescription="No hay procesos para los filtros seleccionados."
+  maxHeightClass="max-h-none"
 >
-  <div slot="header">
-    <DataTableHeaderCell sortKey="ticket">Ticket</DataTableHeaderCell>
-  </div>
-  <div slot="header">
-    <DataTableHeaderCell sortKey="titulo">Título</DataTableHeaderCell>
-  </div>
-  <div slot="header">
-    <DataTableHeaderCell sortKey="estado">Estado</DataTableHeaderCell>
-  </div>
-  <div slot="header">
-    <DataTableHeaderCell sortKey="grupo">Grupo Asignado</DataTableHeaderCell>
-  </div>
-  <div slot="header">
-    <DataTableHeaderCell sortKey="creador">Creador</DataTableHeaderCell>
-  </div>
-  <div slot="header">
-    <DataTableHeaderCell align="right" sortKey="progreso">
-      Progreso
-    </DataTableHeaderCell>
-  </div>
-  <div slot="header">
-    <DataTableHeaderCell align="right" sortKey="sla">SLA</DataTableHeaderCell>
-  </div>
-  <div slot="header">
-    <DataTableHeaderCell align="right">Acción</DataTableHeaderCell>
-  </div>
+  <table class="table table-md w-full">
+    <caption class="sr-only">Instancias de workflows monitoreadas</caption>
+    <thead class="bg-base-200 text-base-content border-base-300 border-b">
+      <tr>
+        <th scope="col" class="w-32 font-mono uppercase">Ticket</th>
+        <th scope="col" class="min-w-[220px] font-mono uppercase">Título</th>
+        <th scope="col" class="w-36 font-mono uppercase">Estado</th>
+        <th scope="col" class="min-w-[160px] font-mono uppercase">Grupo Asignado</th>
+        <th scope="col" class="min-w-[150px] font-mono uppercase">Creador</th>
+        <th scope="col" class="w-40 text-right font-mono uppercase">Progreso</th>
+        <th scope="col" class="w-32 text-right font-mono uppercase">SLA</th>
+        <th scope="col" class="w-48 text-right font-mono uppercase">Acción</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        instances.length === 0 ? (
+          <tr>
+            <td colspan="8" class="text-center py-8 text-base-content/60">
+              No hay procesos para mostrar.
+            </td>
+          </tr>
+        ) : (
+          instances.map((instance) => {
+            const statusBadge = getStatusBadgeClass(instance.status);
+            const slaBadge = instance.slaBreached ? "badge-error" : "badge-success";
 
-  {
-    instances.map((instance) => {
-      const statusBadge = getStatusBadgeClass(instance.status);
-      const slaBadge = instance.slaBreached ? "badge-error" : "badge-success";
-
-      return (
-        <div
-          data-table-row
-          class={`${rowGridClass} hover:bg-base-200/50 transition-colors duration-200`}
-          data-workflow-row={JSON.stringify(instance)}
-          data-sort-ticket={instance.prettyId}
-          data-sort-titulo={instance.title}
-          data-sort-estado={instance.statusLabel || instance.status}
-          data-sort-grupo={instance.assignedGroup}
-          data-sort-creador={instance.creatorName}
-          data-sort-progreso={instance.progressPercent}
-          data-sort-sla={instance.slaBreached ? 1 : 0}
-        >
-          <div class="min-w-0" data-label="Ticket">
-            <span class="font-mono font-bold text-primary">
-              {instance.prettyId}
-            </span>
-          </div>
-          <div class="min-w-0" data-label="Título">
-            <div
-              class="font-semibold text-base-content truncate"
-              title={instance.title}
-            >
-              {instance.title}
-            </div>
-          </div>
-          <div class="min-w-0" data-label="Estado">
-            <span class:list={["badge badge-sm font-semibold", statusBadge]}>
-              {instance.statusLabel || instance.status}
-            </span>
-          </div>
-          <div class="min-w-0" data-label="Grupo asignado">
-            <span class="text-xs text-base-content/80">
-              {instance.assignedGroup}
-            </span>
-          </div>
-          <div class="min-w-0" data-label="Creador">
-            <span class="text-xs text-base-content/80">
-              {instance.creatorName}
-            </span>
-          </div>
-          <div class="text-right" data-label="Progreso">
-            <div class="inline-flex items-center gap-2">
-              <progress
-                class="progress progress-primary w-14"
-                value={instance.progressPercent}
-                max="100"
-              />
-              <span class="font-mono text-xs font-semibold">
-                {instance.progressPercent}%
-              </span>
-            </div>
-          </div>
-          <div class="text-right" data-label="SLA">
-            <span class:list={["badge badge-sm font-semibold", slaBadge]}>
-              {instance.slaBreached ? "Incumplido" : "En Término"}
-            </span>
-          </div>
-          <div class="flex justify-end" data-label="Acción">
-            <ActionButton
-              type="button"
-              variant="ghost"
-              size="xs"
-              icon="boxicons:eye"
-              label="Inspeccionar"
-              title={`Inspeccionar proceso ${instance.prettyId}`}
-              class="btn-inspect-workflow"
-            />
-          </div>
-        </div>
-      );
-    })
-  }
-</DataTable>
+            return (
+              <tr
+                class="hover:bg-base-200/50 transition-colors duration-200"
+                data-workflow-row={JSON.stringify(instance)}
+              >
+                <th scope="row" class="font-mono font-bold text-primary" data-label="Ticket">
+                  {instance.prettyId}
+                </th>
+                <td data-label="Título" class="font-medium text-base-content">
+                  <span title={instance.title} class="line-clamp-2">
+                    {instance.title}
+                  </span>
+                </td>
+                <td data-label="Estado">
+                  <span
+                    class:list={[
+                      "badge h-auto min-h-6 py-1 px-2.5 text-center leading-tight whitespace-normal text-xs font-semibold",
+                      statusBadge,
+                    ]}
+                  >
+                    {instance.statusLabel || instance.status}
+                  </span>
+                </td>
+                <td data-label="Grupo asignado" class="text-base-content font-normal">
+                  {instance.assignedGroup}
+                </td>
+                <td data-label="Creador" class="text-base-content font-normal">
+                  {instance.creatorName}
+                </td>
+                <td data-label="Progreso" class="text-right">
+                  <div class="inline-flex items-center gap-2">
+                    <progress
+                      class="progress progress-primary w-16"
+                      value={instance.progressPercent}
+                      max="100"
+                    />
+                    <span class="font-mono text-xs font-semibold">
+                      {instance.progressPercent}%
+                    </span>
+                  </div>
+                </td>
+                <td data-label="SLA" class="text-right">
+                  <span
+                    class:list={[
+                      "badge h-auto min-h-6 py-1 px-2.5 text-center leading-tight whitespace-normal text-xs font-semibold",
+                      slaBadge,
+                    ]}
+                  >
+                    {instance.slaBreached ? "Incumplido" : "En Término"}
+                  </span>
+                </td>
+                <td data-label="Acción" class="text-right">
+                  <ActionButton
+                    type="button"
+                    variant="soft"
+                    size="md"
+                    icon="boxicons:eye"
+                    label="Inspeccionar"
+                    title={`Inspeccionar proceso ${instance.prettyId}`}
+                    class="btn-inspect-workflow"
+                  />
+                </td>
+              </tr>
+            );
+          })
+        )
+      }
+    </tbody>
+  </table>
+</TableShell>
