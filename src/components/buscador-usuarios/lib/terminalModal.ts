@@ -16,6 +16,16 @@ let invgateLoaded = false;
 let currentInvgateUsername = "";
 let onSearchUserCallback: ((query: string) => void) | null = null;
 
+const SERVICE_UNAVAILABLE_MESSAGE =
+  "El servicio no está disponible en este momento. Intente nuevamente en unos minutos.";
+
+function setServiceUnavailable(visible: boolean): void {
+  const el = document.getElementById("terminal-unavailable");
+  if (!el) return;
+  el.classList.toggle("hidden", !visible);
+  el.classList.toggle("flex", visible);
+}
+
 export function cloneCopyIcon(value: string, label: string): HTMLElement | null {
   const copyIconTemplate = document.getElementById(
     "copy-icon-template",
@@ -443,10 +453,9 @@ export async function loadInvgateData(): Promise<void> {
     if (data.inInvGate) {
       renderInvgateData(data);
     }
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Error al conectar con InvGate";
+  } catch {
     if (invgateError) {
-      invgateError.innerHTML = `<span class="text-error text-xs font-sans">${escapeHtml(msg)}</span>`;
+      invgateError.innerHTML = `<span class="text-base-content/60 text-xs font-sans">${escapeHtml(SERVICE_UNAVAILABLE_MESSAGE)}</span>`;
       invgateError.classList.remove("hidden");
       invgateError.classList.add("flex");
     }
@@ -500,6 +509,7 @@ export async function loadTerminalData(username: string): Promise<void> {
     const result = await response.json();
 
     if (result.status === "success") {
+      setServiceUnavailable(false);
       if (result.employee_number) {
         netUserCache.set(username.toLowerCase(), result.employee_number);
       }
@@ -597,25 +607,26 @@ export async function loadTerminalData(username: string): Promise<void> {
         currentSelectedCategory,
       );
     } else {
-      const errorMsg = "Error: " + (result.error || "Ocurrió un problema.");
-      terminalOutput.textContent = errorMsg;
-      copyTerminalBtn?.setAttribute("data-copy-value", errorMsg);
+      const notFound = result.reason === "not_found";
+      const message = notFound
+        ? result.error || "Usuario no encontrado en Active Directory."
+        : SERVICE_UNAVAILABLE_MESSAGE;
+      setServiceUnavailable(!notFound);
+      terminalOutput.textContent = message;
+      copyTerminalBtn?.setAttribute("data-copy-value", message);
       if (terminalGroupsList) {
         terminalGroupsList.classList.remove("hidden");
-        terminalGroupsList.innerHTML = `<div class="text-error text-center py-4 text-xs font-sans col-span-full">${errorMsg}</div>`;
+        terminalGroupsList.innerHTML = `<div class="text-base-content/60 text-center py-4 text-xs font-sans col-span-full">${escapeHtml(message)}</div>`;
       }
       setGroupsEmptyState(false);
     }
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "";
-    const errorMsg =
-      "Error de conexión: No se pudo conectar con el servidor corporativo.\n" +
-      msg;
-    terminalOutput.textContent = errorMsg;
-    copyTerminalBtn?.setAttribute("data-copy-value", errorMsg);
+  } catch {
+    setServiceUnavailable(true);
+    terminalOutput.textContent = SERVICE_UNAVAILABLE_MESSAGE;
+    copyTerminalBtn?.setAttribute("data-copy-value", SERVICE_UNAVAILABLE_MESSAGE);
     if (terminalGroupsList) {
       terminalGroupsList.classList.remove("hidden");
-      terminalGroupsList.innerHTML = `<div class="text-error text-center py-4 text-xs font-sans col-span-full">Error al conectar con la red.</div>`;
+      terminalGroupsList.innerHTML = `<div class="text-base-content/60 text-center py-4 text-xs font-sans col-span-full">${escapeHtml(SERVICE_UNAVAILABLE_MESSAGE)}</div>`;
     }
     setGroupsEmptyState(false);
   } finally {
@@ -719,6 +730,7 @@ export async function openTerminalModal(
   terminalCommandUsername.textContent = username;
   terminalOutput.textContent = "";
   copyTerminalBtn?.setAttribute("data-copy-value", "");
+  setServiceUnavailable(false);
 
   if (termInfoUsername) termInfoUsername.textContent = username;
   if (btnCopyUsername) btnCopyUsername.setAttribute("data-copy-value", username);

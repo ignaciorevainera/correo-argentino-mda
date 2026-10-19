@@ -210,6 +210,7 @@ export const GET: APIRoute = async ({ request, locals }) => {
     if (entries.length === 0) {
       return jsonResponse({
         status: "error",
+        reason: "not_found",
         error: `Usuario "${username}" no encontrado en Active Directory`,
         output: `Usuario "${username}" no encontrado en Active Directory.`,
       });

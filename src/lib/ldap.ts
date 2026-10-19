@@ -71,19 +71,11 @@ export function classifyLdapError(error: unknown): ClassifiedLdapError {
   };
 }
 
-export function getLdapUserErrorMessage(error: unknown): string {
-  const classification = classifyLdapError(error);
+export const SERVICE_UNAVAILABLE_MESSAGE =
+  "El servicio no está disponible en este momento. Intente nuevamente en unos minutos.";
 
-  if (classification.isConfigMissing) {
-    return "Credenciales de Active Directory no configuradas en el servidor.";
-  }
-  if (classification.isNetworkFailure) {
-    return "No se pudo conectar con el servidor de Active Directory (tiempo de espera agotado). Verifique la conectividad de red o VPN.";
-  }
-  if (classification.isAuthFailure) {
-    return "Error de autenticación con el servidor de Active Directory. Las credenciales de servicio fueron rechazadas.";
-  }
-  return "Error al consultar Active Directory.";
+export function getLdapUserErrorMessage(_error: unknown): string {
+  return SERVICE_UNAVAILABLE_MESSAGE;
 }
 
 export async function withLdapClient<T>(

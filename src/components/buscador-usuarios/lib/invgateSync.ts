@@ -1,5 +1,6 @@
 import { showToast } from "@lib/toastClient";
 import { getCleanBase } from "@lib/baseUrl";
+import { escapeHtml } from "@lib/sanitize";
 
 const cleanBase = getCleanBase();
 
@@ -50,17 +51,17 @@ export async function fetchSyncStatus(): Promise<void> {
           })
         : "Sin sincronización exitosa";
 
-      const hasRecentError = data.lastSync.status === "error";
-      const errorMsg = data.lastSync.error || "Fallo en la última ejecución";
+      const isAdmin = window.__userRole === "admin";
+      const errorDetail =
+        isAdmin && data.lastSync.status === "error" ? data.lastSync.error : null;
+      const adminBadge = errorDetail
+        ? `<span class="badge badge-ghost badge-xs font-mono ml-1" title="${escapeHtml(errorDetail)}">aviso</span>`
+        : "";
 
       syncStatus.innerHTML = `
         ${svgIcon("clock", "size-4 text-base-content/30")}
         <span>Última sinc.: ${formatted}</span>
-        ${
-          hasRecentError
-            ? `<span class="badge badge-warning badge-xs font-mono ml-1" title="${errorMsg}">aviso: última corrida falló</span>`
-            : ""
-        }
+        ${adminBadge}
       `;
     } else {
       syncStatus.innerHTML = `

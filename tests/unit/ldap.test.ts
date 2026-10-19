@@ -99,27 +99,33 @@ describe("LDAP Library", () => {
   });
 
   describe("getLdapUserErrorMessage", () => {
-    it("returns actionable network message for timeouts", () => {
+    it("returns a neutral message for timeouts without technical jargon", () => {
       const msg = getLdapUserErrorMessage(new Error("connection timeout"));
-      expect(msg).toContain("tiempo de espera agotado");
-      expect(msg).toContain("red o VPN");
-      expect(msg).not.toBe("Error interno del servidor");
+      expect(msg).toBe(
+        "El servicio no está disponible en este momento. Intente nuevamente en unos minutos.",
+      );
+      expect(msg).not.toContain("tiempo de espera agotado");
+      expect(msg).not.toContain("VPN");
     });
 
-    it("returns authentication error message for invalid credentials", () => {
+    it("returns a neutral message for invalid credentials", () => {
       const msg = getLdapUserErrorMessage(
         Object.assign(new Error("invalid credentials"), { code: 49 }),
       );
-      expect(msg).toContain("credenciales de servicio fueron rechazadas");
-      expect(msg).not.toBe("Error interno del servidor");
+      expect(msg).toBe(
+        "El servicio no está disponible en este momento. Intente nuevamente en unos minutos.",
+      );
+      expect(msg).not.toContain("credenciales de servicio");
     });
 
-    it("returns missing config message when credentials are not configured", () => {
+    it("returns a neutral message when credentials are not configured", () => {
       const msg = getLdapUserErrorMessage(
         new Error("LDAP_USER y LDAP_PASS requeridos"),
       );
-      expect(msg).toContain("Credenciales de Active Directory no configuradas");
-      expect(msg).not.toBe("Error interno del servidor");
+      expect(msg).toBe(
+        "El servicio no está disponible en este momento. Intente nuevamente en unos minutos.",
+      );
+      expect(msg).not.toContain("no configuradas");
     });
   });
 });
