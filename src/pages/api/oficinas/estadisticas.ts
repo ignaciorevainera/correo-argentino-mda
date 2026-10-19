@@ -22,6 +22,7 @@ import {
   toEpochMs,
   type MassEvent,
 } from "@lib/officeStats";
+import { listClosures } from "@lib/workflow/closures";
 
 const ORDER_BY = ["usuarios", "incidentes", "terminales", "eventos", "nombre"] as const;
 type OrderBy = (typeof ORDER_BY)[number];
@@ -129,9 +130,11 @@ export const GET: APIRoute = async ({ url, locals }) => {
     });
 
     const provinceByCode = new Map(filteredRows.map((r) => [r.code, r.provinceName]));
+    const closures = listClosures();
     const parentRows = (
       await db
         .select({
+          automationId: automationParents.automationId,
           branchCode: automationParents.branchCode,
           createdAt: automationParents.createdAt,
           closedAt: automationParents.closedAt,
@@ -141,7 +144,9 @@ export const GET: APIRoute = async ({ url, locals }) => {
       const provinceName = row.branchCode ? provinceByCode.get(row.branchCode) : undefined;
       const createdAt = toEpochMs(row.createdAt);
       if (!provinceName || createdAt === null) return [];
-      return [{ provinceName, createdAt, closedAt: toEpochMs(row.closedAt) }];
+      const closure = closures.get(row.automationId);
+      const effectiveClosedAt = closure?.closedAt ?? row.closedAt ?? null;
+      return [{ provinceName, createdAt, closedAt: toEpochMs(effectiveClosedAt) }];
     });
 
     const nowMs = Date.now();

@@ -12,6 +12,7 @@ import { eq, sql, isNotNull } from "drizzle-orm";
 import { getCategoryCatalogReport } from "@lib/categories/service";
 import { getHelpdesksReport } from "@lib/helpdesks/service";
 import { getWorkflowReport } from "@lib/workflows/service";
+import { getAutomationMetrics } from "@lib/workflow/metrics";
 
 const cleanBase = getCleanBase();
 
@@ -140,19 +141,11 @@ try {
 // 6. Automatizaciones
 let automationMetrics = { totalParents: 0, totalClosed: 0, inProgress: 0 };
 try {
-  const [parentsRes] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(automationParents);
-  const [closedRes] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(automationParents)
-    .where(isNotNull(automationParents.closedAt));
-  const totalP = parentsRes?.count || 0;
-  const closedP = closedRes?.count || 0;
+  const autReport = getAutomationMetrics();
   automationMetrics = {
-    totalParents: totalP,
-    totalClosed: closedP,
-    inProgress: Math.max(0, totalP - closedP),
+    totalParents: autReport.executive.total,
+    totalClosed: autReport.executive.finalized,
+    inProgress: autReport.executive.active,
   };
 } catch {
   // Fallback seguro
