@@ -32,6 +32,17 @@ export function findOrphanKbImages(
     .sort();
 }
 
+function moveToQuarantine(from: string, to: string): void {
+  try {
+    fs.renameSync(from, to);
+    return;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EXDEV") throw error;
+  }
+  fs.copyFileSync(from, to);
+  fs.unlinkSync(from);
+}
+
 export interface PruneKbImagesReport {
   dryRun: boolean;
   scannedHelpdesks: number;
@@ -104,7 +115,7 @@ export function runPruneKbImages(options: {
           const toDir = path.join(quarantineRoot, String(helpdeskId));
           fs.mkdirSync(toDir, { recursive: true });
           const to = path.join(toDir, filename);
-          fs.renameSync(path.join(mesaDir, filename), to);
+          moveToQuarantine(path.join(mesaDir, filename), to);
           quarantined.push({ helpdeskId, filename, to });
         }
       }

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import os from "node:os";
@@ -100,6 +100,35 @@ describe("runPruneKbImages", () => {
       UUID_B,
       UUID_B,
     ]);
+  });
+
+  it("cae a copyFile + unlink cuando renameSync lanza EXDEV", () => {
+    const { dbPath, storageRoot } = makeTempDirs();
+    seed(dbPath, [{ helpdeskId: 7, content: "sin imágenes" }]);
+    writeImage(storageRoot, 7, UUID_B);
+
+    const exdev = new Error(
+      "EXDEV: cross-device link not permitted",
+    ) as NodeJS.ErrnoException;
+    exdev.code = "EXDEV";
+
+    const renameSpy = vi.spyOn(fs, "renameSync").mockImplementationOnce(() => {
+      throw exdev;
+    });
+
+    try {
+      const report = runPruneKbImages({ dbPath, storageRoot, apply: true });
+
+      expect(report.quarantined).toHaveLength(1);
+      const moved = report.quarantined[0];
+      expect(
+        fs.existsSync(path.join(storageRoot, "kb-images", "7", UUID_B)),
+      ).toBe(false);
+      expect(fs.existsSync(moved.to)).toBe(true);
+      expect(fs.readFileSync(moved.to, "utf8")).toBe("x");
+    } finally {
+      renameSpy.mockRestore();
+    }
   });
 
   it("es idempotente: una segunda corrida no encuentra nada", () => {
