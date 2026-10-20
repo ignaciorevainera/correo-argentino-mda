@@ -4,6 +4,7 @@ import { users, agents, mesas } from "@db/schema";
 import { CANONICAL_ROLES, isValidRole, normalizeRole } from "@lib/rbac";
 import { MDA_TI_HELPDESK } from "@lib/helpdeskAccess";
 import { sanitizeError } from "@lib/apiResponse";
+import { listMesasAsignables } from "@lib/mesas";
 
 export interface Serie {
   label: string;
@@ -129,11 +130,7 @@ export async function loadUsuariosEstadisticas(
       };
     };
 
-    const mesasDisponibles = await db
-      .select({ id: mesas.invgateId, name: mesas.name })
-      .from(mesas)
-      .where(eq(mesas.active, true))
-      .orderBy(mesas.name);
+    const mesasDisponibles = await listMesasAsignables();
 
     return {
       ok: true,
