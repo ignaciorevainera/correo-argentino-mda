@@ -28,7 +28,7 @@ let supervisorId = 0;
 let officeId = 0;
 const closedOfficeCode = `C${String(stamp).slice(-4)}`;
 let closedOfficeId = 0;
-const accentOfficeCode = `A${String(stamp).slice(-4)}`;
+const accentOfficeCode = `A${stamp}`;
 let accentOfficeId = 0;
 
 function panelFixture(overrides: Record<string, unknown> = {}) {
@@ -209,7 +209,7 @@ test.beforeAll(async () => {
     .insert(offices)
     .values({
       code: accentOfficeCode,
-      name: "Oficina Córdoba E2E",
+      name: `Oficina Córdoba ${stamp}`,
       type: "sucursal",
       provinceCode: province.code,
       officeType: "Sucursal",
@@ -282,7 +282,7 @@ test.describe("API de estadísticas de oficinas", () => {
   test("la búsqueda de oficinas ignora acentos", async ({ request }) => {
     const headers = { cookie: `session_id=${sign(supervisorSessionId)}` };
     const codes: string[] = [];
-    for (const q of ["cordoba", "Córdoba", "CÓRDOBA"]) {
+    for (const q of [`cordoba ${stamp}`, `Córdoba ${stamp}`, `CÓRDOBA ${stamp}`]) {
       const response = await request.get(
         `/api/oficinas/estadisticas?pageSize=100&q=${encodeURIComponent(q)}`,
         { headers },
