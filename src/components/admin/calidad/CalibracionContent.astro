@@ -1575,9 +1575,9 @@ const safeRubricsJson = JSON.stringify(rubricsCache).replace(/</g, "\\u003c");
     );
 
     let initialBlockWithComment = currentOriginalBlock;
-    if (initialBlockWithComment.includes("<!-- calibrado:")) {
+    if (initialBlockWithComment.includes("<" + "!-- calibrado:")) {
       initialBlockWithComment = initialBlockWithComment.replace(
-        /<!--\s*calibrado:[^->]*-->/,
+        new RegExp("<" + "!--\\s*calibrado:[^->]*-->"),
         calibComment,
       );
     } else {
@@ -1623,7 +1623,7 @@ const safeRubricsJson = JSON.stringify(rubricsCache).replace(/</g, "\\u003c");
     if (blockTextarea) {
       const todayIso = new Date().toISOString().substring(0, 10);
       const updatedComment = formatCalibrationComment(todayIso, label, currentCaseData.ticket);
-      blockTextarea.value = blockTextarea.value.replace(/<!--\s*calibrado:[^->]*-->/, updatedComment);
+      blockTextarea.value = blockTextarea.value.replace(new RegExp("<" + "!--\\s*calibrado:[^->]*-->"), updatedComment);
     }
     refreshValidationAndDiff();
   });
