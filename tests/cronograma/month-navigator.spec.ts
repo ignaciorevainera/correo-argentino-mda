@@ -24,6 +24,11 @@ function monthOffset(offset: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function daysInMonth(ym: string): number {
+  const [year, month] = ym.split("-").map(Number);
+  return new Date(year, month, 0).getDate();
+}
+
 function operatorWithDate(date: string) {
   return {
     id: 1,
@@ -99,23 +104,31 @@ test.describe("navegador de mes único", () => {
     expect(Math.abs(selectBox!.height - nextBox!.height)).toBeLessThanOrEqual(1);
   });
 
-  test("la flecha cambia el mismo mes que muestran el select y date-input", async ({
+  test("la flecha cambia el mismo mes que muestran el select y date-input, preservando el día 31→30→31", async ({
     context,
     page,
   }) => {
-    const current = monthOffset(0);
-    const next = monthOffset(1);
+    let longMonth = monthOffset(0);
+    let shortMonth = monthOffset(1);
+    for (let offset = 1; offset <= 12; offset += 1) {
+      longMonth = monthOffset(offset - 1);
+      shortMonth = monthOffset(offset);
+      if (daysInMonth(longMonth) === 31 && daysInMonth(shortMonth) === 30) {
+        break;
+      }
+    }
+
     await setSessionCookie(context, user.signedSessionId);
     await stubCronogramaGet(page, () => ({
-      operators: [operatorWithDate(`${current}-10`)],
+      operators: [operatorWithDate(`${longMonth}-31`)],
       weekendOvertimeConfigs: [],
-      availableMonths: [current, next],
-      activeMonth: current,
+      availableMonths: [longMonth, shortMonth],
+      activeMonth: longMonth,
     }));
     await gotoAndWait(page);
 
-    await expect(page.locator("#month-selector")).toHaveValue(`${current}-01`);
-    await expect(page.locator("#date-input")).toHaveValue(`${current}-10`);
+    await expect(page.locator("#month-selector")).toHaveValue(`${longMonth}-01`);
+    await expect(page.locator("#date-input")).toHaveValue(`${longMonth}-31`);
 
     await page.click("#month-selector-next");
 
@@ -124,12 +137,25 @@ test.describe("navegador de mes único", () => {
         (
           document.getElementById("date-input") as HTMLInputElement
         )?.value.startsWith(ym),
-      next,
+      shortMonth,
       { timeout: 20000 },
     );
 
-    await expect(page.locator("#month-selector")).toHaveValue(`${next}-01`);
-    expect(await page.locator("#date-input").inputValue()).toContain(next);
+    await expect(page.locator("#month-selector")).toHaveValue(`${shortMonth}-01`);
+    await expect(page.locator("#date-input")).toHaveValue(`${shortMonth}-30`);
+
+    await page.click("#month-selector-prev");
+
+    await page.waitForFunction(
+      (ym) =>
+        (document.getElementById("date-input") as HTMLInputElement)?.value ===
+        `${ym}-31`,
+      longMonth,
+      { timeout: 20000 },
+    );
+
+    await expect(page.locator("#month-selector")).toHaveValue(`${longMonth}-01`);
+    await expect(page.locator("#date-input")).toHaveValue(`${longMonth}-31`);
   });
 
   test("con el mes seleccionado fuera de la lista, las flechas siguen respondiendo", async ({
