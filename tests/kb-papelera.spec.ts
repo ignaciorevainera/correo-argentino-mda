@@ -2,7 +2,7 @@ import "dotenv/config";
 import { expect, test } from "@playwright/test";
 import { and, eq } from "drizzle-orm";
 import { db } from "../src/db/index";
-import { deletedRecords, kbArticles } from "../src/db/schema";
+import { deletedRecords, kbArticles, kbCategories } from "../src/db/schema";
 import { setSessionCookie } from "./helpers/auth";
 import {
   ensureCategoryFixture,
@@ -98,4 +98,122 @@ test("eliminar mueve el artículo a la papelera con la fila completa", async ({
 
   await page.goto("/admin/papelera");
   await expect(page.getByText(article.title).first()).toBeVisible();
+});
+
+test("restaurar devuelve el artículo con la misma mesa, categoría y estado", async ({
+  context,
+  page,
+}) => {
+  const admin = await fixture.createUser("admin", mesa);
+  const category = `Restaurar ${uniqueToken()}`;
+  await ensureCategoryFixture(mesa.invgateId, category);
+  const article = await fixture.createArticle({
+    mesa,
+    authorUserId: admin.userId,
+    title: `Artículo restaurar ${uniqueToken()}`,
+    content: "Contenido que debe volver intacto.",
+    category,
+    status: "published",
+    publishedByUserId: admin.userId,
+  });
+  articleId = article.id;
+  const before = await articleState(article.id);
+  if (!before) throw new Error("El artículo fixture no se creó");
+
+  await setSessionCookie(context, admin.signedSessionId);
+  await readCsrfToken(page, `/base-conocimiento/${article.id}`);
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "Eliminar artículo" }).click();
+  await page.waitForURL(/\/base-conocimiento\?toast_msg=/);
+
+  const [snapshot] = await db
+    .select()
+    .from(deletedRecords)
+    .where(
+      and(
+        eq(deletedRecords.entity, "articulo"),
+        eq(deletedRecords.recordId, String(article.id)),
+      ),
+    );
+  expect(snapshot).toBeDefined();
+
+  await page.goto("/admin/papelera");
+  const row = page.locator("[data-table-row]").filter({ hasText: article.title });
+  page.once("dialog", (dialog) => dialog.accept());
+  await row.getByRole("button", { name: /Restaurar/ }).click();
+  await page.waitForURL(/toast_type=success/);
+
+  const restored = await articleState(article.id);
+  if (!restored) throw new Error("El artículo no se restauró");
+  expect(restored.title).toBe(before.title);
+  expect(restored.content).toBe(before.content);
+  expect(restored.helpdeskId).toBe(mesa.invgateId);
+  expect(restored.category).toBe(category);
+  expect(restored.status).toBe("published");
+  expect(restored.authorUserId).toBe(admin.userId);
+  expect(restored.createdAt).toBeInstanceOf(Date);
+
+  const [afterSnapshot] = await db
+    .select({ restoredAt: deletedRecords.restoredAt })
+    .from(deletedRecords)
+    .where(eq(deletedRecords.id, snapshot.id));
+  expect(afterSnapshot.restoredAt).not.toBeNull();
+});
+
+test("restaurar conserva la categoría aunque ya no exista en el catálogo", async ({
+  context,
+  page,
+}) => {
+  const admin = await fixture.createUser("admin", mesa);
+  const category = `Borrada ${uniqueToken()}`;
+  await ensureCategoryFixture(mesa.invgateId, category);
+  const article = await fixture.createArticle({
+    mesa,
+    authorUserId: admin.userId,
+    title: `Artículo categoría borrada ${uniqueToken()}`,
+    category,
+    status: "draft",
+  });
+  articleId = article.id;
+
+  await setSessionCookie(context, admin.signedSessionId);
+  const csrfToken = await readCsrfToken(page, `/base-conocimiento/${article.id}`);
+
+  const deleted = await context.request.post(
+    `/base-conocimiento/${article.id}/eliminar`,
+    { form: { csrf_token: csrfToken }, maxRedirects: 0 },
+  );
+  expect(deleted.status()).toBe(302);
+
+  const [snapshot] = await db
+    .select()
+    .from(deletedRecords)
+    .where(
+      and(
+        eq(deletedRecords.entity, "articulo"),
+        eq(deletedRecords.recordId, String(article.id)),
+      ),
+    );
+  expect(snapshot).toBeDefined();
+
+  db.delete(kbCategories)
+    .where(
+      and(
+        eq(kbCategories.helpdeskId, mesa.invgateId),
+        eq(kbCategories.name, category),
+      ),
+    )
+    .run();
+
+  const restoredResponse = await context.request.post(
+    `/admin/papelera/${snapshot.id}/restaurar`,
+    { maxRedirects: 0 },
+  );
+  expect(restoredResponse.status()).toBe(302);
+
+  const restored = await articleState(article.id);
+  if (!restored) throw new Error("El artículo no se restauró");
+  expect(restored.helpdeskId).toBe(mesa.invgateId);
+  expect(restored.category).toBe(category);
 });

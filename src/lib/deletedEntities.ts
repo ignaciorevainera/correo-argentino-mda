@@ -52,6 +52,11 @@ export const DELETED_ENTITY_META: Record<string, DeletedEntityMeta> = {
     icon: "boxicons:folder",
     tone: "text-warning",
   },
+  articulo: {
+    label: "Artículo",
+    icon: "boxicons:article-filled",
+    tone: "text-secondary",
+  },
 };
 
 const FALLBACK_META: DeletedEntityMeta = {
