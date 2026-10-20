@@ -565,6 +565,8 @@ export function buildMonthlyCellHtml(
               type="button"
               class="${francoBtnClass}"
               data-monthly-detail
+              aria-haspopup="menu"
+              aria-controls="quick-edit-menu"
               data-operator="${safeName}"
               data-date="${safeDate}"
               data-status="Franco"
@@ -651,6 +653,8 @@ export function buildMonthlyCellHtml(
               class="${statusBtnClass}"
               ${tooltipAttrs ? "" : `title="${statusTitle}"`}
               data-monthly-detail
+              aria-haspopup="menu"
+              aria-controls="quick-edit-menu"
               data-operator="${safeName}"
               data-date="${safeDate}"
               data-status="${safeStatus}"
@@ -1755,30 +1759,38 @@ function setupEventListeners(): void {
   const saveIndicator = document.getElementById("save-indicator");
   let activeCell: HTMLElement | null = null;
 
-  monthlyBody?.addEventListener("contextmenu", (e) => {
+  const getQuickEditItems = (): HTMLButtonElement[] => {
+    const optionsContainer = document.getElementById("quick-edit-options");
+    if (!optionsContainer) return [];
+    return Array.from(
+      optionsContainer.querySelectorAll<HTMLButtonElement>(
+        "button[data-status]:not(.hidden)",
+      ),
+    );
+  };
+
+  const closeQuickEditMenu = (restoreFocus = false): void => {
+    quickEditMenu?.classList.add("hidden");
+    if (restoreFocus && activeCell?.isConnected) activeCell.focus();
+  };
+
+  const openQuickEditMenu = (trigger: HTMLElement): boolean => {
+    if (!quickEditMenu) return false;
+
     const container = document.getElementById("cronograma-app-container");
     const userRole = container?.dataset.userRole || "agent";
     const isReadOnly = ["agent", "referent"].includes(userRole);
-    if (isReadOnly) return;
-
-    const trigger = (e.target as HTMLElement).closest<HTMLElement>(
-      "[data-monthly-detail]",
-    );
-    if (!trigger || !quickEditMenu) return;
+    if (isReadOnly) return false;
 
     const dateVal = trigger.dataset.date;
-    if (dateVal && isWeekend(dateVal)) {
-      if (!state.isEditMode) {
-        e.preventDefault();
-        showToast(
-          "Los fines de semana se deben administrar desde las secciones de Grupos o Extras (active el Modo Editar para marcar Licencia/Vacación/Franco)",
-          "warning",
-        );
-        return;
-      }
+    if (dateVal && isWeekend(dateVal) && !state.isEditMode) {
+      showToast(
+        "Los fines de semana se deben administrar desde las secciones de Grupos o Extras (active el Modo Editar para marcar Licencia/Vacación/Franco)",
+        "warning",
+      );
+      return true;
     }
 
-    e.preventDefault();
     activeCell = trigger;
 
     const targetName = document.getElementById("quick-edit-target-name");
@@ -1874,6 +1886,65 @@ function setupEventListeners(): void {
 
     quickEditMenu.style.left = `${left}px`;
     quickEditMenu.style.top = `${top}px`;
+
+    getQuickEditItems()[0]?.focus();
+    return true;
+  };
+
+  monthlyBody?.addEventListener("contextmenu", (e) => {
+    const trigger = (e.target as HTMLElement).closest<HTMLElement>(
+      "[data-monthly-detail]",
+    );
+    if (!trigger || !openQuickEditMenu(trigger)) return;
+    e.preventDefault();
+  });
+
+  monthlyBody?.addEventListener("keydown", (e) => {
+    const isContextMenuKey =
+      e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey);
+    if (!isContextMenuKey || !quickEditMenu) return;
+
+    const trigger = (e.target as HTMLElement).closest<HTMLElement>(
+      "[data-monthly-detail]",
+    );
+    if (!trigger) return;
+    if (openQuickEditMenu(trigger)) e.preventDefault();
+  });
+
+  quickEditMenu?.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeQuickEditMenu(true);
+      return;
+    }
+
+    const items = getQuickEditItems();
+    if (items.length === 0) return;
+
+    const currentIndex = items.indexOf(
+      document.activeElement as HTMLButtonElement,
+    );
+    let nextIndex: number;
+
+    switch (e.key) {
+      case "ArrowDown":
+        nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % items.length;
+        break;
+      case "ArrowUp":
+        nextIndex = currentIndex <= 0 ? items.length - 1 : currentIndex - 1;
+        break;
+      case "Home":
+        nextIndex = 0;
+        break;
+      case "End":
+        nextIndex = items.length - 1;
+        break;
+      default:
+        return;
+    }
+
+    e.preventDefault();
+    items[nextIndex]?.focus();
   });
 
   document
@@ -1890,13 +1961,13 @@ function setupEventListeners(): void {
         if (!state.isEditMode) {
           saveIndicator?.classList.remove("hidden");
         }
-        quickEditMenu.classList.add("hidden");
+        closeQuickEditMenu(true);
       }
     });
 
   document.addEventListener("click", (e) => {
     if (quickEditMenu && !quickEditMenu.contains(e.target as Node)) {
-      quickEditMenu.classList.add("hidden");
+      closeQuickEditMenu();
     }
   });
 
