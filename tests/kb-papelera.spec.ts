@@ -217,3 +217,58 @@ test("restaurar conserva la categoría aunque ya no exista en el catálogo", asy
   expect(restored.helpdeskId).toBe(mesa.invgateId);
   expect(restored.category).toBe(category);
 });
+
+test("un agente no puede eliminar artículos", async ({ context }) => {
+  const admin = await fixture.createUser("admin", mesa);
+  const agent = await fixture.createUser("agent", mesa);
+  const article = await fixture.createArticle({
+    mesa,
+    authorUserId: admin.userId,
+    title: `Artículo protegido ${uniqueToken()}`,
+    status: "published",
+  });
+  articleId = article.id;
+
+  await setSessionCookie(context, agent.signedSessionId);
+  const response = await context.request.post(
+    `/base-conocimiento/${article.id}/eliminar`,
+    { maxRedirects: 0 },
+  );
+
+  expect(response.status()).toBe(302);
+  const location = new URL(
+    response.headers().location,
+    test.info().project.use.baseURL ?? "http://localhost:4321",
+  );
+  expect(location.pathname).toBe("/");
+  expect(location.searchParams.get("toast_msg")).toBe("Acceso no autorizado");
+  expect(await articleState(article.id)).toBeDefined();
+});
+
+test("sin token CSRF no elimina el artículo", async ({ context }) => {
+  const admin = await fixture.createUser("admin", mesa);
+  const article = await fixture.createArticle({
+    mesa,
+    authorUserId: admin.userId,
+    title: `Artículo sin CSRF ${uniqueToken()}`,
+    status: "draft",
+  });
+  articleId = article.id;
+
+  await setSessionCookie(context, admin.signedSessionId);
+  const response = await context.request.post(
+    `/base-conocimiento/${article.id}/eliminar`,
+    { maxRedirects: 0 },
+  );
+
+  expect(response.status()).toBe(302);
+  const location = new URL(
+    response.headers().location,
+    test.info().project.use.baseURL ?? "http://localhost:4321",
+  );
+  expect(location.pathname).toBe(`/base-conocimiento/${article.id}`);
+  expect(location.searchParams.get("toast_msg")).toBe(
+    "Token CSRF inválido o ausente",
+  );
+  expect(await articleState(article.id)).toBeDefined();
+});
