@@ -6,6 +6,7 @@ import { deletedRecords, kbArticles, kbCategories } from "../src/db/schema";
 import { setSessionCookie } from "./helpers/auth";
 import {
   ensureCategoryFixture,
+  expectKbDenied,
   KbTestFixture,
   readCsrfToken,
   uniqueToken,
@@ -235,13 +236,7 @@ test("un agente no puede eliminar artículos", async ({ context }) => {
     { maxRedirects: 0 },
   );
 
-  expect(response.status()).toBe(302);
-  const location = new URL(
-    response.headers().location,
-    test.info().project.use.baseURL ?? "http://localhost:4321",
-  );
-  expect(location.pathname).toBe("/");
-  expect(location.searchParams.get("toast_msg")).toBe("Acceso no autorizado");
+  expectKbDenied(response);
   expect(await articleState(article.id)).toBeDefined();
 });
 
@@ -270,5 +265,6 @@ test("sin token CSRF no elimina el artículo", async ({ context }) => {
   expect(location.searchParams.get("toast_msg")).toBe(
     "Token CSRF inválido o ausente",
   );
+  expect(location.searchParams.get("toast_type")).toBe("error");
   expect(await articleState(article.id)).toBeDefined();
 });
