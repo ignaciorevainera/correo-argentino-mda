@@ -13,19 +13,7 @@ import { extractUsersArray } from "./normalizeUsers";
 export async function syncInvgateLocations(): Promise<void> {
   console.log("[SyncInvGate] Iniciando sincronización de ubicaciones...");
 
-  // 1. Limpieza previa: setear sucursal a NULL y vaciar junction table
-  console.log("[SyncInvGate] Limpiando sucursales previas...");
-  await db.update(employees).set({ sucursal: null });
-  await db.delete(employeeOffices);
-
-  // 2. Cargar todas las oficinas (NIS y Nombre)
-  console.log("[SyncInvGate] Cargando diccionario de oficinas...");
-  const allOfficesRows = await db
-    .select({ code: offices.code, name: offices.name })
-    .from(offices);
-  const officesSet = new Set(allOfficesRows.map((o) => o.code));
-
-  // 3. Obtener locations de InvGate
+  // 1. Obtener locations de InvGate ANTES de tocar la base
   const locationsResult = await invgateGet<any[]>("locations");
   if (!locationsResult.ok || !("data" in locationsResult)) {
     const errorMsg =
@@ -54,6 +42,25 @@ export async function syncInvgateLocations(): Promise<void> {
   console.log(
     `[SyncInvGate] Se encontraron ${populated.length} ubicaciones con usuarios.`,
   );
+
+  if (populated.length === 0) {
+    console.warn(
+      "[SyncInvGate] InvGate devolvió 0 ubicaciones con usuarios; no se modifican los datos.",
+    );
+    return;
+  }
+
+  // 2. Limpieza previa: setear sucursal a NULL y vaciar junction table
+  console.log("[SyncInvGate] Limpiando sucursales previas...");
+  await db.update(employees).set({ sucursal: null });
+  await db.delete(employeeOffices);
+
+  // 3. Cargar todas las oficinas (NIS y Nombre)
+  console.log("[SyncInvGate] Cargando diccionario de oficinas...");
+  const allOfficesRows = await db
+    .select({ code: offices.code, name: offices.name })
+    .from(offices);
+  const officesSet = new Set(allOfficesRows.map((o) => o.code));
 
   // 4. Procesar en paralelo en chunks de a 20
   let locationsProcessed = 0;
