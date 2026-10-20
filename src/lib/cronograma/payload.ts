@@ -75,7 +75,18 @@ export async function listAvailableMonths(): Promise<string[]> {
   const dbSchedulesList = await db
     .select({ month: sql<string>`distinct substr(${schedules.date}, 1, 7)` })
     .from(schedules);
-  return dbSchedulesList.map((s) => s.month).filter(Boolean).sort();
+  const dbRotationList = await db
+    .select({ month: saturdayRotationConfig.month })
+    .from(saturdayRotationConfig);
+
+  const months = new Set<string>();
+  for (const row of dbSchedulesList) {
+    if (row.month) months.add(row.month);
+  }
+  for (const row of dbRotationList) {
+    if (row.month) months.add(row.month);
+  }
+  return [...months].sort();
 }
 
 /** Resuelve el mes activo (misma regla que hoy: `?month=` → mes local actual → más cercano hacia atrás). */

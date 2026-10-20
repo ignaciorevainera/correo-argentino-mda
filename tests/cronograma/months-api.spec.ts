@@ -4,6 +4,9 @@
 // regla que POST (enteros, month 0-11) antes de armar el monthPrefix.
 import "dotenv/config";
 import { test, expect } from "@playwright/test";
+import { eq } from "drizzle-orm";
+import { db } from "../../src/db/index";
+import { saturdayRotationConfig } from "../../src/db/schema";
 import {
   createTestUserAndSession,
   cleanupTestUser,
@@ -36,6 +39,34 @@ test.describe("#272 — validación de year/month en months API", () => {
     ]) {
       const res = await context.request.delete(url, { data });
       expect(res.status(), JSON.stringify(data)).toBe(400);
+    }
+  });
+});
+
+test.describe("#273 — availableMonths incluye rotación sin schedules", () => {
+  test("GET devuelve un mes de saturdayRotationConfig sin schedules", async ({
+    context,
+  }) => {
+    const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
+    const prefix = "2099-02";
+    await setSessionCookie(context, user.signedSessionId);
+
+    await db
+      .insert(saturdayRotationConfig)
+      .values({ month: prefix })
+      .onConflictDoNothing();
+
+    try {
+      const res = await context.request.get(
+        new URL(`/api/cronograma?month=${prefix}`, baseURL).href,
+      );
+      expect(res.status()).toBe(200);
+      const body = await res.json();
+      expect(body.availableMonths).toContain(prefix);
+    } finally {
+      await db
+        .delete(saturdayRotationConfig)
+        .where(eq(saturdayRotationConfig.month, prefix));
     }
   });
 });
