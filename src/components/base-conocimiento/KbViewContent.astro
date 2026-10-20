@@ -11,9 +11,10 @@ interface Props {
   canWrite: boolean;
   isAdmin: boolean;
   loadError?: boolean;
+  csrfToken: string;
 }
 
-const { article, canWrite, isAdmin, loadError = false } = Astro.props;
+const { article, canWrite, isAdmin, loadError = false, csrfToken } = Astro.props;
 const backHref = resolveUrl("/base-conocimiento");
 const editHref = article
   ? resolveUrl(`/base-conocimiento/edit/${article.id}`)
@@ -88,14 +89,31 @@ const articleHtml = article
             )}
           </div>
         </div>
-        {canWrite && (
-          <ActionButton
-            href={editHref}
-            size="md"
-            icon="boxicons:pencil-filled"
-            label="Editar artículo"
-            class="shrink-0"
-          />
+        {canWrite && article && (
+          <div class="flex shrink-0 flex-wrap items-center gap-2">
+            <ActionButton
+              href={editHref}
+              size="md"
+              icon="boxicons:pencil-filled"
+              label="Editar artículo"
+            />
+            <form
+              method="POST"
+              action={`${getCleanBase()}base-conocimiento/${article.id}/eliminar`}
+              onsubmit="return confirm('¿Mover este artículo a la papelera?')"
+            >
+              <input type="hidden" name="csrf_token" value={csrfToken} />
+              <ActionButton
+                type="submit"
+                variant="soft"
+                color="btn-error"
+                size="md"
+                icon="boxicons:trash-filled"
+                label="Eliminar"
+                ariaLabel="Eliminar artículo"
+              />
+            </form>
+          </div>
         )}
       </div>
 

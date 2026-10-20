@@ -3,6 +3,7 @@ import BaseLayout from "@layouts/BaseLayout.astro";
 import PageContainer from "@components/ui/PageContainer.astro";
 import KbViewContent from "@components/base-conocimiento/KbViewContent.astro";
 import { getArticle, type KbArticle, type KbScope } from "@lib/kb";
+import { getCsrfTokenForSession } from "@lib/csrf";
 import { getModulePermissions } from "@lib/rbac";
 import { can } from "@lib/roleConfig";
 import { resolveUrl } from "@lib/url";
@@ -24,6 +25,7 @@ const scope: KbScope = {
   helpdeskId: user.helpdeskId,
   includeAll: isAdmin,
 };
+const csrfToken = getCsrfTokenForSession(Astro.locals.sessionId);
 
 let article: KbArticle | null = null;
 let loadError = false;
@@ -47,6 +49,7 @@ if (!loadError && (!article || (article.status !== "published" && !canWrite))) {
       canWrite={canWrite}
       isAdmin={isAdmin}
       loadError={loadError}
+      csrfToken={csrfToken}
       server:defer
     >
       <div slot="fallback" class="space-y-4">
