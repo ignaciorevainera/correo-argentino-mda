@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { test, expect } from "@playwright/test";
 import { db } from "../../src/db/index";
-import { users } from "../../src/db/schema";
+import { sessions, users } from "../../src/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 
@@ -27,6 +27,9 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
+  // El login exitoso crea una session que referencia al usuario: sin borrarla
+  // primero, el DELETE de users falla por FK.
+  await db.delete(sessions).where(eq(sessions.userId, testUserId));
   await db.delete(users).where(eq(users.id, testUserId));
 });
 
@@ -34,7 +37,7 @@ test.describe("S3.2 Login message enumeration", () => {
   test("wrong password returns generic message", async ({ request }) => {
     const response = await request.post("/login", {
       form: { username: knownUsername, password: "WrongPassword!" },
-      redirect: "manual",
+      maxRedirects: 0,
     });
     expect(response.status()).toBe(302);
     const location = response.headers()["location"] || "";
@@ -48,7 +51,7 @@ test.describe("S3.2 Login message enumeration", () => {
   }) => {
     const response = await request.post("/login", {
       form: { username: `nonexistent_${Date.now()}`, password: "AnyPass123!" },
-      redirect: "manual",
+      maxRedirects: 0,
     });
     expect(response.status()).toBe(302);
     const location = response.headers()["location"] || "";
@@ -58,7 +61,7 @@ test.describe("S3.2 Login message enumeration", () => {
   test("correct password returns success redirect", async ({ request }) => {
     const response = await request.post("/login", {
       form: { username: knownUsername, password: knownPassword },
-      redirect: "manual",
+      maxRedirects: 0,
     });
     expect(response.status()).toBe(302);
     const location = response.headers()["location"] || "";

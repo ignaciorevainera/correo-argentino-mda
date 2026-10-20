@@ -910,8 +910,15 @@ function updatePendingEditsUI(): void {
   ) as HTMLButtonElement | null;
 
   if (countEl) countEl.innerText = `${count} cambios`;
-  if (saveBtn) saveBtn.disabled = count === 0;
-  if (discardBtn) discardBtn.disabled = count === 0;
+  // ActionButton renderiza los botones deshabilitados con la clase .btn-disabled,
+  // que aplica pointer-events:none. Si sólo se toca el atributo `disabled`, el
+  // botón queda habilitado pero sigue sin recibir clicks: hay que sincronizar la
+  // clase también.
+  for (const btn of [saveBtn, discardBtn]) {
+    if (!btn) continue;
+    btn.disabled = count === 0;
+    btn.classList.toggle("btn-disabled", count === 0);
+  }
 
   const saveIndicator = document.getElementById("save-indicator");
   if (saveIndicator) {
