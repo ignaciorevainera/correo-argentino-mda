@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { expect, test } from "@playwright/test";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../src/db/index";
 import { deletedRecords, kbArticles } from "../src/db/schema";
 import { setSessionCookie } from "./helpers/auth";
@@ -14,18 +14,23 @@ import {
 
 let fixture: KbTestFixture;
 let mesa: KbTestMesa;
-let snapshotIds: number[];
+let articleId: number | undefined;
 
 test.beforeEach(async () => {
   fixture = new KbTestFixture();
   mesa = await fixture.createMesa();
-  snapshotIds = [];
+  articleId = undefined;
 });
 
 test.afterEach(async () => {
-  if (snapshotIds.length > 0) {
+  if (articleId !== undefined) {
     db.delete(deletedRecords)
-      .where(inArray(deletedRecords.id, snapshotIds))
+      .where(
+        and(
+          eq(deletedRecords.entity, "articulo"),
+          eq(deletedRecords.recordId, String(articleId)),
+        ),
+      )
       .run();
   }
   await fixture.cleanup();
@@ -51,12 +56,10 @@ test("eliminar mueve el artículo a la papelera con la fila completa", async ({
     category,
     status: "draft",
   });
+  articleId = article.id;
 
   await setSessionCookie(context, admin.signedSessionId);
-  const csrfToken = await readCsrfToken(
-    page,
-    `/base-conocimiento/${article.id}`,
-  );
+  await readCsrfToken(page, `/base-conocimiento/${article.id}`);
 
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Eliminar artículo" }).click();
@@ -78,16 +81,20 @@ test("eliminar mueve el artículo a la papelera con la fila completa", async ({
       ),
     );
   expect(snapshot).toBeDefined();
-  snapshotIds.push(snapshot.id);
   const payload = snapshot.payload as {
-    row: { helpdeskId: number; category: string; title: string; status: string };
+    row: {
+      helpdeskId: number;
+      category: string;
+      title: string;
+      content: string;
+      status: string;
+    };
   };
   expect(payload.row.helpdeskId).toBe(mesa.invgateId);
   expect(payload.row.category).toBe(category);
   expect(payload.row.title).toBe(article.title);
+  expect(payload.row.content).toBe(article.content);
   expect(payload.row.status).toBe("draft");
-
-  expect(csrfToken).not.toBe("");
 
   await page.goto("/admin/papelera");
   await expect(page.getByText(article.title).first()).toBeVisible();

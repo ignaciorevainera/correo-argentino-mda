@@ -32,15 +32,6 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
     helpdeskId: user.helpdeskId,
     includeAll: can(user.role, "admin"),
   };
-  const article = getArticle(id, scope);
-  if (!article) {
-    return redirectWithToast(
-      "/base-conocimiento",
-      "El artículo no existe.",
-      "error",
-    );
-  }
-
   if (!(await validateRequestCsrf(request, locals))) {
     return redirectWithToast(
       `/base-conocimiento/${id}`,
@@ -49,29 +40,47 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
     );
   }
 
-  const deleted = deleteWithSnapshot({
-    entity: "articulo",
-    recordId: id,
-    username: user.username || "Sistema",
-    label: () =>
-      `Artículo "${article.title}" · ${
-        article.mesaName ?? `mesa ${article.helpdeskId}`
-      }${article.category ? ` · ${article.category}` : ""}`,
-    fatherTable: kbArticles,
-    fatherPkColumn: kbArticles.id,
-  });
+  try {
+    const article = getArticle(id, scope);
+    if (!article) {
+      return redirectWithToast(
+        "/base-conocimiento",
+        "El artículo no existe.",
+        "error",
+      );
+    }
 
-  if (!deleted) {
+    const deleted = deleteWithSnapshot({
+      entity: "articulo",
+      recordId: id,
+      username: user.username || "Sistema",
+      label: () =>
+        `Artículo "${article.title}" · ${
+          article.mesaName ?? `mesa ${article.helpdeskId}`
+        }${article.category ? ` · ${article.category}` : ""}`,
+      fatherTable: kbArticles,
+      fatherPkColumn: kbArticles.id,
+    });
+
+    if (!deleted) {
+      return redirectWithToast(
+        "/base-conocimiento",
+        "El artículo no existe.",
+        "error",
+      );
+    }
+
+    await logAdminFromAstro(locals, `Eliminó el artículo "${article.title}"`);
     return redirectWithToast(
       "/base-conocimiento",
-      "El artículo no existe.",
+      "Artículo movido a la papelera.",
+    );
+  } catch (error) {
+    console.error("[KbDelete] Error moviendo el artículo a la papelera:", error);
+    return redirectWithToast(
+      "/base-conocimiento",
+      "No se pudo mover el artículo a la papelera.",
       "error",
     );
   }
-
-  await logAdminFromAstro(locals, `Eliminó el artículo "${article.title}"`);
-  return redirectWithToast(
-    "/base-conocimiento",
-    "Artículo movido a la papelera.",
-  );
 };
