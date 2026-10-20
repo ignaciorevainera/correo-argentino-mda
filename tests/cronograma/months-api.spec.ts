@@ -78,6 +78,44 @@ test.describe("#273 — availableMonths incluye rotación sin schedules", () => 
   });
 });
 
+test.describe("#274 — POST months cierra el TOCTOU del guard 409", () => {
+  test("dos POST concurrentes al mismo mes nuevo: una 200 y una 409", async ({
+    context,
+  }) => {
+    const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
+    const prefix = "2097-07";
+    const year = 2097;
+    const month = 6;
+
+    await setSessionCookie(context, user.signedSessionId);
+
+    const cleanupMonth = async () => {
+      await db.delete(schedules).where(like(schedules.date, `${prefix}-%`));
+      await db
+        .delete(agentSaturdayGroups)
+        .where(eq(agentSaturdayGroups.month, prefix));
+      await db
+        .delete(saturdayRotationConfig)
+        .where(eq(saturdayRotationConfig.month, prefix));
+    };
+
+    await cleanupMonth();
+
+    try {
+      const url = new URL("/api/cronograma/months", baseURL).href;
+      const [first, second] = await Promise.all([
+        context.request.post(url, { data: { year, month } }),
+        context.request.post(url, { data: { year, month } }),
+      ]);
+
+      const statuses = [first.status(), second.status()].sort((a, b) => a - b);
+      expect(statuses).toEqual([200, 409]);
+    } finally {
+      await cleanupMonth();
+    }
+  });
+});
+
 test.describe("#262 — POST months no precarga agentes inactivos", () => {
   test("no genera schedules para agentes fuera de cronograma ni con usuario inactivo", async ({
     context,
