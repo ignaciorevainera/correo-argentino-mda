@@ -28,6 +28,8 @@ let supervisorId = 0;
 let officeId = 0;
 const closedOfficeCode = `C${String(stamp).slice(-4)}`;
 let closedOfficeId = 0;
+const accentOfficeCode = `A${String(stamp).slice(-4)}`;
+let accentOfficeId = 0;
 
 function panelFixture(overrides: Record<string, unknown> = {}) {
   return {
@@ -202,6 +204,20 @@ test.beforeAll(async () => {
     { hostname: `E2E-C1-${stamp}`, nis: closedOfficeCode },
     { hostname: `E2E-C2-${stamp}`, nis: closedOfficeCode },
   ]);
+
+  const [accentOffice] = await db
+    .insert(offices)
+    .values({
+      code: accentOfficeCode,
+      name: "Oficina Córdoba E2E",
+      type: "sucursal",
+      provinceCode: province.code,
+      officeType: "Sucursal",
+      locality: "Córdoba",
+      active: true,
+    })
+    .returning({ id: offices.id });
+  accentOfficeId = accentOffice.id;
 });
 
 test.afterAll(async () => {
@@ -211,6 +227,7 @@ test.afterAll(async () => {
   await db.delete(offices).where(eq(offices.id, officeId));
   await db.delete(terminals).where(eq(terminals.nis, closedOfficeCode));
   await db.delete(offices).where(eq(offices.id, closedOfficeId));
+  await db.delete(offices).where(eq(offices.id, accentOfficeId));
   await db.delete(sessions).where(inArray(sessions.userId, [agentId, supervisorId]));
   await db.delete(users).where(inArray(users.id, [agentId, supervisorId]));
 });
@@ -260,6 +277,25 @@ test.describe("API de estadísticas de oficinas", () => {
       const response = await request.get(`/api/oficinas/estadisticas?${query}`, { headers });
       expect(response.status(), query).toBe(400);
     }
+  });
+
+  test("la búsqueda de oficinas ignora acentos", async ({ request }) => {
+    const headers = { cookie: `session_id=${sign(supervisorSessionId)}` };
+    const codes: string[] = [];
+    for (const q of ["cordoba", "Córdoba", "CÓRDOBA"]) {
+      const response = await request.get(
+        `/api/oficinas/estadisticas?pageSize=100&q=${encodeURIComponent(q)}`,
+        { headers },
+      );
+      expect(response.status(), q).toBe(200);
+      const body = await response.json();
+      const row = body.ranking.rows.find(
+        (r: { code: string }) => r.code === accentOfficeCode,
+      );
+      expect(row, q).toBeTruthy();
+      codes.push(row.code);
+    }
+    expect(codes).toEqual([accentOfficeCode, accentOfficeCode, accentOfficeCode]);
   });
 
   test("el KPI de terminales comparte semántica con el ranking (parque total)", async ({

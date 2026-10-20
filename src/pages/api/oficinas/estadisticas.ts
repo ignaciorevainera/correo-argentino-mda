@@ -10,6 +10,7 @@ import {
   terminals,
 } from "@db/schema";
 import { jsonError, jsonResponse, sanitizeError } from "@lib/apiResponse";
+import { normalizeSearchValue } from "@lib/clientSearch";
 import { requireReadAccess } from "@lib/rbac-middleware";
 import { getOpenOfficeIncidentsByLocation } from "@lib/invgate/officeIncidents";
 import {
@@ -89,7 +90,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
   const provinciaFilter = url.searchParams.get("provincia");
   const regionFilter = url.searchParams.get("region");
   const tipoFilter = url.searchParams.get("tipo");
-  const search = (url.searchParams.get("q") ?? "").trim().toLowerCase();
+  const search = normalizeSearchValue(url.searchParams.get("q")).trim();
 
   try {
     const officeRows = await db
@@ -193,9 +194,11 @@ export const GET: APIRoute = async ({ url, locals }) => {
       ranking = ranking.filter((r) => codes.has(r.code));
     }
     if (search) {
-      ranking = ranking.filter(
-        (r) => r.name.toLowerCase().includes(search) || r.code.toLowerCase().includes(search),
-      );
+      ranking = ranking.filter((r) => {
+        const name = normalizeSearchValue(r.name);
+        const code = normalizeSearchValue(r.code);
+        return name.includes(search) || code.includes(search);
+      });
     }
 
     const direction = dir === "asc" ? 1 : -1;
