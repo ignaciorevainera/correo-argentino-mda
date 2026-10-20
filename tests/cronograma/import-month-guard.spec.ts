@@ -88,4 +88,22 @@ test.describe("guard de mes del import en el servidor", () => {
       body.edits.every((e: any) => e.date.startsWith("2026-10")),
     ).toBe(true);
   });
+
+  test("rechaza un mes con mes 13", async ({ context }) => {
+    await setSessionCookie(context, user.signedSessionId);
+    const file = csv("Nombre,2026-10-05", `${agentName},Home Office`);
+    const res = await postImport(context, file, "2026-13");
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("AAAA-MM");
+  });
+
+  test("rechaza un mes con mes 00", async ({ context }) => {
+    await setSessionCookie(context, user.signedSessionId);
+    const file = csv("Nombre,2026-10-05", `${agentName},Home Office`);
+    const res = await postImport(context, file, "2026-00");
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("AAAA-MM");
+  });
 });

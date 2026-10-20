@@ -172,7 +172,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
     // explícitamente para que el usuario corrija el mes antes de importar.
     const month = formData.get("month");
     if (typeof month !== "string" || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
-      return jsonError("Mes inválido", 400);
+      return jsonError(
+        "Mes inválido: se esperaba el formato AAAA-MM (por ejemplo 2026-10).",
+        400,
+      );
     }
 
     const csvText = await file.text();
