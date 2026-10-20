@@ -214,7 +214,7 @@ export function hasPermission(path: string, userRole: string): boolean {
 
   const userRank = ROLE_HIERARCHY[role];
 
-  // La home no es pública (el middleware sólo exceptúa /404 y /generador-firmas):
+  // La home no es pública (el middleware sólo exceptúa /404, /generador-firmas y /login):
   // se resuelve acá porque "/" no puede expresarse como prefijo — con startsWith
   // matchearía todas las rutas.
   if (normalizedPath === "/") return true;
