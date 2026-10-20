@@ -9,6 +9,7 @@ import {
 import { and, eq, like, inArray, desc, lt } from "drizzle-orm";
 import { logAdminFromAstro } from "@lib/auditLogger";
 import { jsonResponse, jsonError, sanitizeError } from "@lib/apiResponse";
+import { requireWriteAccess } from "@lib/rbac-middleware";
 
 const MONTH_LABELS = [
   "Enero",
@@ -25,22 +26,53 @@ const MONTH_LABELS = [
   "Diciembre",
 ];
 
-import { requireWriteAccess } from "@lib/rbac-middleware";
+type ParsedMonth = {
+  year: number;
+  month: number;
+  monthPrefix: string;
+};
+
+function parseYearMonth(body: unknown): ParsedMonth | null {
+  const { year: rawYear, month: rawMonth } = (body ?? {}) as {
+    year?: unknown;
+    month?: unknown;
+  };
+
+  if (typeof rawYear !== "number" || typeof rawMonth !== "number") {
+    return null;
+  }
+
+  const year = rawYear;
+  const month = rawMonth;
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    month < 0 ||
+    month > 11
+  ) {
+    return null;
+  }
+
+  return {
+    year,
+    month,
+    monthPrefix: `${year}-${String(month + 1).padStart(2, "0")}`,
+  };
+}
 
 export const POST: APIRoute = async ({ request, locals }) => {
   const denied = await requireWriteAccess(locals, "cronograma");
   if (denied) return denied;
 
   try {
-    const body = await request.json();
-    const year = Number(body.year);
-    const month = Number(body.month); // month is 0-indexed (0 = Enero)
-
-    if (!Number.isInteger(year) || !Number.isInteger(month) || month < 0 || month > 11) {
-      return jsonError("Year y month son requeridos y deben ser válidos (month 0-11)", 400);
+    const parsed = parseYearMonth(await request.json());
+    if (!parsed) {
+      return jsonError(
+        "Year y month son requeridos y deben ser válidos (month 0-11)",
+        400,
+      );
     }
-
-    const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}`;
+    const { year, month, monthPrefix } = parsed;
 
     // Guard: este flujo solo crea meses nuevos. Re-crear un mes existente
     // borraría sus ediciones/overrides (la transacción de abajo hace
@@ -212,14 +244,14 @@ export const DELETE: APIRoute = async ({ request, locals }) => {
   if (denied) return denied;
 
   try {
-    const body = await request.json();
-    const { year, month } = body; // month is 0-indexed (0 = Enero)
-
-    if (year === undefined || month === undefined) {
-      return jsonResponse({ error: "Year and month are required" }, 400);
+    const parsed = parseYearMonth(await request.json());
+    if (!parsed) {
+      return jsonError(
+        "Year y month son requeridos y deben ser válidos (month 0-11)",
+        400,
+      );
     }
-
-    const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}`;
+    const { year, month, monthPrefix } = parsed;
 
     // Transaction for atomic delete
     await db.transaction((tx) => {
