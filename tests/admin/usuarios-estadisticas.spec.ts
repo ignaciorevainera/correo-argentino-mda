@@ -100,8 +100,8 @@ test.describe("Endpoint de estadísticas de usuarios (#183)", () => {
     request,
   }) => {
     const stampMesa = Date.now();
-    const asignableId = 920000 + (stampMesa % 50000);
-    const noAsignableId = 970000 + (stampMesa % 50000);
+    const asignableId = 1100000 + (stampMesa % 50000);
+    const noAsignableId = 1300000 + (stampMesa % 50000);
     const asignableNombre = `E2E Mesa Asignable API ${stampMesa}`;
     const noAsignableNombre = `E2E Mesa No Asignable API ${stampMesa}`;
 
