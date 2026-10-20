@@ -5,11 +5,13 @@ import {
   schedules,
   agentSaturdayGroups,
   saturdayRotationConfig,
+  users,
 } from "@db/schema";
 import { and, eq, like, inArray, desc, lt } from "drizzle-orm";
 import { logAdminFromAstro } from "@lib/auditLogger";
 import { jsonResponse, jsonError, sanitizeError } from "@lib/apiResponse";
 import { requireWriteAccess } from "@lib/rbac-middleware";
+import { activeCronogramaAgentCondition } from "@lib/activeUsers";
 
 const MONTH_LABELS = [
   "Enero",
@@ -104,7 +106,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
         saturdayGroup: agents.saturdayGroup,
         saturdayHorario: agents.saturdayHorario,
       })
-      .from(agents);
+      .from(agents)
+      .leftJoin(users, eq(users.id, agents.userId))
+      .where(activeCronogramaAgentCondition());
 
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 

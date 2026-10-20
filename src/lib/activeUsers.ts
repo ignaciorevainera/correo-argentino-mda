@@ -1,5 +1,5 @@
-import { sql, type SQL } from "drizzle-orm";
-import { users } from "@db/schema";
+import { and, eq, sql, type SQL } from "drizzle-orm";
+import { agents, users } from "@db/schema";
 
 /**
  * Condición SQL para filtrar agentes operativos: excluye agentes cuyo usuario
@@ -18,3 +18,11 @@ export const activeAgentCondition = (): SQL =>
  * Condición SQL para queries sobre `users`: solo usuarios activos.
  */
 export const activeUserCondition = (): SQL => sql`${users.active} = 1`;
+
+/**
+ * Condición para agentes que deben figurar en el cronograma: `enCronograma`
+ * activo y usuario de portal activo (o sin usuario vinculado). Usar siempre
+ * con LEFT JOIN a `users` (`eq(users.id, agents.userId)`).
+ */
+export const activeCronogramaAgentCondition = (): SQL =>
+  and(eq(agents.enCronograma, true), activeAgentCondition())!;
