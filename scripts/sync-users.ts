@@ -8,7 +8,9 @@ import "dotenv/config";
 import { fullInvgateSync } from "../src/lib/invgate/userSync";
 import { requireEnv } from "../src/lib/env";
 
-const MIDPOINT_URL = "https://cdc.correoargentino.com.ar";
+// #234: configurable por entorno; el default es el MidPoint de producción.
+const MIDPOINT_URL =
+  process.env.MIDPOINT_URL || "https://cdc.correoargentino.com.ar";
 const LOGIN_URL = `${MIDPOINT_URL}/midpoint/login`;
 const USERS_TABLE_URL = `${MIDPOINT_URL}/midpoint/admin/users`;
 

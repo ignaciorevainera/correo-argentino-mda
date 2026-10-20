@@ -31,10 +31,7 @@ export interface SyncResult {
 export async function fullInvgateSync(): Promise<SyncResult> {
   console.log("[SyncInvGate] Iniciando sincronización completa de InvGate...");
 
-  // Fase 1: resetear todos los empleados a false
-  await db.update(employees).set({ invgateExists: false });
-
-  // Fase 2: obtener todos los usuarios de InvGate (timeout 120s por la cantidad de datos)
+  // Fase 1: obtener todos los usuarios de InvGate (timeout 120s por la cantidad de datos)
   const result = await invgateGet<any>("users", 120000);
 
   if (!result.ok) {
@@ -49,11 +46,25 @@ export async function fullInvgateSync(): Promise<SyncResult> {
   }
 
   // Soportar array plano o respuesta envuelta en { data: [...] }
-  const users: InvgateUser[] = Array.isArray(result.data)
+  const rawUsers = Array.isArray(result.data)
     ? result.data
-    : result.data && Array.isArray(result.data.data)
-      ? result.data.data
-      : [];
+    : result.data?.data;
+
+  if (!Array.isArray(rawUsers) || rawUsers.length === 0) {
+    console.error(
+      "[SyncInvGate] Respuesta de InvGate vacía o inválida; no se modifican los datos.",
+    );
+    return {
+      ok: false,
+      totalSynced: 0,
+      error: "Respuesta de InvGate vacía o inválida",
+    };
+  }
+
+  const users: InvgateUser[] = rawUsers;
+
+  // Fase 2: resetear todos los empleados a false
+  await db.update(employees).set({ invgateExists: false });
 
   // Filtrar solo usuarios activos
   const activeUsers = users.filter((u) => !u.is_disabled && !u.is_deleted);

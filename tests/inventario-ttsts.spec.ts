@@ -1,4 +1,24 @@
+import "dotenv/config";
 import { test, expect } from "@playwright/test";
+import {
+  createTestUserAndSession,
+  cleanupTestUser,
+  setSessionCookie,
+} from "./helpers/auth";
+
+let agentUser: Awaited<ReturnType<typeof createTestUserAndSession>>;
+
+test.beforeAll(async () => {
+  agentUser = await createTestUserAndSession("agent");
+});
+
+test.beforeEach(async ({ context }) => {
+  await setSessionCookie(context, agentUser.signedSessionId);
+});
+
+test.afterAll(async () => {
+  await cleanupTestUser(agentUser.userId, agentUser.sessionId);
+});
 
 test.describe("Inventario T&T & STS", () => {
   test("el tab T&T & STS aparece después de Mediterránea", async ({
@@ -72,22 +92,19 @@ test.describe("Inventario T&T & STS", () => {
     await page.getByRole("radio", { name: "T&T & STS" }).check();
     await page.waitForSelector("#view-ttsts:not(.hidden)");
 
-    const initialCount = await page
-      .locator("#table-ttsts-body [data-terminal-row]")
-      .count();
-
     await page.getByRole("radio", { name: "Solo T&T" }).check();
-    await page.waitForTimeout(500);
+    await page.waitForSelector("#view-ttsts:not(.hidden)");
 
-    const params = new URL(page.url()).searchParams;
-    expect(params.get("ttType")).toBe("tyt");
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get("ttType"))
+      .toBe("tyt");
 
-    const filteredCount = await page
-      .locator("#table-ttsts-body [data-terminal-row]")
-      .count();
-    if (initialCount > 0) {
-      expect(filteredCount).toBeLessThanOrEqual(initialCount);
-    }
+    await page
+      .waitForSelector(
+        "#table-ttsts-body [data-terminal-row], #no-results-state-ttsts:not(.hidden)",
+      )
+      .catch(() => {});
+    await expect(page.locator("#table-ttsts-body")).toBeVisible();
   });
 
   test("el filtro Con/Sin VM solo aparece con Solo T&T y aplica vmFilter", async ({

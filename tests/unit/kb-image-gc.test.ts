@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import Database from "better-sqlite3";
 import fs from "node:fs";
 import os from "node:os";
@@ -11,6 +11,7 @@ import {
 
 const UUID_A = "11111111-1111-4111-8111-111111111111.png";
 const UUID_B = "22222222-2222-4222-8222-222222222222.webp";
+const UUID_C = "33333333-3333-4333-8333-333333333333.png";
 
 describe("collectReferencedKbImages", () => {
   it("extrae las referencias de la mesa pedida y excluye las demás", () => {
@@ -45,15 +46,41 @@ function makeTempDirs(): { dbPath: string; storageRoot: string } {
   };
 }
 
-function seed(dbPath: string, rows: { helpdeskId: number; content: string }[]) {
+function seed(
+  dbPath: string,
+  rows: { helpdeskId: number; content: string }[],
+  deletedRows: {
+    helpdeskId: number;
+    content: string;
+    restoredAt?: string | null;
+    purgedAt?: string | null;
+  }[] = [],
+) {
   const db = new Database(dbPath);
   db.exec(
     "CREATE TABLE kb_articles (id INTEGER PRIMARY KEY AUTOINCREMENT, helpdesk_id INTEGER NOT NULL, content TEXT)",
+  );
+  db.exec(
+    "CREATE TABLE deleted_records (id INTEGER PRIMARY KEY AUTOINCREMENT, entity TEXT NOT NULL, record_id TEXT NOT NULL, payload TEXT NOT NULL, restored_at TEXT, purged_at TEXT)",
   );
   const insert = db.prepare(
     "INSERT INTO kb_articles (helpdesk_id, content) VALUES (?, ?)",
   );
   for (const row of rows) insert.run(row.helpdeskId, row.content);
+
+  const insertDeleted = db.prepare(
+    "INSERT INTO deleted_records (entity, record_id, payload, restored_at, purged_at) VALUES ('articulo', ?, ?, ?, ?)",
+  );
+  deletedRows.forEach((row, index) => {
+    insertDeleted.run(
+      String(index + 1),
+      JSON.stringify({
+        row: { helpdeskId: row.helpdeskId, content: row.content },
+      }),
+      row.restoredAt ?? null,
+      row.purgedAt ?? null,
+    );
+  });
   db.close();
 }
 
@@ -99,6 +126,79 @@ describe("runPruneKbImages", () => {
     expect(report.quarantined.map((item) => item.filename).sort()).toEqual([
       UUID_B,
       UUID_B,
+    ]);
+  });
+
+  it("cae a copyFile + unlink cuando renameSync lanza EXDEV", () => {
+    const { dbPath, storageRoot } = makeTempDirs();
+    seed(dbPath, [{ helpdeskId: 7, content: "sin imágenes" }]);
+    writeImage(storageRoot, 7, UUID_B);
+
+    const exdev = new Error(
+      "EXDEV: cross-device link not permitted",
+    ) as NodeJS.ErrnoException;
+    exdev.code = "EXDEV";
+
+    const renameSpy = vi.spyOn(fs, "renameSync").mockImplementationOnce(() => {
+      throw exdev;
+    });
+
+    try {
+      const report = runPruneKbImages({ dbPath, storageRoot, apply: true });
+
+      expect(report.quarantined).toHaveLength(1);
+      const moved = report.quarantined[0];
+      expect(
+        fs.existsSync(path.join(storageRoot, "kb-images", "7", UUID_B)),
+      ).toBe(false);
+      expect(fs.existsSync(moved.to)).toBe(true);
+      expect(fs.readFileSync(moved.to, "utf8")).toBe("x");
+    } finally {
+      renameSpy.mockRestore();
+    }
+  });
+
+  it("preserva las imágenes de artículos en papelera no restaurados", () => {
+    const { dbPath, storageRoot } = makeTempDirs();
+    seed(
+      dbPath,
+      [{ helpdeskId: 7, content: `/api/kb/images/7/${UUID_A}` }],
+      [{ helpdeskId: 7, content: `/api/kb/images/7/${UUID_B}` }],
+    );
+    writeImage(storageRoot, 7, UUID_A);
+    writeImage(storageRoot, 7, UUID_B);
+    writeImage(storageRoot, 7, UUID_C);
+
+    const report = runPruneKbImages({ dbPath, storageRoot, apply: false });
+    expect(report.orphans).toEqual([{ helpdeskId: 7, filename: UUID_C }]);
+  });
+
+  it("no preserva imágenes de artículos restaurados o purgados", () => {
+    const { dbPath, storageRoot } = makeTempDirs();
+    seed(
+      dbPath,
+      [{ helpdeskId: 7, content: `/api/kb/images/7/${UUID_A}` }],
+      [
+        {
+          helpdeskId: 7,
+          content: `/api/kb/images/7/${UUID_B}`,
+          restoredAt: "2026-10-20T00:00:00.000Z",
+        },
+        {
+          helpdeskId: 7,
+          content: `/api/kb/images/7/${UUID_C}`,
+          purgedAt: "2026-10-20T00:00:00.000Z",
+        },
+      ],
+    );
+    writeImage(storageRoot, 7, UUID_A);
+    writeImage(storageRoot, 7, UUID_B);
+    writeImage(storageRoot, 7, UUID_C);
+
+    const report = runPruneKbImages({ dbPath, storageRoot, apply: false });
+    expect(report.orphans).toEqual([
+      { helpdeskId: 7, filename: UUID_B },
+      { helpdeskId: 7, filename: UUID_C },
     ]);
   });
 

@@ -25,11 +25,15 @@
 //      la cache del servidor lo taparia)
 //   8. el atajo se presenta como "limpio" cuando no verifico nada ->
 //      #confirm-unverified-state visible y los otros dos estados ocultos, aun
-//      en una oficina que SI tiene un ticket abierto (I1330)
+//      en una oficina que SI tiene un ticket abierto (resuelta en runtime)
 //   9. el loading del boton reserva un hueco en idle, o empuja al hermano
 //      flex-1 (2º test)
 import "dotenv/config";
 import { test, expect } from "@playwright/test";
+import { eq } from "drizzle-orm";
+import { db } from "../../src/db/index";
+import { offices, officeInvgateLinks } from "../../src/db/schema";
+import { getOpenAgentsTicketsByLocation } from "../../src/lib/agentsTicketDuplicates";
 import {
   createTestUserAndSession,
   cleanupTestUser,
@@ -37,10 +41,45 @@ import {
   type TestUser,
 } from "../helpers/auth";
 
-// PROD: location 6109 (I1330 PINAMAR) tiene #85701 abierto (categoria 257).
-// location 6079 (I1017 ESCOBAR) no tiene ningun ticket de agentes.
-const OFFICE_WITH_DUPLICATE = "I1330";
-const OFFICE_WITHOUT_DUPLICATE = "I1017";
+// Los duplicados cambian en InvGate: no hardcodear I1330/I1017. Se resuelven
+// en runtime (oficinas TELEGRAFIA con link de InvGate + tickets abiertos de
+// agentes por location) y, si no hay datos, el spec se skipea en vez de fallar
+// por un dato externo.
+interface OfficesUnderTest {
+  withDuplicate: string;
+  withoutDuplicate: string;
+}
+
+let officesUnderTestPromise: Promise<OfficesUnderTest | null> | null = null;
+
+function resolveOfficesUnderTest(): Promise<OfficesUnderTest | null> {
+  officesUnderTestPromise ??= (async () => {
+    const links = await db
+      .select({
+        code: offices.code,
+        locationId: officeInvgateLinks.invgateLocationId,
+      })
+      .from(officeInvgateLinks)
+      .innerJoin(offices, eq(offices.id, officeInvgateLinks.officeId))
+      .where(eq(offices.type, "TELEGRAFIA"));
+
+    const byLocation = await getOpenAgentsTicketsByLocation();
+    const hasTickets = (locationId: number) =>
+      (byLocation.get(locationId)?.length ?? 0) > 0;
+
+    const withDuplicate = links.find((l) => hasTickets(l.locationId));
+    const withoutDuplicate = links.find((l) => !hasTickets(l.locationId));
+
+    return withDuplicate && withoutDuplicate
+      ? {
+          withDuplicate: withDuplicate.code,
+          withoutDuplicate: withoutDuplicate.code,
+        }
+      : null;
+  })();
+
+  return officesUnderTestPromise;
+}
 
 const CHECK_ENDPOINT = "/api/offices/check-agents-ticket";
 const CREATE_ENDPOINT = "/api/offices/create-agents-ticket";
@@ -71,6 +110,14 @@ test.describe("Chequeo de duplicados al crear ticket por agentes", () => {
   }) => {
     // Dos consultas completas a InvGate + carga de agentes/origenes + el atajo.
     test.setTimeout(150000);
+
+    const resolved = await resolveOfficesUnderTest();
+    test.skip(
+      !resolved,
+      "No hay datos para el chequeo: se necesita una oficina TELEGRAFIA con link de InvGate que tenga un ticket de agentes abierto y otra que no.",
+    );
+    const { withDuplicate: OFFICE_WITH_DUPLICATE, withoutDuplicate: OFFICE_WITHOUT_DUPLICATE } =
+      resolved!;
 
     const createRequests: string[] = [];
     let checkRequests = 0;
@@ -200,7 +247,10 @@ test.describe("Chequeo de duplicados al crear ticket por agentes", () => {
       withDup.status,
       "no debe responder 502 (modo de falla del abort de 15s)",
     ).toBe(200);
-    expect(withDup.body.exists, "I1330 tiene un ticket abierto").toBe(true);
+    expect(
+      withDup.body.exists,
+      `${OFFICE_WITH_DUPLICATE} tiene un ticket abierto`,
+    ).toBe(true);
     expect(withDup.body.ticketId).toBeGreaterThan(0);
     expect(withDup.body.ticketUrl).toContain(
       `/requests/show/index/id/${withDup.body.ticketId}`,
@@ -246,7 +296,7 @@ test.describe("Chequeo de duplicados al crear ticket por agentes", () => {
     ).toBeLessThan(WARM_BUDGET_MS);
 
     // --- 7 + 8: el atajo "Crear sin verificar" ---
-    // Se prueba sobre I1330, que SI tiene un ticket abierto: si el atajo
+    // Se prueba sobre la oficina que SI tiene un ticket abierto: si el atajo
     // reutilizara el resultado del camino verificado (o inventara uno) el
     // modal no puede mostrarse como limpio.
     const checksBefore = checkRequests;
@@ -284,10 +334,10 @@ test.describe("Chequeo de duplicados al crear ticket por agentes", () => {
 
     // --- 6: nada de tickets reales ---
     console.log(
-      `[timing] check I1330: fetch ${withDup.fetchMs}ms / ui ${withDup.uiMs}ms` +
-        ` | check I1017: fetch ${withoutDup.fetchMs}ms / ui ${withoutDup.uiMs}ms` +
+      `[timing] check ${OFFICE_WITH_DUPLICATE}: fetch ${withDup.fetchMs}ms / ui ${withDup.uiMs}ms` +
+        ` | check ${OFFICE_WITHOUT_DUPLICATE}: fetch ${withoutDup.fetchMs}ms / ui ${withoutDup.uiMs}ms` +
         ` | cache API: ${warmMs1}ms -> ${warmMs2}ms` +
-        ` | skip I1330: ui ${skipUiMs}ms | requests a check: ${checkRequests}`,
+        ` | skip ${OFFICE_WITH_DUPLICATE}: ui ${skipUiMs}ms | requests a check: ${checkRequests}`,
     );
     expect(createRequests, "el spec no debe crear tickets en InvGate").toHaveLength(
       0,
@@ -309,6 +359,13 @@ test.describe("Chequeo de duplicados al crear ticket por agentes", () => {
     context,
   }) => {
     test.setTimeout(120000);
+
+    const resolved = await resolveOfficesUnderTest();
+    test.skip(
+      !resolved,
+      "No hay una oficina TELEGRAFIA con link de InvGate y ticket de agentes abierto para probar el loading.",
+    );
+    const OFFICE_WITH_DUPLICATE = resolved!.withDuplicate;
 
     const createRequests: string[] = [];
     page.on("request", (req) => {

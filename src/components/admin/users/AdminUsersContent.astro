@@ -1,7 +1,7 @@
 ---
 import { db } from "@db/index";
 import { users, agents, mesas } from "@db/schema";
-import { sql, eq, and, or } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
@@ -17,6 +17,7 @@ import {
 import { getCleanBase } from "@lib/baseUrl";
 import { rolesMatrix } from "@lib/rolesMatrix";
 import { normalizeRole } from "@lib/rbac";
+import { listMesasAsignables } from "@lib/mesas";
 import FormField from "@components/ui/forms/FormField.astro";
 import FormLegend from "@components/ui/forms/FormLegend.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
@@ -83,16 +84,7 @@ const usersConMesaInactivaMostrados = usersConMesaInactiva.slice(
 const usersConMesaInactivaRestantes =
   usersConMesaInactiva.length - usersConMesaInactivaMostrados.length;
 
-const helpdeskOptions = await db
-  .select({ id: mesas.invgateId, name: mesas.name })
-  .from(mesas)
-  .where(
-    and(
-      eq(mesas.active, true),
-      or(eq(mesas.assignable, true), eq(mesas.name, MDA_TI_HELPDESK)),
-    ),
-  )
-  .orderBy(mesas.name);
+const helpdeskOptions = await listMesasAsignables();
 
 const headerGridClass = "grid-cols-[1fr_180px_104px_170px_180px_176px] gap-4";
 const rowGridClass =

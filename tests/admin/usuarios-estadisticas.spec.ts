@@ -95,6 +95,48 @@ test.describe("Endpoint de estadísticas de usuarios (#183)", () => {
     );
     expect(response.status()).toBe(400);
   });
+
+  test("filtros.mesas sólo incluye mesas asignables (o la mesa MDA TI)", async ({
+    request,
+  }) => {
+    const stampMesa = Date.now();
+    const asignableId = 1100000 + (stampMesa % 50000);
+    const noAsignableId = 1300000 + (stampMesa % 50000);
+    const asignableNombre = `E2E Mesa Asignable API ${stampMesa}`;
+    const noAsignableNombre = `E2E Mesa No Asignable API ${stampMesa}`;
+
+    await db.insert(mesas).values([
+      {
+        invgateId: asignableId,
+        name: asignableNombre,
+        active: true,
+        assignable: true,
+        lastSyncedAt: "2026-10-10",
+      },
+      {
+        invgateId: noAsignableId,
+        name: noAsignableNombre,
+        active: true,
+        assignable: false,
+        lastSyncedAt: "2026-10-10",
+      },
+    ]);
+
+    try {
+      const response = await request.get("/api/admin/usuarios/estadisticas", {
+        headers: { cookie: `session_id=${cookie}` },
+      });
+      expect(response.status()).toBe(200);
+      const body = await response.json();
+      const nombres: string[] = body.filtros.mesas.map((m: any) => m.name);
+      expect(nombres).toContain(asignableNombre);
+      expect(nombres).not.toContain(noAsignableNombre);
+    } finally {
+      await db
+        .delete(mesas)
+        .where(inArray(mesas.invgateId, [asignableId, noAsignableId]));
+    }
+  });
 });
 
 test.describe("Export CSV de estadísticas de usuarios (#183)", () => {

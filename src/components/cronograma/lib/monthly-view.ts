@@ -33,6 +33,9 @@ import {
   buildMonthlyCellHtml,
 } from "./dashboard-client";
 
+let preferredDay: number | null = null;
+let lastAppliedDay: number | null = null;
+
 let _dailyDateFormatter: Intl.DateTimeFormat | null = null;
 function getDailyDateFormatter(): Intl.DateTimeFormat {
   if (!_dailyDateFormatter) {
@@ -249,12 +252,25 @@ export function changeMonth(offset: number): void {
   const month = parseInt(monthStr, 10) - 1;
 
   const dayStr = dateInput.value.split("-")[2];
-  let day = parseInt(dayStr, 10);
+  const currentDay = parseInt(dayStr, 10);
+
+  if (!Number.isFinite(currentDay)) {
+    preferredDay = null;
+  } else if (
+    preferredDay === null ||
+    lastAppliedDay === null ||
+    currentDay !== lastAppliedDay
+  ) {
+    preferredDay = currentDay;
+  }
+
+  let day = preferredDay ?? 1;
   const daysInNewMonth = getDaysInMonth(year, month);
-  if (!Number.isFinite(day) || day > daysInNewMonth) {
+  if (day > daysInNewMonth) {
     day = daysInNewMonth;
   }
   if (day < 1) day = 1;
+  lastAppliedDay = day;
 
   dateInput.value = `${year}-${(month + 1).toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
 

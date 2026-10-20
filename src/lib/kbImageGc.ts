@@ -32,6 +32,17 @@ export function findOrphanKbImages(
     .sort();
 }
 
+function moveToQuarantine(from: string, to: string): void {
+  try {
+    fs.renameSync(from, to);
+    return;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EXDEV") throw error;
+  }
+  fs.copyFileSync(from, to);
+  fs.unlinkSync(from);
+}
+
 export interface PruneKbImagesReport {
   dryRun: boolean;
   scannedHelpdesks: number;
@@ -67,20 +78,50 @@ export function runPruneKbImages(options: {
 
   const db = new Database(dbPath, { readonly: !apply });
   try {
-    // Sólo se evalúan mesas que tienen artículos: una carpeta sin filas en
-    // kb_articles queda intacta (no hay contenido para comparar).
-    const helpdesks = db
-      .prepare(
-        "SELECT DISTINCT helpdesk_id FROM kb_articles WHERE helpdesk_id IS NOT NULL",
-      )
-      .all() as { helpdesk_id: number }[];
-    scannedHelpdesks = helpdesks.length;
+    // Un artículo en papelera ya no tiene fila en kb_articles, pero puede
+    // restaurarse: sus imágenes siguen referenciadas por el snapshot. Sin
+    // esto, el prune las mueve a cuarentena y la restauración deja URLs rotas.
+    const deletedStmt = db.prepare(
+      "SELECT payload FROM deleted_records WHERE entity = 'articulo' AND restored_at IS NULL AND purged_at IS NULL",
+    );
+    const deletedContents = new Map<number, string[]>();
+    for (const { payload } of deletedStmt.all() as { payload: string }[]) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(payload);
+      } catch {
+        continue;
+      }
+      const row = (parsed as { row?: { helpdeskId?: unknown; content?: unknown } })
+        ?.row;
+      const helpdeskId = Number(row?.helpdeskId);
+      if (!Number.isSafeInteger(helpdeskId) || helpdeskId <= 0) continue;
+      if (typeof row?.content !== "string" || row.content.length === 0) continue;
+      const contents = deletedContents.get(helpdeskId) ?? [];
+      contents.push(row.content);
+      deletedContents.set(helpdeskId, contents);
+    }
+
+    // Se evalúan mesas con artículos activos o con artículos en papelera.
+    const helpdeskIds = new Set<number>(
+      (
+        db
+          .prepare(
+            "SELECT DISTINCT helpdesk_id FROM kb_articles WHERE helpdesk_id IS NOT NULL",
+          )
+          .all() as { helpdesk_id: number }[]
+      ).map((row) => row.helpdesk_id),
+    );
+    for (const helpdeskId of deletedContents.keys()) {
+      helpdeskIds.add(helpdeskId);
+    }
+    scannedHelpdesks = helpdeskIds.size;
 
     const contentsStmt = db.prepare(
       "SELECT content FROM kb_articles WHERE helpdesk_id = ?",
     );
 
-    for (const { helpdesk_id: helpdeskId } of helpdesks) {
+    for (const helpdeskId of helpdeskIds) {
       const mesaDir = path.join(storageRoot, "kb-images", String(helpdeskId));
       if (!fs.existsSync(mesaDir)) continue;
 
@@ -90,9 +131,12 @@ export function runPruneKbImages(options: {
         .map((entry) => entry.name);
       scannedFiles += files.length;
 
-      const contents = (contentsStmt.all(helpdeskId) as { content: string | null }[]).map(
-        (row) => row.content,
-      );
+      const contents = [
+        ...(contentsStmt.all(helpdeskId) as { content: string | null }[]).map(
+          (row) => row.content,
+        ),
+        ...(deletedContents.get(helpdeskId) ?? []),
+      ];
       const referenced = collectReferencedKbImages(contents, helpdeskId);
       const mesaOrphans = findOrphanKbImages(files, referenced);
 
@@ -104,7 +148,7 @@ export function runPruneKbImages(options: {
           const toDir = path.join(quarantineRoot, String(helpdeskId));
           fs.mkdirSync(toDir, { recursive: true });
           const to = path.join(toDir, filename);
-          fs.renameSync(path.join(mesaDir, filename), to);
+          moveToQuarantine(path.join(mesaDir, filename), to);
           quarantined.push({ helpdeskId, filename, to });
         }
       }

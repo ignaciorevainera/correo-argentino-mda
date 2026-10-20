@@ -187,7 +187,7 @@ test.describe("cronograma — export PNG server-side", () => {
     await check("horas-extras", "#copy-overtime-image-btn", "#switch-to-overtime-btn", "#overtime-card");
   });
 
-  test.fixme("exportar la imagen no invalida la sesión con fingerprint de User-Agent", async ({ page }) => {
+  test("exportar la imagen no invalida la sesión con fingerprint de User-Agent", async ({ page }) => {
     const userAgent = await page.evaluate(() => navigator.userAgent);
     await db
       .update(sessions)

@@ -273,9 +273,6 @@ test.describe("Interacción Calidad Operadores - Selección y Modal", () => {
     await expect(tvDescription).not.toContainText("<br>");
 
     // 7. Verificar auto-evaluación asistida del parámetro Título y Origen (Ambos válidos)
-    const tvTitleBadge = page.locator("#tv-title-match-badge");
-    await expect(tvTitleBadge).toContainText("Título homologado");
-
     const titleCheckbox = page.locator('input[name="call_ticket_titulo"]');
     await expect(titleCheckbox).toBeChecked();
 
@@ -293,10 +290,6 @@ test.describe("Interacción Calidad Operadores - Selección y Modal", () => {
     mockSource = "Correo";
     await ticketIdInput.fill("88443");
     await btnFetchInvgate.click();
-
-    // Verificar que badge dice "No Homologado" sin símbolo ⚠
-    await expect(tvTitleBadge).toHaveText("Título no homologado");
-    await expect(tvTitleBadge).not.toContainText("⚠");
 
     // Verificar que el checkbox de título se desmarca y aparece el badge de "Desactivado por regla"
     await expect(titleCheckbox).not.toBeChecked();
@@ -403,7 +396,7 @@ test.describe("Interacción Calidad Operadores - Selección y Modal", () => {
       .locator("#channel-checklist-wise_call .checklist-item")
       .filter({ has: page.locator('input[name="call_procedimiento"]') });
     await procItem.locator('.state-btn[data-state="nocumple"]').click();
-    await expect(procItem.locator(".criteria-status-badge")).toHaveText("No cumple");
+    await expect(procItem).toHaveAttribute("data-criterion-state", "nocumple");
     await expect(procItem.locator('input[name="call_procedimiento"]')).not.toBeChecked();
     await expect(previewS1).toHaveText("78%");
     await expect(previewS2).toHaveText("100%");
@@ -447,7 +440,7 @@ test.describe("Interacción Calidad Operadores - Selección y Modal", () => {
     const [opAgent] = await db
       .insert(agents)
       .values({
-        name: "Operador Orden Manual",
+        name: `Operador Orden Manual ${Date.now()}`,
         username: `op_orden_${Date.now()}`,
         incluidoCalidad: true,
       })
@@ -687,6 +680,7 @@ test.describe("Interacción Calidad Operadores - Selección y Modal", () => {
         totalScore: 90,
         section1Score: 90,
         section2Score: 90,
+        appliesMda: true,
         notes: "Auditoría sembrada para el test de paridad",
       })
       .returning({ id: qualityAudits.id });

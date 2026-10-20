@@ -8,8 +8,8 @@ import {
   agentSaturdayGroups,
   users,
 } from "@db/schema";
-import { eq, and, desc, lt, like, lte, sql } from "drizzle-orm";
-import { activeAgentCondition } from "@lib/activeUsers";
+import { eq, desc, lt, like, lte, sql } from "drizzle-orm";
+import { activeCronogramaAgentCondition } from "@lib/activeUsers";
 import { resolveInitialMonth } from "@components/cronograma/lib/initialMonth";
 import { currentMonthYM } from "@components/cronograma/lib/monthLabel";
 
@@ -75,7 +75,18 @@ export async function listAvailableMonths(): Promise<string[]> {
   const dbSchedulesList = await db
     .select({ month: sql<string>`distinct substr(${schedules.date}, 1, 7)` })
     .from(schedules);
-  return dbSchedulesList.map((s) => s.month).filter(Boolean).sort();
+  const dbRotationList = await db
+    .select({ month: saturdayRotationConfig.month })
+    .from(saturdayRotationConfig);
+
+  const months = new Set<string>();
+  for (const row of dbSchedulesList) {
+    if (row.month) months.add(row.month);
+  }
+  for (const row of dbRotationList) {
+    if (row.month) months.add(row.month);
+  }
+  return [...months].sort();
 }
 
 /** Resuelve el mes activo (misma regla que hoy: `?month=` → mes local actual → más cercano hacia atrás). */
@@ -160,7 +171,7 @@ export async function buildCronogramaPayload(
     })
     .from(agents)
     .leftJoin(users, eq(users.id, agents.userId))
-    .where(and(eq(agents.enCronograma, true), activeAgentCondition()));
+    .where(activeCronogramaAgentCondition());
 
   // Cargar horas extras de fin de semana para este mes (Scope Overtime Configuration by Month)
   const dbOvertimeConfigs = await db

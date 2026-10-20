@@ -27,13 +27,9 @@ function monthDates(month: string): string[] {
 
 async function fetchUpstream(month: string, request: Request): Promise<Response> {
   const path = `/api/cronograma?month=${month}`;
-  const init = { headers: getInternalFetchHeaders(request) };
-  try {
-    return await fetch(new URL(path, getInternalOrigin()), init);
-  } catch (error) {
-    if (!(error instanceof TypeError)) throw error;
-    return await fetch(new URL(path, `http://localhost:${process.env.PORT || 4321}`), init);
-  }
+  return fetch(new URL(path, getInternalOrigin(request)), {
+    headers: getInternalFetchHeaders(request),
+  });
 }
 
 export const GET: APIRoute = async ({ url, locals, request }) => {

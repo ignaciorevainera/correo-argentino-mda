@@ -29,16 +29,8 @@ if (displayName === user?.username?.trim()) {
 }
 
 const isRouteLocked = (href: string): boolean => {
-  const lowerHref = href.toLowerCase();
-  if (
-    user?.id === 0 &&
-    (lowerHref === "/supervision" ||
-      lowerHref.startsWith("/supervision/") ||
-      lowerHref === "/admin" ||
-      lowerHref.startsWith("/admin/"))
-  ) {
-    return true;
-  }
+  // #309: no hace falta un caso anónimo — el middleware redirige a /login antes
+  // de renderizar esta página (PUBLIC_PAGE_PATHS en src/middleware.ts:31).
   if (!hasPermission(href, userRole)) return true;
   if (!isSectionVisibleSync(user?.helpdeskName, user?.role, href)) return true;
   return false;

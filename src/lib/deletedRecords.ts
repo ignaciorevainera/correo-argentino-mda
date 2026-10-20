@@ -6,6 +6,7 @@ import {
   cubicAssignments,
   cubics,
   deletedRecords,
+  kbArticles,
   officeAssets,
   officeContacts,
   officeInvgateLinks,
@@ -212,6 +213,12 @@ export const RESTORE_REGISTRY: Record<string, RestoreSpec> = {
     pkProperty: "id",
     uniqueFields: ["name"],
   },
+  articulo: {
+    table: kbArticles,
+    pkColumn: kbArticles.id,
+    pkProperty: "id",
+    uniqueFields: [],
+  },
 };
 
 export interface RestoreResult {
@@ -273,6 +280,20 @@ export async function restoreRecord(
         if (conflict) {
           row[field] = `${String(row[field])}${suffix}`;
           renamedFields.push(field);
+        }
+      }
+
+      // El payload se guarda como JSON: las columnas `SQLiteTimestamp` vuelven
+      // como ISO string. Drizzle exige un Date en mapToDriverValue, así que se
+      // rehidratan antes de insertar.
+      for (const [field, value] of Object.entries(row)) {
+        const column = spec.table[field];
+        if (
+          column?.columnType === "SQLiteTimestamp" &&
+          typeof value === "string"
+        ) {
+          const parsed = new Date(value);
+          if (!Number.isNaN(parsed.getTime())) row[field] = parsed;
         }
       }
 

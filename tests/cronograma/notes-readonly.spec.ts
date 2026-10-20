@@ -5,7 +5,7 @@
 // es de solo lectura y devuelve notes vacío; la creación queda solo en el POST.
 import "dotenv/config";
 import { test, expect } from "@playwright/test";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "../../src/db/index";
 import { agents } from "../../src/db/schema";
 import {
@@ -50,5 +50,33 @@ test.describe("GET de notas de solo lectura", () => {
     const after = await countAgents();
 
     expect(after).toBe(before);
+  });
+
+  test("devuelve las notes persistidas del agente (#303)", async ({
+    context,
+  }) => {
+    await setSessionCookie(context, user.signedSessionId);
+    const baseURL = test.info().project.use.baseURL ?? "http://localhost:4321";
+    const name = `Notas ${Date.now()}`;
+    const notes = "Nota persistida #303";
+
+    const [created] = await db
+      .insert(agents)
+      .values({ name, notes })
+      .returning({ id: agents.id });
+
+    try {
+      const res = await context.request.get(
+        new URL(
+          `/api/cronograma/notes?agentName=${encodeURIComponent(name)}`,
+          baseURL,
+        ).href,
+      );
+      expect(res.status()).toBe(200);
+      const body = await res.json();
+      expect(body.notes).toBe(notes);
+    } finally {
+      await db.delete(agents).where(eq(agents.id, created.id));
+    }
   });
 });

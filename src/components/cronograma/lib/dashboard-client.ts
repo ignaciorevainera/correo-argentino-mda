@@ -565,6 +565,8 @@ export function buildMonthlyCellHtml(
               type="button"
               class="${francoBtnClass}"
               data-monthly-detail
+              aria-haspopup="menu"
+              aria-controls="quick-edit-menu"
               data-operator="${safeName}"
               data-date="${safeDate}"
               data-status="Franco"
@@ -651,6 +653,8 @@ export function buildMonthlyCellHtml(
               class="${statusBtnClass}"
               ${tooltipAttrs ? "" : `title="${statusTitle}"`}
               data-monthly-detail
+              aria-haspopup="menu"
+              aria-controls="quick-edit-menu"
               data-operator="${safeName}"
               data-date="${safeDate}"
               data-status="${safeStatus}"
@@ -906,8 +910,15 @@ function updatePendingEditsUI(): void {
   ) as HTMLButtonElement | null;
 
   if (countEl) countEl.innerText = `${count} cambios`;
-  if (saveBtn) saveBtn.disabled = count === 0;
-  if (discardBtn) discardBtn.disabled = count === 0;
+  // ActionButton renderiza los botones deshabilitados con la clase .btn-disabled,
+  // que aplica pointer-events:none. Si sólo se toca el atributo `disabled`, el
+  // botón queda habilitado pero sigue sin recibir clicks: hay que sincronizar la
+  // clase también.
+  for (const btn of [saveBtn, discardBtn]) {
+    if (!btn) continue;
+    btn.disabled = count === 0;
+    btn.classList.toggle("btn-disabled", count === 0);
+  }
 
   const saveIndicator = document.getElementById("save-indicator");
   if (saveIndicator) {
@@ -1755,30 +1766,38 @@ function setupEventListeners(): void {
   const saveIndicator = document.getElementById("save-indicator");
   let activeCell: HTMLElement | null = null;
 
-  monthlyBody?.addEventListener("contextmenu", (e) => {
+  const getQuickEditItems = (): HTMLButtonElement[] => {
+    const optionsContainer = document.getElementById("quick-edit-options");
+    if (!optionsContainer) return [];
+    return Array.from(
+      optionsContainer.querySelectorAll<HTMLButtonElement>(
+        "button[data-status]:not(.hidden)",
+      ),
+    );
+  };
+
+  const closeQuickEditMenu = (restoreFocus = false): void => {
+    quickEditMenu?.classList.add("hidden");
+    if (restoreFocus && activeCell?.isConnected) activeCell.focus();
+  };
+
+  const openQuickEditMenu = (trigger: HTMLElement): boolean => {
+    if (!quickEditMenu) return false;
+
     const container = document.getElementById("cronograma-app-container");
     const userRole = container?.dataset.userRole || "agent";
     const isReadOnly = ["agent", "referent"].includes(userRole);
-    if (isReadOnly) return;
-
-    const trigger = (e.target as HTMLElement).closest<HTMLElement>(
-      "[data-monthly-detail]",
-    );
-    if (!trigger || !quickEditMenu) return;
+    if (isReadOnly) return false;
 
     const dateVal = trigger.dataset.date;
-    if (dateVal && isWeekend(dateVal)) {
-      if (!state.isEditMode) {
-        e.preventDefault();
-        showToast(
-          "Los fines de semana se deben administrar desde las secciones de Grupos o Extras (active el Modo Editar para marcar Licencia/Vacación/Franco)",
-          "warning",
-        );
-        return;
-      }
+    if (dateVal && isWeekend(dateVal) && !state.isEditMode) {
+      showToast(
+        "Los fines de semana se deben administrar desde las secciones de Grupos o Extras (active el Modo Editar para marcar Licencia/Vacación/Franco)",
+        "warning",
+      );
+      return true;
     }
 
-    e.preventDefault();
     activeCell = trigger;
 
     const targetName = document.getElementById("quick-edit-target-name");
@@ -1874,6 +1893,74 @@ function setupEventListeners(): void {
 
     quickEditMenu.style.left = `${left}px`;
     quickEditMenu.style.top = `${top}px`;
+
+    getQuickEditItems()[0]?.focus();
+    return true;
+  };
+
+  monthlyBody?.addEventListener("contextmenu", (e) => {
+    const trigger = (e.target as HTMLElement).closest<HTMLElement>(
+      "[data-monthly-detail]",
+    );
+    if (!trigger || !openQuickEditMenu(trigger)) return;
+    e.preventDefault();
+  });
+
+  monthlyBody?.addEventListener("keydown", (e) => {
+    const isContextMenuKey =
+      e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey);
+    if (!isContextMenuKey || !quickEditMenu) return;
+
+    const trigger = (e.target as HTMLElement).closest<HTMLElement>(
+      "[data-monthly-detail]",
+    );
+    if (!trigger) return;
+    if (openQuickEditMenu(trigger)) e.preventDefault();
+  });
+
+  quickEditMenu?.addEventListener("focusout", (e) => {
+    const next = (e as FocusEvent).relatedTarget as Node | null;
+    // #268: Tab (o cualquier salida de foco) cierra el menú sin robar foco.
+    // `relatedTarget` dentro del menú (click en un ítem) no lo cierra: el
+    // handler de click necesita llegar a ejecutarse.
+    if (next && quickEditMenu.contains(next)) return;
+    closeQuickEditMenu(false);
+  });
+
+  quickEditMenu?.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeQuickEditMenu(true);
+      return;
+    }
+
+    const items = getQuickEditItems();
+    if (items.length === 0) return;
+
+    const currentIndex = items.indexOf(
+      document.activeElement as HTMLButtonElement,
+    );
+    let nextIndex: number;
+
+    switch (e.key) {
+      case "ArrowDown":
+        nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % items.length;
+        break;
+      case "ArrowUp":
+        nextIndex = currentIndex <= 0 ? items.length - 1 : currentIndex - 1;
+        break;
+      case "Home":
+        nextIndex = 0;
+        break;
+      case "End":
+        nextIndex = items.length - 1;
+        break;
+      default:
+        return;
+    }
+
+    e.preventDefault();
+    items[nextIndex]?.focus();
   });
 
   document
@@ -1886,17 +1973,24 @@ function setupEventListeners(): void {
 
       const newStatus = btn.dataset.status;
       if (newStatus) {
+        const operator = activeCell.dataset.operator;
+        const date = activeCell.dataset.date;
         updateCellStatus(activeCell, newStatus);
         if (!state.isEditMode) {
           saveIndicator?.classList.remove("hidden");
         }
-        quickEditMenu.classList.add("hidden");
+        closeQuickEditMenu(false);
+        findLiveMonthlyCell(
+          document.getElementById("monthly-tbody"),
+          operator,
+          date,
+        )?.focus();
       }
     });
 
   document.addEventListener("click", (e) => {
     if (quickEditMenu && !quickEditMenu.contains(e.target as Node)) {
-      quickEditMenu.classList.add("hidden");
+      closeQuickEditMenu();
     }
   });
 

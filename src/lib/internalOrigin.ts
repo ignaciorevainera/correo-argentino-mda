@@ -1,8 +1,18 @@
-export function getInternalOrigin(): string {
+export function getInternalOrigin(request?: Request): string {
   const configured =
     import.meta.env?.INTERNAL_ORIGIN || process.env.INTERNAL_ORIGIN;
   if (configured) return configured.replace(/\/+$/, "");
-  return `http://127.0.0.1:${process.env.PORT || 4321}`;
+
+  const fallback = `http://127.0.0.1:${process.env.PORT || 4321}`;
+
+  if (request && import.meta.env?.DEV) {
+    const { hostname, origin } = new URL(request.url);
+    if (["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname)) {
+      return origin;
+    }
+  }
+
+  return fallback;
 }
 
 /**

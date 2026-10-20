@@ -5,18 +5,13 @@ import { eq } from "drizzle-orm";
 import { getPdfsDir } from "@lib/storage";
 import fs from "node:fs";
 import path from "node:path";
+import { requireSession } from "@lib/rbac-middleware";
 
 export const GET: APIRoute = async ({ params, locals }) => {
-  // Verificar que el usuario esté autenticado
-  if (!locals.user || locals.user.id === 0) {
-    return new Response(
-      "No autorizado. Inicie sesión para descargar este recurso.",
-      {
-        status: 401,
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
-      },
-    );
-  }
+  // #309: guard único del proyecto. El middleware ya niega /api/** anónimo;
+  // requireSession deja el 401 en el formato JSON estándar (jsonError).
+  const denied = await requireSession(locals);
+  if (denied) return denied;
 
   const { id } = params;
   if (!id) {

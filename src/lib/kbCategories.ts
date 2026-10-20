@@ -77,20 +77,17 @@ function findDuplicate(
   helpdeskId: number,
   name: string,
   excludeId?: number,
+  executor: KbCategoriesExecutor = db,
 ): { id: number } | undefined {
-  const [row] = db
-    .select({ id: kbCategories.id })
+  const target = categoryKey(name);
+  const rows = executor
+    .select({ id: kbCategories.id, name: kbCategories.name })
     .from(kbCategories)
-    .where(
-      and(
-        eq(kbCategories.helpdeskId, helpdeskId),
-        sql`lower(${kbCategories.name}) = lower(${name})`,
-        excludeId ? sql`${kbCategories.id} <> ${excludeId}` : undefined,
-      ),
-    )
-    .limit(1)
+    .where(eq(kbCategories.helpdeskId, helpdeskId))
     .all();
-  return row;
+  return rows.find(
+    (row) => row.id !== excludeId && categoryKey(row.name) === target,
+  );
 }
 
 export function createCategory(input: {
@@ -168,19 +165,7 @@ export function renameCategory(input: {
       };
     }
 
-    const [duplicate] = tx
-      .select({ id: kbCategories.id })
-      .from(kbCategories)
-      .where(
-        and(
-          eq(kbCategories.helpdeskId, input.helpdeskId),
-          sql`lower(${kbCategories.name}) = lower(${name})`,
-          sql`${kbCategories.id} <> ${input.id}`,
-        ),
-      )
-      .limit(1)
-      .all();
-
+    const duplicate = findDuplicate(input.helpdeskId, name, input.id, tx);
     if (duplicate) return { ok: false, reason: "duplicate" } as const;
 
     tx.update(kbCategories)

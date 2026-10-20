@@ -25,4 +25,26 @@ describe("getInternalOrigin", () => {
     delete process.env.PORT;
     expect(getInternalOrigin()).toBe("http://127.0.0.1:4321");
   });
+
+  it("en dev usa el origin real del request cuando el puerto es custom", () => {
+    vi.stubEnv("INTERNAL_ORIGIN", "");
+    delete process.env.INTERNAL_ORIGIN;
+    vi.stubEnv("PORT", "");
+    delete process.env.PORT;
+
+    const request = new Request(
+      "http://localhost:4323/api/cronograma/export.png?month=2026-09",
+    );
+    expect(getInternalOrigin(request)).toBe("http://localhost:4323");
+  });
+
+  it("en dev ignora un Host no loopback y cae a loopback", () => {
+    vi.stubEnv("INTERNAL_ORIGIN", "");
+    delete process.env.INTERNAL_ORIGIN;
+    vi.stubEnv("PORT", "");
+    delete process.env.PORT;
+
+    const request = new Request("http://evil.example:8080/api/cronograma/export.png");
+    expect(getInternalOrigin(request)).toBe("http://127.0.0.1:4321");
+  });
 });

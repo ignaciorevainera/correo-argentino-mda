@@ -22,12 +22,14 @@ function sign(sessionId: string): string {
 const stamp = Date.now();
 const agentSessionId = `sess_of_agent_${stamp}`;
 const supervisorSessionId = `sess_of_sup_${stamp}`;
-const officeCode = `T${String(stamp).slice(-4)}`;
+const officeCode = `T${stamp}`;
 let agentId = 0;
 let supervisorId = 0;
 let officeId = 0;
-const closedOfficeCode = `C${String(stamp).slice(-4)}`;
+const closedOfficeCode = `C${stamp}`;
 let closedOfficeId = 0;
+const accentOfficeCode = `A${stamp}`;
+let accentOfficeId = 0;
 
 function panelFixture(overrides: Record<string, unknown> = {}) {
   return {
@@ -142,6 +144,21 @@ async function stubPanel(
 }
 
 test.beforeAll(async () => {
+  // Cleanup previo idempotente: si un run anterior murió antes del afterAll,
+  // estos códigos/usuarios ya existen y el insert falla por UNIQUE.
+  await db.delete(terminals).where(inArray(terminals.nis, [officeCode, closedOfficeCode]));
+  await db.delete(employeeOffices).where(eq(employeeOffices.sucursal, officeCode));
+  await db.delete(offices).where(inArray(offices.code, [officeCode, closedOfficeCode, accentOfficeCode]));
+  const staleUsers = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(inArray(users.username, [`agent_of_${stamp}`, `sup_of_${stamp}`]));
+  if (staleUsers.length > 0) {
+    const ids = staleUsers.map((u) => u.id);
+    await db.delete(sessions).where(inArray(sessions.userId, ids));
+    await db.delete(users).where(inArray(users.id, ids));
+  }
+
   const [agentRow] = await db
     .insert(users)
     .values({ username: `agent_of_${stamp}`, password: "x", role: "agent" })
@@ -202,6 +219,20 @@ test.beforeAll(async () => {
     { hostname: `E2E-C1-${stamp}`, nis: closedOfficeCode },
     { hostname: `E2E-C2-${stamp}`, nis: closedOfficeCode },
   ]);
+
+  const [accentOffice] = await db
+    .insert(offices)
+    .values({
+      code: accentOfficeCode,
+      name: `Oficina Córdoba ${stamp}`,
+      type: "sucursal",
+      provinceCode: province.code,
+      officeType: "Sucursal",
+      locality: "Córdoba",
+      active: true,
+    })
+    .returning({ id: offices.id });
+  accentOfficeId = accentOffice.id;
 });
 
 test.afterAll(async () => {
@@ -211,6 +242,7 @@ test.afterAll(async () => {
   await db.delete(offices).where(eq(offices.id, officeId));
   await db.delete(terminals).where(eq(terminals.nis, closedOfficeCode));
   await db.delete(offices).where(eq(offices.id, closedOfficeId));
+  await db.delete(offices).where(eq(offices.id, accentOfficeId));
   await db.delete(sessions).where(inArray(sessions.userId, [agentId, supervisorId]));
   await db.delete(users).where(inArray(users.id, [agentId, supervisorId]));
 });
@@ -260,6 +292,25 @@ test.describe("API de estadísticas de oficinas", () => {
       const response = await request.get(`/api/oficinas/estadisticas?${query}`, { headers });
       expect(response.status(), query).toBe(400);
     }
+  });
+
+  test("la búsqueda de oficinas ignora acentos", async ({ request }) => {
+    const headers = { cookie: `session_id=${sign(supervisorSessionId)}` };
+    const codes: string[] = [];
+    for (const q of [`cordoba ${stamp}`, `Córdoba ${stamp}`, `CÓRDOBA ${stamp}`]) {
+      const response = await request.get(
+        `/api/oficinas/estadisticas?pageSize=100&q=${encodeURIComponent(q)}`,
+        { headers },
+      );
+      expect(response.status(), q).toBe(200);
+      const body = await response.json();
+      const row = body.ranking.rows.find(
+        (r: { code: string }) => r.code === accentOfficeCode,
+      );
+      expect(row, q).toBeTruthy();
+      codes.push(row.code);
+    }
+    expect(codes).toEqual([accentOfficeCode, accentOfficeCode, accentOfficeCode]);
   });
 
   test("el KPI de terminales comparte semántica con el ranking (parque total)", async ({
@@ -313,7 +364,7 @@ test.describe("Vista del panel con API stubbeada", () => {
 
     await page.goto("/oficinas/estadisticas");
 
-    await expect(page.locator('[data-kpi="oficinas"] [data-kpi-value]')).toHaveText("2 / 3");
+    await expect(page.locator('[data-kpi="usuarios"] [data-kpi-value]')).toHaveText("120");
     await expect(page.locator('[data-kpi="incidentes"] [data-kpi-value]')).toHaveText("7");
     await expect(page.locator('[data-kpi="eventos"] [data-kpi-value]')).toHaveText("1");
 
@@ -406,7 +457,7 @@ test.describe("Vista del panel con API stubbeada", () => {
     await expect(page.locator("[data-invgate-badge]")).toBeVisible();
     await expect(page.locator('[data-kpi="incidentes"] [data-kpi-value]')).toHaveText("—");
     await expect(page.locator('[data-kpi="eventos"] [data-kpi-value]')).toHaveText("—");
-    await expect(page.locator('[data-kpi="oficinas"] [data-kpi-value]')).toHaveText("2 / 3");
+    await expect(page.locator('[data-kpi="usuarios"] [data-kpi-value]')).toHaveText("120");
     await expect(page.locator("[data-mass-events-card]")).toBeHidden();
     await expect(page.locator("#ranking-table [data-table-row]")).toHaveCount(2);
   });
@@ -420,7 +471,7 @@ test.describe("Vista del panel con API stubbeada", () => {
       });
     });
     await page.goto("/oficinas/estadisticas");
-    await expect(page.locator('[data-kpi="oficinas"] [data-kpi-value]')).toHaveText("2 / 3");
+    await expect(page.locator('[data-kpi="terminales"] [data-kpi-value]')).toHaveText("40");
     await expect(page.locator("[data-mass-events-card]")).toBeHidden();
   });
 });
@@ -467,16 +518,17 @@ test.describe("Acceso a estadísticas desde el directorio", () => {
     ).toBeVisible();
   });
 
-  test("el listado de oficinas muestra la franja de KPIs", async ({ page }) => {
+  test("el listado de oficinas muestra el banner de accesos rápidos", async ({
+    page,
+  }) => {
     await page.context().addCookies([
       { name: "session_id", value: sign(supervisorSessionId), domain: "localhost", path: "/" },
     ]);
     await page.goto("/oficinas");
     await expect(page.locator("#office-filters-form")).toBeVisible({ timeout: 20000 });
 
-    const dash = page.locator("[data-section-dashboard]");
-    await expect(dash).toBeVisible();
-    await expect(dash.locator(".stat-value")).toHaveCount(3);
+    await expect(page.locator("[data-cta-estructura-oficinas]")).toBeVisible();
+    await expect(page.locator("[data-cta-estadisticas-oficinas]")).toBeVisible();
   });
 
   test("un agente no ve el CTA", async ({ page }) => {
