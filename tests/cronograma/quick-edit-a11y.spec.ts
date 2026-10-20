@@ -138,5 +138,11 @@ test.describe("menú de edición rápida accesible", () => {
     await page.keyboard.press("Escape");
     await expect(menu).toBeHidden();
     await expect(cell).toBeFocused();
+
+    // #268: salir del menú con Tab no deja el menú abierto.
+    await page.keyboard.press("Shift+F10");
+    await expect(menu).toBeVisible();
+    await page.keyboard.press("Tab");
+    await expect(menu).toBeHidden();
   });
 });

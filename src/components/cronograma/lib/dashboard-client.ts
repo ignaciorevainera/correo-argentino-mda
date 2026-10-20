@@ -1918,6 +1918,15 @@ function setupEventListeners(): void {
     if (openQuickEditMenu(trigger)) e.preventDefault();
   });
 
+  quickEditMenu?.addEventListener("focusout", (e) => {
+    const next = (e as FocusEvent).relatedTarget as Node | null;
+    // #268: Tab (o cualquier salida de foco) cierra el menú sin robar foco.
+    // `relatedTarget` dentro del menú (click en un ítem) no lo cierra: el
+    // handler de click necesita llegar a ejecutarse.
+    if (next && quickEditMenu.contains(next)) return;
+    closeQuickEditMenu(false);
+  });
+
   quickEditMenu?.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       e.preventDefault();
