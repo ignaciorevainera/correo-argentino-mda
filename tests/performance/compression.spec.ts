@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
 
+test.skip(
+  process.env.PLAYWRIGHT_PROD !== "1",
+  "Requiere build prod + server.mjs",
+);
+
 test("login page HTML is gzip-compressed", async ({ request }) => {
   const res = await request.get("/login", {
     headers: { "accept-encoding": "gzip" },
