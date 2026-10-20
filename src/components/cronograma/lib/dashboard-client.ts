@@ -1957,11 +1957,18 @@ function setupEventListeners(): void {
 
       const newStatus = btn.dataset.status;
       if (newStatus) {
+        const operator = activeCell.dataset.operator;
+        const date = activeCell.dataset.date;
         updateCellStatus(activeCell, newStatus);
         if (!state.isEditMode) {
           saveIndicator?.classList.remove("hidden");
         }
-        closeQuickEditMenu(true);
+        closeQuickEditMenu(false);
+        findLiveMonthlyCell(
+          document.getElementById("monthly-tbody"),
+          operator,
+          date,
+        )?.focus();
       }
     });
 

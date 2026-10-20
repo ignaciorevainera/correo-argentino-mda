@@ -37,4 +37,14 @@ describe("getInternalOrigin", () => {
     );
     expect(getInternalOrigin(request)).toBe("http://localhost:4323");
   });
+
+  it("en dev ignora un Host no loopback y cae a loopback", () => {
+    vi.stubEnv("INTERNAL_ORIGIN", "");
+    delete process.env.INTERNAL_ORIGIN;
+    vi.stubEnv("PORT", "");
+    delete process.env.PORT;
+
+    const request = new Request("http://evil.example:8080/api/cronograma/export.png");
+    expect(getInternalOrigin(request)).toBe("http://127.0.0.1:4321");
+  });
 });

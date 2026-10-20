@@ -3,11 +3,16 @@ export function getInternalOrigin(request?: Request): string {
     import.meta.env?.INTERNAL_ORIGIN || process.env.INTERNAL_ORIGIN;
   if (configured) return configured.replace(/\/+$/, "");
 
-  if (request && (import.meta.env?.DEV || !process.env.PORT)) {
-    return new URL(request.url).origin;
+  const fallback = `http://127.0.0.1:${process.env.PORT || 4321}`;
+
+  if (request && import.meta.env?.DEV) {
+    const { hostname, origin } = new URL(request.url);
+    if (["localhost", "127.0.0.1", "::1", "[::1]"].includes(hostname)) {
+      return origin;
+    }
   }
 
-  return `http://127.0.0.1:${process.env.PORT || 4321}`;
+  return fallback;
 }
 
 /**
