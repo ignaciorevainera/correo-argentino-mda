@@ -214,8 +214,9 @@ export function hasPermission(path: string, userRole: string): boolean {
 
   const userRank = ROLE_HIERARCHY[role];
 
-  // The home page is public. It cannot be expressed as a prefix entry because
-  // "/" matches every path under startsWith semantics.
+  // La home no es pública (el middleware sólo exceptúa /404 y /generador-firmas):
+  // se resuelve acá porque "/" no puede expresarse como prefijo — con startsWith
+  // matchearía todas las rutas.
   if (normalizedPath === "/") return true;
 
   // Default deny: unknown paths must be explicitly whitelisted in

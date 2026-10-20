@@ -218,7 +218,7 @@ export const GET: APIRoute = async ({ request, locals }) => {
     const adUser = entries[0];
 
     // No loggear el entry ni campos del usuario: PII (mail, nombre, etc.).
-    // El endpoint es público por diseño.
+    // El endpoint NO es público: exige sesión vía requireSession (línea 107).
 
     // Resolve manager name if present
     let managerName: string | null = null;
