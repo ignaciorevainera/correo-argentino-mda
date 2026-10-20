@@ -10,10 +10,10 @@ const ROOT = resolve(__dirname, "../../..");
 const PLATFORM_KEYS = new Set([
   "NODE_ENV",
   "DEV",
+  "PROD",
   "BASE_URL",
   "VITEST",
   "APPDATA",
-  "MDA_SKIP_PRE_PUSH",
 ]);
 
 function filesUnderSrcAndScripts(): string[] {
@@ -27,8 +27,8 @@ function filesUnderSrcAndScripts(): string[] {
 function keysUsedInCode(): Set<string> {
   const keys = new Set<string>();
   const patterns = [
-    /(?:process\.env|import\.meta\.env)\.([A-Z][A-Z0-9_]+)/g,
-    /getEnv\(\s*["']([A-Z][A-Z0-9_]+)["']\s*\)/g,
+    /(?:process\.env|import\.meta\.env)\??\.([A-Z][A-Z0-9_]+)/g,
+    /(?:getEnv|env|requireEnv|readEnv|envMinutes)\(\s*["']([A-Z][A-Z0-9_]+)["']\s*\)/g,
   ];
   for (const file of filesUnderSrcAndScripts()) {
     const content = readFileSync(resolve(ROOT, file), "utf8");
