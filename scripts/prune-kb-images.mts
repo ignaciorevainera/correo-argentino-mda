@@ -5,8 +5,10 @@
 // - --apply MUEVE los huérfanos a una carpeta de cuarentena; nunca borra.
 //   Revertir = mover los archivos de vuelta desde --storage/kb-images-quarantine/<stamp>/.
 // - Idempotente: re-ejecutar tras --apply no encuentra nada nuevo.
-// - Nunca toca filas de kb_articles (no hay hard delete de artículos): el
-//   conjunto de referencia incluye TODO el contenido, incl. borradores y archivados.
+// - Nunca toca filas de kb_articles: el conjunto de referencia incluye TODO el
+//   contenido, incl. borradores y archivados.
+// - También preserva las imágenes de artículos en papelera no restaurados,
+//   porque su contenido sigue en el snapshot de deleted_records.
 import "dotenv/config";
 import path from "node:path";
 import { getStorageRoot } from "../src/lib/storage";
