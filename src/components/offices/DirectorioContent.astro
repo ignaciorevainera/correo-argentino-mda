@@ -174,10 +174,42 @@ const mainTabs = [
 ];
 ---
 
-<PageContainer width="xxl">
-  <PageHeader
-    description="Visualización centralizada de la infraestructura, buscador de oficinas y mapa interactivo de cobertura nacional."
-  />
+<PageContainer width="xxl" class="gap-5 lg:gap-6">
+  <section
+    class="from-primary/10 via-base-100 to-secondary/10 border-base-300 relative overflow-hidden rounded-2xl border bg-gradient-to-br px-5 py-6 shadow-sm sm:px-7 sm:py-7"
+    aria-labelledby="offices-page-title"
+  >
+    <div class="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+      <div class="max-w-2xl">
+        <div class="text-primary mb-3 flex items-center gap-2 text-xs font-bold tracking-[0.18em] uppercase">
+          <span class="bg-primary size-2 rounded-full"></span>
+          Red postal nacional
+        </div>
+        <h1 id="offices-page-title" class="text-base-content text-3xl font-bold tracking-tight sm:text-4xl">
+          Directorio de oficinas
+        </h1>
+        <p class="text-base-content/70 mt-3 max-w-xl text-sm leading-6 sm:text-base">
+          Encontrá rápidamente una sucursal, consultá su dependencia y explorá la cobertura de Correo Argentino.
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 text-sm">
+        <span class="badge badge-success badge-soft gap-1.5 px-3 py-3 font-medium">
+          <span class="size-1.5 rounded-full bg-current"></span>
+          {oficinasActivas} activas
+        </span>
+        <span class="badge badge-neutral badge-soft px-3 py-3 font-medium">
+          {oficinasTotales} registradas
+        </span>
+      </div>
+    </div>
+    <div class="bg-primary/10 pointer-events-none absolute -right-16 -bottom-24 size-64 rounded-full blur-3xl"></div>
+  </section>
+
+  <StatsGrid base={1} sm={3} lg={3} ariaLabel="Resumen del directorio" class="gap-3">
+    <StatsCard label="Oficinas activas" value={oficinasActivas} icon="building-house" color="success" subtitle="Disponibles para operar" />
+    <StatsCard label="Oficinas inoperativas" value={oficinasCerradas} icon="building-house" color="warning" subtitle="Requieren seguimiento" />
+    <StatsCard label="Cobertura" value={`${uniqueRegions.length} regiones`} icon="map" color="info" subtitle="Presencia en todo el país" />
+  </StatsGrid>
 
   <ViewSwitcher
     tabs={mainTabs}
@@ -187,7 +219,7 @@ const mainTabs = [
     class="grid w-full grid-cols-2"
     containerClass="w-full"
   />
-  <div id="main-view-directory" class="space-y-6">
+  <div id="main-view-directory" class="flex flex-col gap-5 lg:gap-6">
     <div
       id="provinces-data"
       data-provinces={JSON.stringify(provincesByRegion)}
@@ -197,7 +229,7 @@ const mainTabs = [
     <form
       method="GET"
       id="office-filters-form"
-      class="rounded-box border-base-300 bg-base-100 flex flex-col gap-4 border p-4 shadow-md"
+      class="border-base-300 bg-base-100 flex flex-col gap-5 rounded-2xl border p-4 shadow-sm sm:p-5"
       aria-label="Filtros del directorio"
     >
       <div class="w-full">
