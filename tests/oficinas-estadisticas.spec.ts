@@ -506,6 +506,9 @@ test.describe("Acceso a estadísticas desde el directorio", () => {
     // El directorio llega por server island: primero el form de filtros, para
     // que un count 0 no sea un falso verde en el caso del agente.
     await expect(page.locator("#office-filters-form")).toBeVisible({ timeout: 20000 });
+    await page
+      .locator('summary[aria-label="Más acciones del directorio"]')
+      .click();
 
     const cta = page.locator("[data-cta-estadisticas-oficinas]");
     await expect(cta).toBeVisible();
@@ -518,7 +521,7 @@ test.describe("Acceso a estadísticas desde el directorio", () => {
     ).toBeVisible();
   });
 
-  test("el listado de oficinas muestra el banner de accesos rápidos", async ({
+  test("el menú de acciones del directorio muestra los accesos rápidos", async ({
     page,
   }) => {
     await page.context().addCookies([
@@ -526,6 +529,9 @@ test.describe("Acceso a estadísticas desde el directorio", () => {
     ]);
     await page.goto("/oficinas");
     await expect(page.locator("#office-filters-form")).toBeVisible({ timeout: 20000 });
+    await page
+      .locator('summary[aria-label="Más acciones del directorio"]')
+      .click();
 
     await expect(page.locator("[data-cta-estructura-oficinas]")).toBeVisible();
     await expect(page.locator("[data-cta-estadisticas-oficinas]")).toBeVisible();
