@@ -63,8 +63,43 @@ export function initAgentsTicketTrigger(): void {
   });
 }
 
+let isDropdownsInitialized = false;
+
+export function initDropdowns(): void {
+  if (isDropdownsInitialized) return;
+  isDropdownsInitialized = true;
+
+  document.addEventListener("click", (e) => {
+    const target = e.target as Node;
+    document
+      .querySelectorAll<HTMLDetailsElement>("details[data-dropdown][open]")
+      .forEach((details) => {
+        if (!details.contains(target)) details.open = false;
+      });
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    document
+      .querySelectorAll<HTMLDetailsElement>("details[data-dropdown][open]")
+      .forEach((details) => {
+        details.open = false;
+        details.querySelector<HTMLElement>("summary")?.focus();
+      });
+  });
+
+  document
+    .querySelectorAll<HTMLDetailsElement>("details[data-dropdown]")
+    .forEach((details) => {
+      details.addEventListener("click", (e) => {
+        if ((e.target as HTMLElement).closest("a")) details.open = false;
+      });
+    });
+}
+
 export function init(): void {
   initOfficeTable();
+  initDropdowns();
 
   initOfficeFilters((newSearch?: string) => {
     resetPagination();

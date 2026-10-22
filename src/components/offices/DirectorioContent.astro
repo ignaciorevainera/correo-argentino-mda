@@ -1,5 +1,4 @@
 ---
-import ActionButton from "@components/ui/ActionButton.astro";
 import { Icon } from "astro-icon/components";
 import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import MasterDetailTable from "@components/ui/MasterDetailTable.astro";
@@ -7,7 +6,6 @@ import PageContainer from "@components/ui/PageContainer.astro";
 import PageHeader from "@components/ui/PageHeader.astro";
 import SearchBar from "@components/ui/SearchBar.astro";
 import ViewSwitcher from "@components/ui/ViewSwitcher.astro";
-import FilterTabsBox from "@components/ui/FilterTabsBox.astro";
 import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
 import StatsGrid from "@components/ui/StatsGrid.astro";
 import StatsCard from "@components/ui/StatsCard.astro";
@@ -21,7 +19,6 @@ import OfficeRow from "@components/offices/OfficeRow.astro";
 import AgentsTicketModal from "@components/offices/AgentsTicketModal.astro";
 import {
   officeTypeLabelByType,
-  officeTypeTabActiveClassByType,
   formatTypeLabel,
 } from "@lib/officeHelpers";
 import { db } from "@db/index";
@@ -50,7 +47,7 @@ const searchParams = getResolvedSearchParams(Astro.request, Astro.url);
 
 const typeFilter = searchParams.get("type") || "all";
 const regionFilter = searchParams.get("region") || "all";
-let provinceFilter = searchParams.get("province") || "all";
+const provinceFilter = searchParams.get("province") || "all";
 const zoneFilter = searchParams.get("zone") || "all";
 const paqarFilter = searchParams.get("paqar") || "all";
 const hasParentFilter = searchParams.get("hasParent") === "true";
@@ -77,15 +74,6 @@ for (const p of allProvincesWithRegion) {
   const rName = p.regionName ?? "Sin región";
   if (!provincesByRegion[rName]) provincesByRegion[rName] = [];
   provincesByRegion[rName].push({ code: p.code, name: p.name });
-}
-
-if (regionFilter !== "all" && provinceFilter !== "all") {
-  const regionProvinces = provincesByRegion[regionFilter] || [];
-  if (!regionProvinces.find((p) => p.code === provinceFilter)) {
-    provinceFilter = "all";
-  }
-} else if (regionFilter === "all") {
-  provinceFilter = "all";
 }
 
 const sortBy = (searchParams.get("sortBy") || undefined) as
@@ -116,7 +104,7 @@ const {
   sortOrder,
 });
 
-const { processedCounts, officeCountByType } = await getOfficeTypeCounts();
+const { processedCounts } = await getOfficeTypeCounts();
 
 processedCounts.forEach((row) => {
   if (row.type && !officeTypeLabelByType[row.type]) {
@@ -124,13 +112,13 @@ processedCounts.forEach((row) => {
   }
 });
 
-const officeTypeTabs = [
-  { type: "all", label: "Todas" },
+const officeTypeOptions = [
+  { value: "all", label: "Todas" },
   ...processedCounts
     .sort((a, b) => b.count - a.count)
     .map((row) => ({
-      type: row.type,
-      label: officeTypeLabelByType[row.type] || formatTypeLabel(row.type),
+      value: row.type,
+      label: `${officeTypeLabelByType[row.type] || formatTypeLabel(row.type)} (${row.count})`,
     })),
 ];
 
@@ -164,6 +152,16 @@ if (isAllowedAdmin) {
   hasNoAddressOffices = noAddressCount[0].count > 0;
 }
 
+const advancedFilterCount =
+  (zoneFilter !== "all" ? 1 : 0) +
+  (paqarFilter !== "all" ? 1 : 0) +
+  (hasParentFilter ? 1 : 0) +
+  (isAllowedAdmin && hasNoAddressOffices && noAddressFilter ? 1 : 0) +
+  (showClosedToggle && statusFilter === "closed" ? 1 : 0);
+
+const hasDirectoryActions =
+  canExport || isAllowedAdmin || canViewInvgateStats || canViewOfficeStats;
+
 const officeDirectoryHeaderGridClass = isAllowedAdmin
   ? "grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px_120px] gap-4"
   : "grid-cols-[48px_80px_1.2fr_90px_1.8fr_110px] gap-4";
@@ -178,6 +176,44 @@ const mainTabs = [
   <PageHeader
     description="Visualización centralizada de la infraestructura, buscador de oficinas y mapa interactivo de cobertura nacional."
   />
+
+  <div>
+    <div class="mb-2 flex items-center gap-2">
+      <span
+        class="text-base-content/50 text-xs font-semibold tracking-wider uppercase"
+        >Padrón</span
+      >
+    </div>
+    <StatsGrid
+      base={2}
+      md={3}
+      lg={3}
+      ariaLabel="Resumen de oficinas"
+      class="[&_.stat-figure]:hidden sm:[&_.stat-figure]:block"
+    >
+      <StatsCard
+        icon="building-house-filled"
+        label="Oficinas totales"
+        value={oficinasTotales}
+        color="primary"
+        size="lg"
+      />
+      <StatsCard
+        icon="check-circle-filled"
+        label="Activas"
+        value={oficinasActivas}
+        color="success"
+        size="lg"
+      />
+      <StatsCard
+        icon="x-circle-filled"
+        label="Inoperativas"
+        value={oficinasCerradas}
+        color="error"
+        size="lg"
+      />
+    </StatsGrid>
+  </div>
 
   <ViewSwitcher
     tabs={mainTabs}
@@ -200,28 +236,141 @@ const mainTabs = [
       class="rounded-box border-base-300 bg-base-100 flex flex-col gap-4 border p-4 shadow-md"
       aria-label="Filtros del directorio"
     >
-      <div class="w-full">
-        <input
-          type="hidden"
-          name="type"
-          id="filter-tabs-hidden-type"
-          value={typeFilter}
-        />
-        <FilterTabsBox
-          tabs={officeTypeTabs.map((tab) => ({
-            value: tab.type,
-            label: tab.label,
-            count: officeCountByType[tab.type],
-          }))}
-          activeValue={typeFilter}
-          name="type"
-          activeClasses={officeTypeTabActiveClassByType}
-          class="bg-base-200/50 flex-wrap p-2"
-          submitOnChange={false}
-        />
+      <div class="flex w-full flex-wrap items-center gap-3">
+        <div class="min-w-52 flex-1">
+          <SearchBar
+            id="office-search"
+            name="search"
+            value={searchFilter}
+            placeholder="Buscar por nombre, código, región o CP"
+            clearable
+          />
+        </div>
+        <div class="badge badge-neutral badge-lg whitespace-nowrap">
+          <Icon name="boxicons:eye-filled" size={16} />
+          <span id="total-count-badge">{totalOffices} resultados</span>
+        </div>
+        <button
+          type="button"
+          id="clear-filters-btn"
+          class="btn btn-ghost btn-square shrink-0"
+          aria-label="Limpiar todos los filtros"
+          title="Limpiar todos los filtros"
+        >
+          <Icon name="boxicons:trash" size={20} />
+        </button>
+        {
+          hasDirectoryActions && (
+            <details class="dropdown dropdown-end shrink-0" data-dropdown>
+              <summary
+                class="btn btn-ghost btn-square list-none [&::-webkit-details-marker]:hidden"
+                aria-label="Más acciones del directorio"
+                title="Más acciones"
+              >
+                <Icon name="boxicons:dots-vertical-rounded" size={20} />
+              </summary>
+              <ul class="dropdown-content menu bg-base-100 border-base-300 shadow-overlay z-100 mt-1 w-60 rounded-xl border p-1.5">
+                {canExport && (
+                  <li>
+                    <a
+                      id="export-csv-btn"
+                      href={`${import.meta.env.BASE_URL}api/export/offices`}
+                      download
+                      class="gap-2"
+                    >
+                      <Icon name="boxicons:file-detail-filled" size={18} />
+                      Exportar CSV
+                    </a>
+                  </li>
+                )}
+                {isAllowedAdmin && (
+                  <li>
+                    <a
+                      href={`${import.meta.env.BASE_URL}oficinas/create`}
+                      class="gap-2"
+                    >
+                      <Icon name="boxicons:plus" size={18} />
+                      Registrar oficina
+                    </a>
+                  </li>
+                )}
+                {canViewInvgateStats && (
+                  <li>
+                    <button
+                      id="sync-invgate-btn"
+                      type="button"
+                      class="gap-2"
+                    >
+                      <Icon name="boxicons:refresh-cw" size={18} />
+                      <span id="sync-btn-text">Sincronizar ahora</span>
+                      <span
+                        id="sync-btn-spinner"
+                        class="loading loading-spinner loading-sm ml-auto hidden"
+                      />
+                    </button>
+                  </li>
+                )}
+                {canViewOfficeStats && <li class="menu-title">Vistas</li>}
+                {canViewOfficeStats && (
+                  <li>
+                    <a
+                      href={resolveUrl("/oficinas/estructura")}
+                      class="gap-2"
+                      data-cta-estructura-oficinas
+                    >
+                      <Icon name="boxicons:network-chart-filled" size={18} />
+                      Estructura
+                    </a>
+                  </li>
+                )}
+                {canViewOfficeStats && (
+                  <li>
+                    <a
+                      href={resolveUrl("/oficinas/estadisticas")}
+                      class="gap-2"
+                      data-cta-estadisticas-oficinas
+                    >
+                      <Icon name="boxicons:bar-chart-big-filled" size={18} />
+                      Estadísticas
+                    </a>
+                  </li>
+                )}
+                {isAllowedAdmin && (
+                  <li>
+                    <a
+                      href={`${import.meta.env.BASE_URL}admin/invgate/ubicaciones?sync=true`}
+                      class="gap-2"
+                      data-cta-comparativa-oficinas
+                    >
+                      <Icon name="boxicons:pie-chart-filled" size={18} />
+                      Comparativa InvGate
+                    </a>
+                  </li>
+                )}
+              </ul>
+            </details>
+          )
+        }
       </div>
 
-      <div class="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="grid w-full grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <div>
+          <select
+            name="type"
+            id="typeFilter"
+            class="select border-base-300 focus:border-primary focus:ring-primary/20 w-full focus:ring-2 focus:outline-none"
+            aria-label="Filtrar por tipo de oficina"
+          >
+            {
+              officeTypeOptions.map((option) => (
+                <option value={option.value} selected={typeFilter === option.value}>
+                  {option.label}
+                </option>
+              ))
+            }
+          </select>
+        </div>
+
         <div>
           <select
             name="region"
@@ -230,7 +379,7 @@ const mainTabs = [
             aria-label="Filtrar por región"
           >
             <option value="all" selected={regionFilter === "all"}
-              >Regiones (Todas)</option
+              >Regiones</option
             >
             {
               uniqueRegions.map((region) => (
@@ -248,255 +397,167 @@ const mainTabs = [
             id="provinceFilter"
             class="select border-base-300 focus:border-primary focus:ring-primary/20 w-full focus:ring-2 focus:outline-none"
             aria-label="Filtrar por provincia"
-            disabled={regionFilter === "all"}
           >
             <option value="all" selected={provinceFilter === "all"}
-              >Provincias (Todas)</option
+              >Provincias</option
             >
             {
-              regionFilter !== "all" &&
-                (provincesByRegion[regionFilter] || []).map((prov) => (
-                  <option
-                    value={prov.code}
-                    selected={provinceFilter === prov.code}
-                  >
-                    {prov.name}
-                  </option>
-                ))
-            }
-          </select>
-        </div>
-
-        <div>
-          <select
-            name="zone"
-            id="zoneFilter"
-            class="select border-base-300 focus:border-primary focus:ring-primary/20 w-full focus:ring-2 focus:outline-none"
-            aria-label="Filtrar por zona"
-          >
-            <option value="all" selected={zoneFilter === "all"}
-              >Zonas (Todas)</option
-            >
-            {
-              uniqueZones.map((zone) => (
-                <option value={zone} selected={zoneFilter === zone}>
-                  {zone}
-                </option>
+              uniqueRegions.map((region) => (
+                <optgroup label={region}>
+                  {(provincesByRegion[region] || []).map((prov) => (
+                    <option
+                      value={prov.code}
+                      selected={provinceFilter === prov.code}
+                    >
+                      {prov.name}
+                    </option>
+                  ))}
+                </optgroup>
               ))
             }
           </select>
         </div>
 
-        <div>
-          <select
-            name="paqar"
-            id="paqarFilter"
-            class="select border-base-300 focus:border-primary focus:ring-primary/20 w-full focus:ring-2 focus:outline-none"
-            aria-label="Filtrar por servicios Paq.AR"
+        <label
+          class="bg-base-200/40 border-base-300 flex min-h-10 cursor-pointer items-center justify-between gap-2 rounded-lg border px-3"
+        >
+          <span class="label-text text-xs font-medium sm:text-sm"
+            >Solo cabeceras</span
           >
-            <option value="all" selected={paqarFilter === "all"}
-              >Paq.AR (Todos)</option
-            >
-            <option value="admision" selected={paqarFilter === "admision"}
-              >Admite Paq.AR</option
-            >
-            <option value="entrega" selected={paqarFilter === "entrega"}
-              >Entrega Paq.AR</option
-            >
-            <option value="ambos" selected={paqarFilter === "ambos"}
-              >Admite y Entrega</option
-            >
-          </select>
-        </div>
-      </div>
-
-      <div class="flex w-full flex-wrap items-stretch justify-between gap-4">
-        <div
-          class="bg-base-200/50 flex flex-wrap items-center gap-4 rounded-lg px-3 py-1.5"
-        >
-          <label class="label cursor-pointer gap-2 p-0">
-            <span
-              class="label-text text-base-content/80 text-xs font-medium sm:text-sm"
-              >Depende de otra</span
-            >
-            <input
-              type="checkbox"
-              name="hasParent"
-              value="true"
-              class="toggle toggle-sm toggle-primary"
-              checked={hasParentFilter}
-              aria-label="Mostrar solo oficinas que dependen de otra"
-            />
-          </label>
-          <label class="label cursor-pointer gap-2 p-0">
-            <span
-              class="label-text text-base-content/80 text-xs font-medium sm:text-sm"
-              >Solo Cabeceras</span
-            >
-            <input
-              type="checkbox"
-              name="isHeadquarter"
-              value="true"
-              class="toggle toggle-sm toggle-primary"
-              checked={isHeadquarterFilter}
-              aria-label="Mostrar solo oficinas cabecera"
-            />
-          </label>
-          {
-            isAllowedAdmin && hasNoAddressOffices && (
-              <label class="label cursor-pointer gap-2 p-0">
-                <span class="label-text text-base-content/80 text-xs font-medium sm:text-sm">
-                  Sin domicilio
-                </span>
-                <input
-                  type="checkbox"
-                  name="noAddress"
-                  value="true"
-                  class="toggle toggle-sm toggle-primary"
-                  checked={noAddressFilter}
-                  aria-label="Mostrar solo oficinas sin domicilio registrado"
-                />
-              </label>
-            )
-          }
-          {
-            showClosedToggle && (
-              <label class="label cursor-pointer gap-2 p-0">
-                <span class="label-text text-base-content/80 text-xs font-medium sm:text-sm">
-                  Mostrar solo inoperativas
-                </span>
-                <input
-                  type="checkbox"
-                  name="status"
-                  value="closed"
-                  class="toggle toggle-sm toggle-primary"
-                  checked={statusFilter === "closed"}
-                  aria-label="Mostrar solo oficinas inoperativas"
-                />
-              </label>
-            )
-          }
-        </div>
-        <button
-          type="button"
-          id="clear-filters-btn"
-          class="btn btn-outline btn-error ml-auto gap-2 self-center font-semibold"
-          aria-label="Limpiar todos los filtros"
-          title="Limpiar todos los filtros"
-        >
-          <Icon name="boxicons:trash" size={16} />
-          Limpiar filtros
-        </button>
-      </div>
-
-      <div class="flex w-full flex-wrap items-center gap-3 sm:flex-nowrap">
-        <div class="w-full">
-          <SearchBar
-            id="office-search"
-            placeholder="Buscar por nombre, código, región o CP"
+          <input
+            type="checkbox"
+            name="isHeadquarter"
+            value="true"
+            class="toggle toggle-sm toggle-primary"
+            checked={isHeadquarterFilter}
+            aria-label="Mostrar solo oficinas cabecera"
           />
-        </div>
-        <div class="badge badge-neutral badge-lg whitespace-nowrap">
-          <Icon name="boxicons:eye-filled" size={16} />
-          <span id="total-count-badge">{totalOffices} resultados</span>
-        </div>
-        {
-          canExport && (
-            <ActionButton
-              icon="boxicons:file-detail-filled"
-              color="btn-primary"
-              id="export-csv-btn"
-              href={import.meta.env.BASE_URL + "api/export/offices"}
-              ariaLabel="Exportar directorio a CSV"
-              label="Exportar CSV"
-              download
-              class="shrink-0 font-semibold shadow-sm"
-            />
-          )
-        }
-        {
-          isAllowedAdmin && (
-            <a
-              href={`${import.meta.env.BASE_URL}oficinas/create`}
-              class="btn btn-secondary shrink-0 gap-2 font-semibold shadow-sm"
-              aria-label="Registrar nueva oficina"
-            >
-              <Icon name="boxicons:plus" size={20} />
-              <span class="hidden sm:inline">Registrar oficina</span>
-              <span class="sm:hidden">Registrar</span>
-            </a>
-          )
-        }
-        {
-          canViewInvgateStats && (
-            <button
-              id="sync-invgate-btn"
-              type="button"
-              class="btn btn-neutral btn-soft gap-2"
-            >
-              <span id="sync-btn-text">Sincronizar ahora</span>
-              <span
-                id="sync-btn-spinner"
-                class="loading loading-spinner loading-sm hidden"
-              />
-            </button>
-          )
-        }
-      </div>
-    </form>
+        </label>
 
-    {
-      (canViewOfficeStats || isAllowedAdmin) && (
-        <div class="rounded-box border-base-300 bg-base-100 flex flex-wrap items-center justify-between gap-3 border p-3.5 shadow-sm">
-          <div class="flex items-center gap-2">
-            <Icon
-              name="boxicons:info-circle"
-              size={18}
-              class="text-secondary shrink-0"
-            />
-            <span class="text-base-content/70 text-xs">
-              Accesos rápidos a la red postal, visualizaciones y comparativas de
-              infraestructura.
+        <details class="dropdown dropdown-end w-full" data-dropdown>
+          <summary
+            class:list={[
+              "btn w-full justify-between gap-2 text-sm font-normal",
+              advancedFilterCount > 0
+                ? "btn-soft btn-primary"
+                : "btn-outline border-base-300",
+            ]}
+            aria-label={`Filtros avanzados${advancedFilterCount > 0 ? `, ${advancedFilterCount} activos` : ""}`}
+          >
+            <span class="flex items-center gap-2">
+              <Icon name="boxicons:filter" size={16} />
+              Avanzados
             </span>
+            <span
+              id="advanced-filter-count"
+              class:list={[
+                "badge badge-sm",
+                advancedFilterCount > 0 ? "" : "hidden",
+              ]}
+              aria-live="polite">{advancedFilterCount}</span
+            >
+          </summary>
+          <div
+            class="dropdown-content bg-base-100 border-base-300 shadow-overlay z-100 mt-1 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-3 rounded-xl border p-3"
+          >
+            <span
+              class="text-base-content/50 text-xs font-semibold tracking-wider uppercase"
+              >Ubicación</span
+            >
+            <select
+              name="zone"
+              id="zoneFilter"
+              class="select select-sm border-base-300 focus:border-primary focus:ring-primary/20 w-full focus:ring-2 focus:outline-none"
+              aria-label="Filtrar por zona"
+            >
+              <option value="all" selected={zoneFilter === "all"}
+                >Zonas (Todas)</option
+              >
+              {
+                uniqueZones.map((zone) => (
+                  <option value={zone} selected={zoneFilter === zone}>
+                    {zone}
+                  </option>
+                ))
+              }
+            </select>
+            <select
+              name="paqar"
+              id="paqarFilter"
+              class="select select-sm border-base-300 focus:border-primary focus:ring-primary/20 w-full focus:ring-2 focus:outline-none"
+              aria-label="Filtrar por servicios Paq.AR"
+            >
+              <option value="all" selected={paqarFilter === "all"}
+                >Paq.AR (Todos)</option
+              >
+              <option value="admision" selected={paqarFilter === "admision"}
+                >Admite Paq.AR</option
+              >
+              <option value="entrega" selected={paqarFilter === "entrega"}
+                >Entrega Paq.AR</option
+              >
+              <option value="ambos" selected={paqarFilter === "ambos"}
+                >Admite y Entrega</option
+              >
+            </select>
+
+            <div class="divider my-0"></div>
+            <span
+              class="text-base-content/50 text-xs font-semibold tracking-wider uppercase"
+              >Estado</span
+            >
+            <label class="label cursor-pointer justify-between gap-2 p-0">
+              <span class="label-text text-xs font-medium sm:text-sm"
+                >Depende de otra</span
+              >
+              <input
+                type="checkbox"
+                name="hasParent"
+                value="true"
+                class="toggle toggle-sm toggle-primary"
+                checked={hasParentFilter}
+                aria-label="Mostrar solo oficinas que dependen de otra"
+              />
+            </label>
+            {
+              isAllowedAdmin && hasNoAddressOffices && (
+                <label class="label cursor-pointer justify-between gap-2 p-0">
+                  <span class="label-text text-xs font-medium sm:text-sm">
+                    Sin domicilio
+                  </span>
+                  <input
+                    type="checkbox"
+                    name="noAddress"
+                    value="true"
+                    class="toggle toggle-sm toggle-primary"
+                    checked={noAddressFilter}
+                    aria-label="Mostrar solo oficinas sin domicilio registrado"
+                  />
+                </label>
+              )
+            }
+            {
+              showClosedToggle && (
+                <label class="label cursor-pointer justify-between gap-2 p-0">
+                  <span class="label-text text-xs font-medium sm:text-sm">
+                    Mostrar inoperativas
+                  </span>
+                  <input
+                    type="checkbox"
+                    name="status"
+                    value="closed"
+                    class="toggle toggle-sm toggle-primary"
+                    checked={statusFilter === "closed"}
+                    aria-label="Mostrar solo oficinas inoperativas"
+                  />
+                </label>
+              )
+            }
           </div>
-          <div class="flex flex-wrap items-center gap-2">
-            {canViewOfficeStats && (
-              <ActionButton
-                href={resolveUrl("/oficinas/estructura")}
-                variant="soft"
-                color="btn-secondary"
-                size="sm"
-                icon="boxicons:network-chart-filled"
-                label="Estructura"
-                data-cta-estructura-oficinas
-              />
-            )}
-            {canViewOfficeStats && (
-              <ActionButton
-                href={resolveUrl("/oficinas/estadisticas")}
-                variant="soft"
-                color="btn-secondary"
-                size="sm"
-                icon="boxicons:bar-chart-big-filled"
-                label="Estadísticas"
-                data-cta-estadisticas-oficinas
-              />
-            )}
-            {isAllowedAdmin && (
-              <ActionButton
-                href={`${import.meta.env.BASE_URL}admin/invgate/ubicaciones?sync=true`}
-                variant="soft"
-                color="btn-secondary"
-                size="sm"
-                icon="boxicons:pie-chart-filled"
-                label="Ver comparativa"
-                data-cta-comparativa-oficinas
-              />
-            )}
-          </div>
-        </div>
-      )
-    }
+        </details>
+      </div>
+
+    </form>
 
     <div id="office-table-wrapper">
       <div

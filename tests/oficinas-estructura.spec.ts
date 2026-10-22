@@ -171,6 +171,9 @@ test.describe("Estructura de Red Postal (/oficinas/estructura)", () => {
   }) => {
     await setSessionCookie(context, admin.signedSessionId);
     await page.goto("/oficinas");
+    await page
+      .locator('summary[aria-label="Más acciones del directorio"]')
+      .click();
 
     const ctaButton = page.locator("[data-cta-estructura-oficinas]");
     await expect(ctaButton).toBeVisible();

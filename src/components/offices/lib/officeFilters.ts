@@ -4,8 +4,6 @@ import {
   updateBrowserUrl,
   updateCsvExportHref,
 } from "@lib/clientUrlSync";
-import { escapeHtml } from "@lib/sanitize";
-
 export function getFilterQueryParams(
   pageNumber: number,
   currentSearch: string,
@@ -87,16 +85,6 @@ export function initOfficeFilters(
     e.preventDefault();
   });
 
-  const provincesContainer = document.getElementById("provinces-data");
-  let provincesByRegion: Record<string, { code: string; name: string }[]> = {};
-  if (provincesContainer && provincesContainer.dataset.provinces) {
-    try {
-      provincesByRegion = JSON.parse(provincesContainer.dataset.provinces);
-    } catch (e) {
-      console.error("Error parsing provinces data", e);
-    }
-  }
-
   const regionSelect = document.getElementById(
     "regionFilter",
   ) as HTMLSelectElement | null;
@@ -121,71 +109,77 @@ export function initOfficeFilters(
   const statusToggle = document.querySelector<HTMLInputElement>(
     'input[name="status"]',
   );
-  const typeHiddenInput = document.getElementById(
-    "filter-tabs-hidden-type",
-  ) as HTMLInputElement | null;
-  const typeTabsContainer = document.querySelector(".filter-tabs-box");
+  const typeSelect = document.getElementById(
+    "typeFilter",
+  ) as HTMLSelectElement | null;
   const searchInput =
     document.querySelector<HTMLInputElement>("#office-search");
   const clearFiltersBtn = document.getElementById("clear-filters-btn");
+  const advancedCountEl = document.getElementById("advanced-filter-count");
+  const advancedSummary = advancedCountEl?.closest("summary");
 
   const triggerChange = () => {
     onFilterChange();
   };
 
-  regionSelect?.addEventListener("change", () => {
-    const region = regionSelect.value;
-    if (provinceSelect) {
-      if (region === "all") {
-        provinceSelect.value = "all";
-        provinceSelect.disabled = true;
-        provinceSelect.innerHTML =
-          '<option value="all">Provincias (Todas)</option>';
-      } else {
-        provinceSelect.disabled = false;
-        const regionProvinces = provincesByRegion[region] || [];
-        let htmlOptions = '<option value="all">Provincias (Todas)</option>';
-        regionProvinces.forEach((p) => {
-          htmlOptions += `<option value="${p.code}">${escapeHtml(p.name)}</option>`;
-        });
-        provinceSelect.innerHTML = htmlOptions;
-        provinceSelect.value = "all";
-      }
+  const updateAdvancedCount = () => {
+    const count =
+      (zoneSelect?.value !== "all" ? 1 : 0) +
+      (paqarSelect?.value !== "all" ? 1 : 0) +
+      (hasParentToggle?.checked ? 1 : 0) +
+      (noAddressToggle?.checked ? 1 : 0) +
+      (statusToggle?.checked ? 1 : 0);
+
+    if (advancedCountEl) {
+      advancedCountEl.textContent = String(count);
+      advancedCountEl.classList.toggle("hidden", count === 0);
     }
+    if (advancedSummary) {
+      advancedSummary.classList.toggle("btn-soft", count > 0);
+      advancedSummary.classList.toggle("btn-primary", count > 0);
+      advancedSummary.classList.toggle("btn-outline", count === 0);
+      advancedSummary.setAttribute(
+        "aria-label",
+        count > 0
+          ? `Filtros avanzados, ${count} activos`
+          : "Filtros avanzados",
+      );
+    }
+  };
+
+  regionSelect?.addEventListener("change", () => {
+    if (provinceSelect) provinceSelect.value = "all";
     triggerChange();
   });
 
-  provinceSelect?.addEventListener("change", triggerChange);
-  zoneSelect?.addEventListener("change", triggerChange);
-  paqarSelect?.addEventListener("change", triggerChange);
-  hasParentToggle?.addEventListener("change", triggerChange);
+  provinceSelect?.addEventListener("change", () => {
+    if (regionSelect) regionSelect.value = "all";
+    triggerChange();
+  });
+  typeSelect?.addEventListener("change", triggerChange);
+  zoneSelect?.addEventListener("change", () => {
+    updateAdvancedCount();
+    triggerChange();
+  });
+  paqarSelect?.addEventListener("change", () => {
+    updateAdvancedCount();
+    triggerChange();
+  });
+  hasParentToggle?.addEventListener("change", () => {
+    updateAdvancedCount();
+    triggerChange();
+  });
   isHeadquarterToggle?.addEventListener("change", triggerChange);
-  noAddressToggle?.addEventListener("change", triggerChange);
-  statusToggle?.addEventListener("change", triggerChange);
+  noAddressToggle?.addEventListener("change", () => {
+    updateAdvancedCount();
+    triggerChange();
+  });
+  statusToggle?.addEventListener("change", () => {
+    updateAdvancedCount();
+    triggerChange();
+  });
 
-  if (typeTabsContainer) {
-    const tabButtons =
-      typeTabsContainer.querySelectorAll<HTMLButtonElement>(
-        'button[role="tab"]',
-      );
-    tabButtons.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const val = btn.getAttribute("data-tab-value") || "all";
-        if (typeHiddenInput) {
-          typeHiddenInput.value = val;
-        }
-
-        tabButtons.forEach((b) => {
-          b.setAttribute("aria-selected", "false");
-          b.classList.remove("tab-active");
-        });
-        btn.setAttribute("aria-selected", "true");
-        btn.classList.add("tab-active");
-
-        triggerChange();
-      });
-    });
-  }
+  updateAdvancedCount();
 
   let debounceTimeout: number;
   searchInput?.addEventListener("input", () => {
@@ -199,12 +193,7 @@ export function initOfficeFilters(
     if (searchInput) searchInput.value = "";
 
     if (regionSelect) regionSelect.value = "all";
-    if (provinceSelect) {
-      provinceSelect.innerHTML =
-        '<option value="all">Provincias (Todas)</option>';
-      provinceSelect.value = "all";
-      provinceSelect.disabled = true;
-    }
+    if (provinceSelect) provinceSelect.value = "all";
     if (zoneSelect) zoneSelect.value = "all";
     if (paqarSelect) paqarSelect.value = "all";
 
@@ -213,26 +202,9 @@ export function initOfficeFilters(
     if (noAddressToggle) noAddressToggle.checked = false;
     if (statusToggle) statusToggle.checked = false;
 
-    if (typeHiddenInput) typeHiddenInput.value = "all";
-    if (typeTabsContainer) {
-      const tabButtons =
-        typeTabsContainer.querySelectorAll<HTMLButtonElement>(
-          'button[role="tab"]',
-        );
-      tabButtons.forEach((b) => {
-        b.setAttribute("aria-selected", "false");
-        b.classList.remove("tab-active");
-        if (
-          b.getAttribute("data-tab-value") === "all" ||
-          (!b.getAttribute("data-tab-value") &&
-            b.textContent?.trim() === "Todas")
-        ) {
-          b.setAttribute("aria-selected", "true");
-          b.classList.add("tab-active");
-        }
-      });
-    }
+    if (typeSelect) typeSelect.value = "all";
 
+    updateAdvancedCount();
     onFilterChange("");
   });
 }
