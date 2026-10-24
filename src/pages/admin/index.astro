@@ -24,6 +24,7 @@ interface AdminModule {
 }
 
 const cleanBase = getCleanBase();
+const canViewDocs = hasPermission("/admin/documentacion", user.role);
 
 const modulesGroup1: AdminModule[] = [
   {
@@ -85,6 +86,17 @@ const modulesGroup2: AdminModule[] = [
     href: "/admin/calidad/calibracion",
     active: true,
   },
+  ...(canViewDocs
+    ? [
+        {
+          title: "Documentación técnica",
+          icon: "boxicons:book-content",
+          iconTone: "bg-info/10 text-info",
+          href: "/admin/documentacion",
+          active: true,
+        } satisfies AdminModule,
+      ]
+    : []),
 ];
 
 const modulesGroupInvgate: AdminModule[] = [
