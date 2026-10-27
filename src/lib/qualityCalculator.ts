@@ -98,21 +98,26 @@ export function calculateOperatorChannelStats(audits: { channelType?: string; to
   const emails = audits.filter((a) => a.channelType === "wise_email");
   const ags = audits.filter((a) => a.channelType === "invgate_ticket");
 
-  const calcAvg = (items: { totalScore: number }[]) =>
-    items.length > 0 ? Math.round(items.reduce((s, a) => s + a.totalScore, 0) / items.length) : 0;
+  // Medias crudas: el global promedia los canales sin redondear para no
+  // acumular el error de redondeo canal por canal (el Excel hace lo mismo).
+  const mean = (items: { totalScore: number }[]) =>
+    items.length > 0
+      ? items.reduce((s, a) => s + a.totalScore, 0) / items.length
+      : 0;
+  const round1 = (value: number) => Math.round(value * 10) / 10;
 
-  const wiseCallsAvg = calcAvg(calls);
-  const wiseEmailsAvg = calcAvg(emails);
-  const invgateAgAvg = calcAvg(ags);
+  const wiseCallsAvg = round1(mean(calls));
+  const wiseEmailsAvg = round1(mean(emails));
+  const invgateAgAvg = round1(mean(ags));
 
   // Promedio global: promedio de los promedios de los canales con evaluaciones
   const activeAvgs: number[] = [];
-  if (calls.length > 0) activeAvgs.push(wiseCallsAvg);
-  if (emails.length > 0) activeAvgs.push(wiseEmailsAvg);
-  if (ags.length > 0) activeAvgs.push(invgateAgAvg);
+  if (calls.length > 0) activeAvgs.push(mean(calls));
+  if (emails.length > 0) activeAvgs.push(mean(emails));
+  if (ags.length > 0) activeAvgs.push(mean(ags));
 
   const globalAverage = activeAvgs.length > 0
-    ? Math.round(activeAvgs.reduce((s, v) => s + v, 0) / activeAvgs.length)
+    ? round1(activeAvgs.reduce((s, v) => s + v, 0) / activeAvgs.length)
     : 0;
 
   const quotaFulfilled = calls.length >= 4 && emails.length >= 4 && ags.length >= 4;
@@ -158,8 +163,8 @@ export function calculateChannelAverages(
       .filter((s): s is number => s !== null);
     if (validScores.length === 0) return null;
     return Math.round(
-      validScores.reduce((sum, s) => sum + s, 0) / validScores.length,
-    );
+      (validScores.reduce((sum, s) => sum + s, 0) / validScores.length) * 10,
+    ) / 10;
   };
 
   const wiseCallsAvg = calcAvg(calls);
@@ -173,8 +178,8 @@ export function calculateChannelAverages(
   const overallAvg =
     allValidScores.length > 0
       ? Math.round(
-          allValidScores.reduce((sum, s) => sum + s, 0) / allValidScores.length,
-        )
+          (allValidScores.reduce((sum, s) => sum + s, 0) / allValidScores.length) * 10,
+        ) / 10
       : null;
 
   return {
@@ -193,7 +198,7 @@ export function calculateChannelAverages(
 
 export function formatChannelAverageScore(avg: number | null | undefined): string {
   if (avg === null || avg === undefined || isNaN(avg)) return "--";
-  return `${Math.round(avg)}%`;
+  return `${avg.toFixed(1)}%`;
 }
 
 type AverageTone = "empty" | "success" | "warning" | "error";

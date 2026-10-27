@@ -24,7 +24,7 @@ import { getResolvedSearchParams } from "@lib/navigation";
 import { formatMonthLabel, MONTH_LABELS } from "@lib/monthUtils";
 import { getCleanBase } from "@lib/baseUrl";
 import OperatorDetailsPanel from "./OperatorDetailsPanel.astro";
-import { calculateOperatorChannelStats } from "@lib/qualityCalculator";
+import { calculateOperatorChannelStats, formatChannelAverageScore } from "@lib/qualityCalculator";
 import { getOperatorNumber } from "@lib/operatorNumbers";
 import type { ChannelType } from "@/types/quality";
 
@@ -190,9 +190,10 @@ const operatorsQuality = finalAgents.map((agent) => {
         score:
           monthAudits.length > 0
             ? Math.round(
-                monthAudits.reduce((sum, audit) => sum + audit.totalScore, 0) /
-                  monthAudits.length,
-              )
+                (monthAudits.reduce((sum, audit) => sum + audit.totalScore, 0) /
+                  monthAudits.length) *
+                  10,
+              ) / 10
             : null,
       };
     })
@@ -587,7 +588,7 @@ const cleanBase = getCleanBase();
                           </div>
                         </div>
                         <div class={`inline-flex items-center px-2 py-0.5 rounded-lg border text-xs font-black tracking-tight ${scoreChipClass} shrink-0`}>
-                          {op.averageScore}%
+                          {formatChannelAverageScore(op.averageScore)}
                         </div>
                       </div>
 
@@ -1744,7 +1745,7 @@ const formatTicketRef = (ticketId?: string | null, callId?: string | null) => {
       if (dMonthSelector && operator.month) dMonthSelector.value = operator.month;
 
       if (dScore) {
-        dScore.textContent = `${operator.averageScore}%`;
+        dScore.textContent = formatChannelAverageScore(operator.averageScore);
         dScore.className = `text-2xl sm:text-3xl font-black font-mono tracking-tight leading-none ${operator.averageScore >= 90 ? "text-success" : operator.averageScore >= 80 ? "text-warning" : "text-error"}`;
       }
 
@@ -1756,13 +1757,13 @@ const formatTicketRef = (ticketId?: string | null, callId?: string | null) => {
         if (hasPrevAudits) {
           const diff = currentScore - prevScore;
           if (diff > 0) {
-            dStatDiff.textContent = `+${diff}%`;
+            dStatDiff.textContent = `+${diff.toFixed(1)}%`;
             dStatDiff.className = "text-base sm:text-lg font-black font-mono mt-0.5 text-success";
           } else if (diff < 0) {
-            dStatDiff.textContent = `${diff}%`;
+            dStatDiff.textContent = `${diff.toFixed(1)}%`;
             dStatDiff.className = "text-base sm:text-lg font-black font-mono mt-0.5 text-error";
           } else {
-            dStatDiff.textContent = "0%";
+            dStatDiff.textContent = "0.0%";
             dStatDiff.className = "text-base sm:text-lg font-black font-mono mt-0.5 text-base-content/60";
           }
         } else {
@@ -1907,7 +1908,7 @@ const formatTicketRef = (ticketId?: string | null, callId?: string | null) => {
                </svg>
              </div>
              <div class="w-full flex justify-between mt-1 px-1 text-3xs font-mono font-bold text-base-content/60 select-none">
-                ${points.map((p) => `<div class="flex flex-col items-center"><span class="text-3xs uppercase tracking-wider opacity-60 font-sans">${p.label}</span><strong class="text-secondary font-mono">${p.score}%</strong></div>`).join("")}
+                ${points.map((p) => `<div class="flex flex-col items-center"><span class="text-3xs uppercase tracking-wider opacity-60 font-sans">${p.label}</span><strong class="text-secondary font-mono">${p.score.toFixed(1)}%</strong></div>`).join("")}
              </div>
            `;
         }
