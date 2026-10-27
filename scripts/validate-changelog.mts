@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import YAML from "yaml";
-import { getChangelogEntries, resolveChangelogDir } from "../src/lib/changelog/changelogService.js";
+import { getChangelogEntries, getRetentionCutoff, resolveChangelogDir } from "../src/lib/changelog/changelogService.js";
 
 /**
  * Script de validación de integridad para los archivos de changelog en src/config/changelog/.
@@ -163,10 +163,17 @@ async function validate() {
   }
 
   // 8. Validar supervivencia en getChangelogEntries()
+  // Los releases fuera de la ventana de retención (3 meses) no se cargan a propósito.
+  const retentionCutoff = getRetentionCutoff(
+    targetFiles.map((f) => f.slice(0, 10)).sort().at(-1) ?? "1970-01-01",
+  );
+  const expiredFiles = targetFiles.filter((f) => f.slice(0, 10) < retentionCutoff);
+
   const entries = await getChangelogEntries(changelogDir);
   const loadedDates = new Set(entries.map((e) => e.date));
 
   for (const fileName of targetFiles) {
+    if (expiredFiles.includes(fileName)) continue;
     const baseDate = fileName.replace(/\.md$/, "");
     if (!loadedDates.has(baseDate)) {
       errors.push({
@@ -174,6 +181,12 @@ async function validate() {
         message: `El archivo '${fileName}' fue descartado por getChangelogEntries() (posiblemente quedó sin contenido tras deduplicación o formato inválido)`,
       });
     }
+  }
+
+  if (expiredFiles.length > 0) {
+    console.log(
+      `\nℹ️  ${expiredFiles.length} archivo(s) fuera de la ventana de 3 meses (no se publican): ${expiredFiles.join(", ")}\n   Depuralos con: npm run changelog:prune -- --apply`,
+    );
   }
 
   if (errors.length > 0) {

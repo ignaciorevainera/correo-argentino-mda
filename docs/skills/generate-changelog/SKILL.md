@@ -13,6 +13,7 @@ Un archivo por día real. Nunca inventes commits, fechas ni descripciones.
 - Escribís SOLO en `src/config/changelog/YYYY-MM-DD.md`.
 - No tocás `src/lib/`, `src/pages/`, `src/components/`, ni releases ya publicados.
 - Si un release ya publicado tiene errores, NO lo reescribas: reportalo y pedí autorización.
+- **VENTANA DE RETENCIÓN**: solo se publican releases de los últimos 3 meses, anclados al release más reciente. Los archivos más viejos no se cargan y se eliminan con `npm run changelog:prune -- --apply`.
 - **PROHIBIDO GENERAR EL DÍA ACTUAL EN CURSO**: La fecha de hoy (el día en curso de ejecución) nunca se genera, dado que la jornada no ha concluido y el release quedaría incompleto o vacío. Solo se generan fechas pasadas cerradas (`date < hoy`).
 - **IDIOMA EXCLUSIVO ESPAÑOL**: Todos los títulos, highlights, nombres de módulos y descripciones de viñetas deben redactarse o traducirse al **español neutro profesional**. Queda prohibido dejar textos en inglés (por ej. traducir *"support responsive size variants"* -> *"Variantes de tamaño responsivas"*).
 

@@ -7,6 +7,7 @@ import {
   getChangelogEntries,
   getLatestChangelogDate,
   clearChangelogCache,
+  pruneChangelogFiles,
 } from "./changelogService.js";
 
 test("changelogService - aislamiento y parsing con fixtures temporales", async (t) => {
@@ -500,5 +501,38 @@ commits:
     assert.equal(entries.length, 1);
     assert.equal(entries[0].title, "Release con BOM");
     assert.equal(entries[0].date, "2026-10-18", "Debe derivar la fecha 2026-10-18 del nombre del archivo");
+  });
+
+  await t.test("ventana de retención: no carga releases de más de 3 meses y el prune los borra solo con --apply", async () => {
+    const writeEntry = (fileName: string, date: string, hash: string) =>
+      fs.promises.writeFile(
+        path.join(tempDir, fileName),
+        `---
+title: "Release ${date}"
+date: "${date}"
+commits:
+  - "${hash}"
+---
+### Mejoras
+- Mejora del ${date} [\`${hash}\`]
+`
+      );
+
+    await writeEntry("2026-10-20.md", "2026-10-20", "aaa1111");
+    await writeEntry("2026-08-20.md", "2026-08-20", "bbb2222");
+    await writeEntry("2026-01-10.md", "2026-01-10", "ccc3333");
+
+    const entries = await getChangelogEntries(tempDir);
+    assert.deepEqual(entries.map((e) => e.date), ["2026-10-20", "2026-08-20"]);
+
+    // dry-run: informa pero no toca el disco
+    const dryRun = await pruneChangelogFiles(tempDir);
+    assert.deepEqual(dryRun, ["2026-01-10.md"]);
+    assert.equal(fs.existsSync(path.join(tempDir, "2026-01-10.md")), true);
+
+    const deleted = await pruneChangelogFiles(tempDir, { dryRun: false });
+    assert.deepEqual(deleted, ["2026-01-10.md"]);
+    assert.equal(fs.existsSync(path.join(tempDir, "2026-01-10.md")), false);
+    assert.equal(fs.existsSync(path.join(tempDir, "2026-08-20.md")), true);
   });
 });

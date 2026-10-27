@@ -72,6 +72,48 @@ function normalizeDate(rawDate: unknown, fallbackDate = "1970-01-01"): string {
   return fallbackDate;
 }
 
+/** Meses de historial que se cargan y conservan en disco. */
+export const CHANGELOG_RETENTION_MONTHS = 3;
+
+/**
+ * Devuelve la fecha mínima (YYYY-MM-DD) de la ventana de retención, `months` meses antes
+ * de la fecha de referencia.
+ */
+export function getRetentionCutoff(
+  referenceDate: string,
+  months = CHANGELOG_RETENTION_MONTHS,
+): string {
+  const [year, month, day] = referenceDate.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1 - months, day)).toISOString().slice(0, 10);
+}
+
+function isDatedChangelogFile(fileName: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}\.md$/.test(fileName);
+}
+
+/**
+ * Corte de retención anclado al changelog más reciente del directorio.
+ * shortcut: el ancla es la entrada más nueva, no la fecha del sistema; si el portal deja de
+ * publicar, los últimos 3 meses siguen visibles en lugar de vaciarse por completo.
+ */
+function retentionCutoffFor(fileNames: string[]): string | null {
+  const dated = fileNames.filter(isDatedChangelogFile).sort();
+  if (dated.length === 0) return null;
+  return getRetentionCutoff(dated[dated.length - 1].slice(0, 10));
+}
+
+/**
+ * Descarta los archivos fuera de la ventana de retención antes de leerlos y renderizarlos.
+ * Los nombres no canónicos (example.md, fixtures) se conservan: los descarta su `draft`.
+ */
+function filterByRetention(fileNames: string[]): string[] {
+  const cutoff = retentionCutoffFor(fileNames);
+  if (!cutoff) return fileNames;
+  return fileNames.filter(
+    (fileName) => !isDatedChangelogFile(fileName) || fileName.slice(0, 10) >= cutoff,
+  );
+}
+
 /**
  * Resuelve el directorio estándar donde residen los changelogs.
  */
@@ -315,7 +357,7 @@ export async function getChangelogEntries(
     return [];
   }
 
-  const mdFiles = fileNames.filter((file) => file.endsWith(".md"));
+  const mdFiles = filterByRetention(fileNames.filter((file) => file.endsWith(".md")));
   const rawEntries: {
     frontmatter: ChangelogFrontmatter;
     content: string;
@@ -430,6 +472,39 @@ export async function getLatestChangelogDate(
     return null;
   }
   return entries[0].date;
+}
+
+/**
+ * Borra del disco los changelogs fuera de la ventana de retención (3 meses).
+ * `dryRun` por defecto: devuelve los archivos que borraría sin tocar nada.
+ * Nunca borra nombres no canónicos (example.md, fixtures `_*`).
+ */
+export async function pruneChangelogFiles(
+  customDir?: string,
+  options: { dryRun?: boolean } = {},
+): Promise<string[]> {
+  const targetDir = customDir || resolveChangelogDir();
+  if (!fs.existsSync(targetDir)) return [];
+
+  let fileNames: string[];
+  try {
+    fileNames = await fs.promises.readdir(targetDir);
+  } catch {
+    return [];
+  }
+
+  const cutoff = retentionCutoffFor(fileNames);
+  if (!cutoff) return [];
+
+  const expired = fileNames
+    .filter((f) => isDatedChangelogFile(f) && f.slice(0, 10) < cutoff)
+    .sort();
+
+  if (options.dryRun !== false || expired.length === 0) return expired;
+
+  await Promise.all(expired.map((f) => fs.promises.unlink(path.join(targetDir, f))));
+  clearChangelogCache();
+  return expired;
 }
 
 /**

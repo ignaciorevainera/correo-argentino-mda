@@ -49,6 +49,7 @@
 - `npm run test:e2e:home` — solo el spec del home personalizado (26 tests: perfiles, calidad-only, simulador de vista, configurador de widgets y de accesos de abajo, vínculo de agente y CSRF).
 - `npm run test:e2e:reconcile` — solo el spec de reconciliación de edificios (7 tests).
 - `npm run changelog:validate` — valida integridad de archivos Markdown en `src/config/changelog/` (fechas ISO, existencia de commits en git, ausencia de commits duplicados entre releases, ausencia de links markdown externos y parseo exitoso).
+- `npm run changelog:prune` — dry-run: lista los changelogs fuera de la ventana de retención (3 meses, anclada al release más reciente). `-- --apply` los borra del disco.
 - `npx playwright show-report` — reporte HTML + trazas.
 - No hay CI: los tests corren a mano.
 - La sección **Testing policy** (arriba) gobierna cómo se _escriben_ los tests; esta gobierna cómo se _ejecutan_.
