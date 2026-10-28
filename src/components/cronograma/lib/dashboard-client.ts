@@ -884,9 +884,7 @@ function updateCellStatus(cell: HTMLElement, newStatus: string): void {
     }
   }
 
-  if (state.isEditMode) {
-    updatePendingEditsUI();
-  }
+  updatePendingEditsUI();
 }
 
 function updatePendingEditsUI(): void {
@@ -906,8 +904,14 @@ function updatePendingEditsUI(): void {
   ) as HTMLButtonElement | null;
 
   if (countEl) countEl.innerText = `${count} cambios`;
-  if (saveBtn) saveBtn.disabled = count === 0;
-  if (discardBtn) discardBtn.disabled = count === 0;
+  if (saveBtn) {
+    saveBtn.disabled = count === 0;
+    saveBtn.classList.toggle("btn-disabled", count === 0);
+  }
+  if (discardBtn) {
+    discardBtn.disabled = count === 0;
+    discardBtn.classList.toggle("btn-disabled", count === 0);
+  }
 
   const saveIndicator = document.getElementById("save-indicator");
   if (saveIndicator) {
@@ -2354,6 +2358,7 @@ function setupEventListeners(): void {
     .getElementById("discard-edits-btn")
     ?.addEventListener("click", async () => {
       state.pendingEdits = {};
+      state.modifiedSchedules = [];
       updatePendingEditsUI();
       await discardChanges();
     });
@@ -2422,6 +2427,7 @@ function setupEventListeners(): void {
           btn.innerText = "Guardar";
           btn.classList.remove("btn-error");
           btn.disabled = false;
+          btn.classList.remove("btn-disabled");
         }, 2000);
         showToast("Error al guardar los cambios", "error");
       }
