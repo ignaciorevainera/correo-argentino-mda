@@ -13,6 +13,7 @@ import { hasPermission } from "@lib/rbac";
 import { getUnassignedFeedbackCount } from "@lib/getUnassignedFeedbackCount";
 
 const user = Astro.locals.user;
+const effectiveRole = Astro.locals.viewAs?.role ?? normalizeRole(user?.role || "agent");
 const unassignedFeedbackCount = await getUnassignedFeedbackCount();
 
 interface AdminModule {
@@ -133,7 +134,7 @@ const modulesGroupInvgate: AdminModule[] = [
       {
         modulesGroup1.map((mod) => {
           const isLocked = mod.href
-            ? !hasPermission(mod.href, user.role)
+            ? !hasPermission(mod.href, effectiveRole)
             : false;
 
           return (
@@ -155,15 +156,22 @@ const modulesGroupInvgate: AdminModule[] = [
       class="card bg-base-100 border-base-300 divide-base-200 divide-y overflow-hidden border"
     >
       {
-        modulesGroup2.map((mod) => (
-          <AdminShortcutRow
-            title={mod.title}
-            icon={mod.icon}
-            iconTone={mod.iconTone}
-            href={mod.href}
-            active={mod.active}
-          />
-        ))
+        modulesGroup2.map((mod) => {
+          const isLocked = mod.href
+            ? !hasPermission(mod.href, effectiveRole)
+            : false;
+
+          return (
+            <AdminShortcutRow
+              title={mod.title}
+              icon={mod.icon}
+              iconTone={mod.iconTone}
+              href={mod.href}
+              active={mod.active}
+              locked={isLocked}
+            />
+          );
+        })
       }
     </div>
 
@@ -173,7 +181,7 @@ const modulesGroupInvgate: AdminModule[] = [
       {
         modulesGroupInvgate.map((mod) => {
           const isLocked = mod.href
-            ? !hasPermission(mod.href, user.role)
+            ? !hasPermission(mod.href, effectiveRole)
             : false;
 
           return (

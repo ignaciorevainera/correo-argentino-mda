@@ -141,7 +141,9 @@ import { normalizeRole } from "@lib/rbac";
 
 const user = Astro.locals.user;
 const role = normalizeRole(user.role);
-const isAgent = role === "agent";
+const effectiveRole = Astro.locals.viewAs?.role ?? role;
+const isAgent = effectiveRole === "agent";
+const canCalibrate = effectiveRole === "admin";
 
 let finalAgents = allAgents;
 let agentNotFound = false;
@@ -413,15 +415,19 @@ const cleanBase = getCleanBase();
               <Icon name="boxicons:cog" size={18} />
               <span class="hidden 2xl:inline">Parámetros</span>
             </button>
-            <a
-              id="btn-calibracion-ia"
-              href={`${cleanBase}admin/calidad/calibracion?month=${selectedMonth}`}
-              class="btn btn-sm btn-ghost text-base-content/70 hover:text-base-content gap-1.5 text-xs font-semibold"
-              title="Calibración y Aprendizaje de Rúbricas IA"
-            >
-              <Icon name="boxicons:slider-alt" size={18} />
-              <span class="hidden 2xl:inline">Calibración IA</span>
-            </a>
+            {
+              canCalibrate && (
+                <a
+                  id="btn-calibracion-ia"
+                  href={`${cleanBase}admin/calidad/calibracion?month=${selectedMonth}`}
+                  class="btn btn-sm btn-ghost text-base-content/70 hover:text-base-content gap-1.5 text-xs font-semibold"
+                  title="Calibración y Aprendizaje de Rúbricas IA"
+                >
+                  <Icon name="boxicons:slider-alt" size={18} />
+                  <span class="hidden 2xl:inline">Calibración IA</span>
+                </a>
+              )
+            }
             <a
               id="btn-top-new-audit"
               href={`${cleanBase}supervision/calidad-operadores/nueva?month=${selectedMonth}`}

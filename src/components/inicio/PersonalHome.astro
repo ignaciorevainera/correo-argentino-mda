@@ -53,11 +53,12 @@ const role = normalizeRole(user?.role ?? "agent");
 const isRealAdmin = role === "admin";
 const viewAs = Astro.locals.viewAs;
 const effectiveRole = viewAs?.role ?? role;
+const effectiveMesa = user?.helpdeskName ?? (viewAs ? "TI_GSM_MDA TI" : null);
 const cleanBase = getCleanBase();
 const csrfToken = getCsrfTokenForSession(Astro.locals.sessionId);
 
 const canSee = (href: string): boolean =>
-  isSectionVisibleSync(user?.helpdeskName, effectiveRole, href);
+  isSectionVisibleSync(effectiveMesa, effectiveRole, href);
 
 let agent: SessionAgent | null = null;
 let realProfile: HomeProfile = "base";
@@ -188,7 +189,7 @@ const canConfigure =
 // Accesos de abajo configurables (misma lista permitida que el grid del home).
 const permittedAccess = getHomeAccessEntries(
   effectiveRole,
-  user?.helpdeskName ?? null,
+  effectiveMesa,
   getHomeTopCardRoutes(effectiveRole),
 );
 const selectedAccess = resolveStoredAccess(

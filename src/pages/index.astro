@@ -22,6 +22,7 @@ const userRole = normalizeRole(user?.role || "agent");
 // Rol efectivo: si un admin está simulando una vista, se usa el rol simulado
 // para filtrar accesos (sólo presentación; la autorización real no cambia).
 const effectiveRole = Astro.locals.viewAs?.role ?? userRole;
+const effectiveMesa = user?.helpdeskName ?? (Astro.locals.viewAs ? "TI_GSM_MDA TI" : null);
 
 let displayName = user?.username ? user.username.trim() : "Usuario";
 if (user && user.id !== 0) {
@@ -65,7 +66,7 @@ const isRouteLocked = (href: string): boolean => {
     return true;
   }
   if (!hasPermission(href, effectiveRole)) return true;
-  if (!isSectionVisibleSync(user?.helpdeskName, effectiveRole, href)) return true;
+  if (!isSectionVisibleSync(effectiveMesa, effectiveRole, href)) return true;
   return false;
 };
 
@@ -77,7 +78,7 @@ const topCardRoutes = getHomeTopCardRoutes(effectiveRole);
 
 const visibleHomeCards =
   user && user.id !== 0
-    ? getHomeAccessEntries(effectiveRole, user.helpdeskName, topCardRoutes)
+    ? getHomeAccessEntries(effectiveRole, effectiveMesa, topCardRoutes)
     : getHomeAccessEntries("agent", null, topCardRoutes).filter(
         (item) => !isRouteLocked(item.href),
       );

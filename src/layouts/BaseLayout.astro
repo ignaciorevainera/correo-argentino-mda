@@ -101,6 +101,7 @@ const viewAs = Astro.locals.viewAs;
 // Rol efectivo para la capa de presentación (sidebar/home/cards). La cookie
 // sólo la aplica el middleware si el rol real es admin.
 const effectiveRole = viewAs?.role ?? normalizedUserRole;
+const effectiveMesa = user?.helpdeskName ?? (viewAs ? "TI_GSM_MDA TI" : null);
 const isRealAdmin = normalizedUserRole === "admin";
 const isPublicGeneratorRoute =
   user.id === 0 && /^\/generador-firmas\/?$/.test(relativeCurrentPath);
@@ -138,7 +139,7 @@ const isRouteLocked = (href: string): boolean => {
     return true;
   }
   if (!hasPermission(href, effectiveRole)) return true;
-  if (!isSectionVisibleSync(user.helpdeskName, effectiveRole, href)) return true;
+  if (!isSectionVisibleSync(effectiveMesa, effectiveRole, href)) return true;
   return false;
 };
 

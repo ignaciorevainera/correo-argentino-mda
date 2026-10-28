@@ -75,9 +75,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const action = String(form.get("action") ?? "save");
 
   // Accesos de abajo permitidos para el rol efectivo (misma lista que el home).
+  const effectiveMesa = user.helpdeskName ?? (locals.viewAs ? "TI_GSM_MDA TI" : null);
   const permittedAccess = getHomeAccessEntries(
     viewRole,
-    user.helpdeskName,
+    effectiveMesa,
     getHomeTopCardRoutes(viewRole),
   ).map((entry) => entry.href);
 

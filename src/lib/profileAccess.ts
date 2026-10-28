@@ -359,13 +359,19 @@ export function getHomeAccessEntries(
  * Fuente única para `index.astro`, el configurador y `api/home/layout`.
  */
 export function getHomeTopCardRoutes(role: string): string[] {
-  return normalizeRole(role) === "admin"
-    ? ["/admin/feedback", "/admin/auditoria", "/admin/usuarios"]
-    : [
-        "/supervision/cronograma",
-        "/supervision/calidad-operadores",
-        "/supervision/asignacion-autogestiones",
-      ];
+  const normalized = normalizeRole(role);
+  if (normalized === "admin") {
+    return ["/admin/feedback", "/admin/auditoria", "/admin/usuarios"];
+  }
+  if (normalized === "supervisor") {
+    // Supervisor no amputa accesos de supervisión abajo: el usuario puede elegir mostrarlos u ocultarlos
+    return [];
+  }
+  return [
+    "/supervision/cronograma",
+    "/supervision/calidad-operadores",
+    "/supervision/asignacion-autogestiones",
+  ];
 }
 
 export interface ProfileEmployee {

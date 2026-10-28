@@ -61,7 +61,8 @@ export function isSectionVisibleSync(
   // Politica: el rol admin siempre tiene acceso a todo (no revocable).
   if (normalizedRole === "admin") return true;
 
-  const isMdaTi = mesa === MDA_TI_HELPDESK;
+  const isMdaTi =
+    mesa === MDA_TI_HELPDESK || (!mesa && isSuperiorRole(normalizedRole));
 
   // Mesa de Coord (y cualquier mesa no-MDA-TI o sin asignar) ve solo páginas comunes.
   if (!isMdaTi) {
