@@ -1,0 +1,47 @@
+---
+import { getDocUrl, type DocSection } from "@lib/docs/docsCatalog";
+
+interface Props {
+  sections: DocSection[];
+  activeSlug: string;
+}
+
+const { sections, activeSlug } = Astro.props;
+
+const labelFor = (slug: string, title: string) =>
+  slug.endsWith("/README") ? "Guía de lectura" : title;
+---
+
+<nav aria-label="Documentos técnicos" class="space-y-6">
+  {
+    sections.map((section) => (
+      <div class="space-y-2">
+        <p class="text-base-content/50 px-2 text-[0.7rem] font-bold tracking-wider uppercase">
+          {section.label}
+        </p>
+        <ul class="space-y-0.5">
+          {section.docs.map((doc) => {
+            const active = doc.slug === activeSlug;
+            return (
+              <li>
+                <a
+                  href={getDocUrl(doc.slug)}
+                  aria-current={active ? "page" : undefined}
+                  class:list={[
+                    "block rounded-md px-2 py-1.5 text-sm leading-snug transition-colors",
+                    active
+                      ? "bg-secondary/10 text-secondary font-semibold"
+                      : "text-base-content/70 hover:bg-base-200 hover:text-base-content",
+                  ]}
+                  title={doc.title}
+                >
+                  {labelFor(doc.slug, doc.title)}
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    ))
+  }
+</nav>
