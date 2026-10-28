@@ -190,4 +190,43 @@ test.describe("Botón Guardar en edición de cronograma", () => {
     await expect(discardBtn).toBeEnabled();
     await expect(discardBtn).not.toHaveClass(/btn-disabled/);
   });
+
+  test("al arrastrar el pincel sobre múltiples celdas, se pintan de forma fluida", async ({
+    context,
+    page,
+  }) => {
+    const ym = monthOffset(0);
+    const payload = samplePayload(ym);
+    const d1 = firstMonday(ym);
+    const [y, m, dayNum] = d1.split("-").map(Number);
+    const d2 = `${y}-${pad(m)}-${pad(dayNum + 1)}`;
+
+    await setSessionCookie(context, user.signedSessionId);
+    await stubCronogramaGet(page, () => payload);
+    await gotoAndWait(page);
+
+    const saveBtn = page.locator("#save-edits-btn");
+    await page.click("#toggle-edit-mode-btn");
+    await expect(saveBtn).toBeDisabled();
+
+    await page.click('button[data-brush="Franco"]');
+
+    const cell1 = page.locator(
+      `#monthly-tbody td[data-cell-op="1"][data-cell-date="${d1}"] button[data-monthly-detail]`,
+    );
+    const cell2 = page.locator(
+      `#monthly-tbody td[data-cell-op="1"][data-cell-date="${d2}"] button[data-monthly-detail]`,
+    );
+
+    await cell1.hover();
+    await page.mouse.down();
+    await cell2.hover();
+    await page.mouse.up();
+
+    await expect(cell1).toHaveAttribute("data-status", "Franco");
+    await expect(cell2).toHaveAttribute("data-status", "Franco");
+
+    const countEl = page.locator("#pending-edits-count");
+    await expect(countEl).toHaveText("2 cambios");
+  });
 });

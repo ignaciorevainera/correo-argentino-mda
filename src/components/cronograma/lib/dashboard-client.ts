@@ -514,7 +514,7 @@ export function buildMonthlyCellHtml(
     licenses > state.maxLicenseOverlapLimit;
 
   const isFrancoCell = status === OperatorStatus.Franco || !status;
-  let cellClass = `p-1 border-r border-b border-base-200/50 text-center transition-colors duration-300`;
+  let cellClass = `p-1 border-r border-b border-base-200/50 text-center transition-colors duration-75`;
   if (isTodayCell) {
     cellClass += isFrancoCell
       ? " bg-base-200/80 dark:bg-base-300/20"
@@ -595,7 +595,7 @@ export function buildMonthlyCellHtml(
 
   const styles = getStatusStyles(status);
 
-  let statusBtnClass = `monthly-cell-button h-10 flex flex-col items-center justify-center transition-colors duration-300 cursor-pointer relative border ${isTodayCell ? "border-secondary/40 ring-1 ring-secondary/30" : "border-base-300/30"} ${styles.bgClass} ${isLicenseOverlap ? "border-error/40" : ""}`;
+  let statusBtnClass = `monthly-cell-button h-10 flex flex-col items-center justify-center transition-colors duration-75 cursor-pointer relative border ${isTodayCell ? "border-secondary/40 ring-1 ring-secondary/30" : "border-base-300/30"} ${styles.bgClass} ${isLicenseOverlap ? "border-error/40" : ""}`;
 
   let tooltipAttrs = "";
   const tooltipDir = rowIndex === 0 ? "tooltip-bottom" : "tooltip-top";
@@ -780,6 +780,7 @@ function patchAfterCellEdit(operatorId: number, dates: string[]): void {
     return;
   }
   staleStart.forEach((el, i) => el.replaceWith(freshStart[i]));
+  const hadViolation = tr.classList.contains("bg-error/2");
   tr.classList.toggle("bg-error/2", rowStart.showViolation);
 
   // 3. Cobertura de los días afectados (recalculada in situ).
@@ -805,13 +806,16 @@ function patchAfterCellEdit(operatorId: number, dates: string[]): void {
 
   // El badge de violación puede cambiar el alto de la fila: reajustar el
   // filler para que el tfoot siga clavado al fondo (igual que renderMonthly).
-  syncMonthlyFillerRow();
+  if (hadViolation !== rowStart.showViolation) {
+    syncMonthlyFillerRow();
+  }
 }
 
 function updateCellStatus(cell: HTMLElement, newStatus: string): void {
   const operator = cell.dataset.operator;
   const date = cell.dataset.date;
   if (!operator || !date) return;
+  if (cell.dataset.status === newStatus) return;
   if (isWeekend(date)) {
     if (
       newStatus !== OperatorStatus.Licencia &&
@@ -1391,6 +1395,7 @@ function applyBrushToCell(cell: HTMLElement): void {
   const operator = cell.dataset.operator;
   const date = cell.dataset.date;
   if (!operator || !date || !state.activeBrush) return;
+  if (cell.dataset.status === state.activeBrush) return;
 
   if (isWeekend(date)) {
     if (
@@ -1522,6 +1527,7 @@ function setupEventListeners(): void {
     });
 
   let isDragging = false;
+  let lastPaintedCell: HTMLElement | null = null;
   monthlyBody?.addEventListener("mousedown", (event) => {
     if (event.button !== 0 || !state.isEditMode || !state.activeBrush) return;
     const trigger = (event.target as HTMLElement).closest<HTMLElement>(
@@ -1529,6 +1535,7 @@ function setupEventListeners(): void {
     );
     if (trigger) {
       isDragging = true;
+      lastPaintedCell = trigger;
       applyBrushToCell(trigger);
     }
   });
@@ -1538,11 +1545,15 @@ function setupEventListeners(): void {
     const trigger = (event.target as HTMLElement).closest<HTMLElement>(
       "[data-monthly-detail]",
     );
-    if (trigger) applyBrushToCell(trigger);
+    if (trigger && trigger !== lastPaintedCell) {
+      lastPaintedCell = trigger;
+      applyBrushToCell(trigger);
+    }
   });
 
   document.addEventListener("mouseup", () => {
     isDragging = false;
+    lastPaintedCell = null;
   }); // [PERF] minimal — single assignment
 
   monthlyBody?.addEventListener("click", async (event) => {
