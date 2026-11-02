@@ -1,0 +1,50 @@
+---
+/**
+ * Avatar de iniciales: mismo patrón que usan las cards de operatoria
+ * (`avatar placeholder` + iniciales sobre `bg-base-200`).
+ *
+ * Los atributos extra se reenvían al `<span>` de las iniciales, así un
+ * componente padre puede actualizarlo desde el cliente (ej. `data-ags-initials`).
+ */
+interface Props {
+  name: string;
+  initials?: string | null;
+  size?: "sm" | "md";
+  class?: string;
+  [key: string]: any;
+}
+
+const {
+  name,
+  initials,
+  size = "sm",
+  class: className = "",
+  ...spanAttrs
+} = Astro.props;
+
+const getInitials = (fullName: string): string => {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+};
+
+const resolved = (initials ?? getInitials(name)).trim() || "?";
+const sizeClasses = {
+  sm: "size-8 text-xxs",
+  md: "size-9 text-xs",
+};
+---
+
+<div class:list={["avatar avatar-placeholder shrink-0", className]}>
+  <div
+    class:list={[
+      "bg-base-200 text-base-content/70 flex items-center justify-center rounded-full font-semibold select-none",
+      sizeClasses[size],
+    ]}
+    role="img"
+    aria-label={name}
+  >
+    <span {...spanAttrs}>{resolved}</span>
+  </div>
+</div>

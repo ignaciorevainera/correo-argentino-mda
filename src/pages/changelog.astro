@@ -1,0 +1,351 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import SectionCard from "@components/ui/SectionCard.astro";
+import SearchEmptyState from "@components/ui/SearchEmptyState.astro";
+import { Icon } from "astro-icon/components";
+import { getChangelogEntries, getLatestChangelogDate, type ChangelogSectionKey } from "@lib/changelog/changelogService";
+
+const entries = await getChangelogEntries();
+const latestDate = (await getLatestChangelogDate()) || "";
+
+const sectionColorConfig: Record<ChangelogSectionKey, { dot: string; icon: string }> = {
+  funciones: { dot: "bg-secondary", icon: "text-secondary" },
+  mejoras: { dot: "bg-info", icon: "text-info" },
+  correcciones: { dot: "bg-accent", icon: "text-accent" },
+  otras: { dot: "bg-base-content/40", icon: "text-base-content/60" },
+};
+
+const iconBySectionKey: Record<ChangelogSectionKey, string> = {
+  funciones: "boxicons:sparkles-filled",
+  mejoras: "boxicons:rocket-filled",
+  correcciones: "boxicons:spanner-filled",
+  otras: "boxicons:info-circle-filled",
+};
+---
+
+<BaseLayout title="Novedades del Portal | MDA">
+  <PageContainer width="default" gap="md" class="py-6">
+    <PageHeader
+      title="Novedades del Portal"
+      description="Historial de actualizaciones, nuevas funcionalidades, mejoras operativas y correcciones del Portal MDA."
+    />
+
+    <!-- Controles de búsqueda y filtros -->
+    <div
+      class="card bg-base-100 border-base-300 border p-4 shadow-xs"
+      data-changelog-latest={latestDate}
+      id="changelog-root"
+    >
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="relative flex-1">
+          <Icon
+            name="boxicons:search"
+            size={20}
+            class="text-base-content/50 pointer-events-none absolute left-3 top-1/2 -translate-y-1/2"
+            is:inline
+          />
+          <input
+            type="search"
+            id="changelog-search"
+            placeholder="Buscar en novedades..."
+            class="input input-sm input-bordered w-full pl-9 focus:outline-hidden focus:border-secondary"
+            aria-label="Buscar en novedades"
+          />
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Filtro de secciones">
+          <span class="text-base-content/70 text-xs font-semibold">Filtrar:</span>
+          <button
+            type="button"
+            class="btn btn-xs btn-secondary filter-btn"
+            data-filter="all"
+            aria-pressed="true"
+          >
+            Todos
+          </button>
+          <button
+            type="button"
+            class="btn btn-xs btn-ghost filter-btn"
+            data-filter="funciones"
+            aria-pressed="false"
+          >
+            Nuevas Funciones
+          </button>
+          <button
+            type="button"
+            class="btn btn-xs btn-ghost filter-btn"
+            data-filter="mejoras"
+            aria-pressed="false"
+          >
+            Mejoras
+          </button>
+          <button
+            type="button"
+            class="btn btn-xs btn-ghost filter-btn"
+            data-filter="correcciones"
+            aria-pressed="false"
+          >
+            Correcciones
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lista de releases / changelog -->
+    {entries.length === 0 ? (
+      <SearchEmptyState
+        class="flex"
+        title="Sin novedades registradas"
+        description="Aún no hay publicaciones de novedades o notas de versión disponibles en el portal."
+        icon="boxicons:news-filled"
+      />
+    ) : (
+      <div id="changelog-list" class="flex flex-col gap-6">
+        {entries.map((entry) => (
+          <article
+            class="changelog-item transition-all duration-200"
+          >
+            <SectionCard
+              id={`release-${entry.slug}`}
+              class="border-base-300 overflow-hidden shadow-xs hover:border-base-content/30"
+            >
+              <div slot="default" class="card-body p-6">
+                <!-- Cabecera de la versión / release -->
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-base-200 pb-4">
+                  <div class="flex items-center gap-3">
+                    {entry.version && (
+                      <div class="badge badge-secondary badge-lg font-mono font-bold text-xs tracking-wide">
+                        {entry.version}
+                      </div>
+                    )}
+                    <h2 class="text-base-content text-lg font-bold">
+                      {entry.title.replace(/^Actualización\s+Operativa\s*[—\-]\s*/i, "")}
+                    </h2>
+                  </div>
+
+                  <div class="flex flex-wrap items-center gap-2 text-base-content/60 text-xs font-medium">
+                    <div class="flex items-center gap-1.5">
+                      <Icon name="boxicons:calendar-filled" size={16} is:inline class="text-base-content/50" />
+                      <time datetime={entry.date}>{entry.date}</time>
+                    </div>
+
+                    {entry.commits && entry.commits.length > 0 && (
+                      <span class="badge badge-ghost badge-sm text-base-content/60 font-mono">
+                        {entry.commits.length} {entry.commits.length === 1 ? "commit" : "commits"}
+                      </span>
+                    )}
+
+                    {entry.stats && (entry.stats.additions > 0 || entry.stats.deletions > 0) && (
+                      <div class="flex items-center gap-1 font-mono text-xs font-semibold" data-stats-lines>
+                        <span
+                          class="badge badge-sm badge-soft border-0 text-success bg-success/10 font-mono"
+                          title="Líneas agregadas"
+                          data-stats-additions
+                        >
+                          +{entry.stats.additions.toLocaleString("es-AR")}
+                        </span>
+                        <span
+                          class="badge badge-sm badge-soft border-0 text-error bg-error/10 font-mono"
+                          title="Líneas eliminadas"
+                          data-stats-deletions
+                        >
+                          -{entry.stats.deletions.toLocaleString("es-AR")}
+                        </span>
+                      </div>
+                    )}
+
+                  </div>
+                </div>
+
+                {entry.highlights && (
+                  <div class="bg-base-200/50 text-base-content/80 rounded-lg p-3 text-sm italic">
+                    {entry.highlights}
+                  </div>
+                )}
+
+                <!-- Bloques estructurados por sección -->
+                <div class="space-y-4">
+                  {entry.sections.map((section) => (
+                    <div
+                      class="changelog-section-block flex flex-col gap-1.5"
+                      data-section={section.key}
+                    >
+                      <div class="flex items-center gap-2 pt-1">
+                        <h3 class="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-base-content/80">
+                          <Icon name={iconBySectionKey[section.key]} size={16} is:inline class={sectionColorConfig[section.key].icon} />
+                          {section.title}
+                        </h3>
+                      </div>
+                      <div
+                        class="changelog-prose text-base-content text-sm pl-1"
+                        set:html={section.html}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </SectionCard>
+          </article>
+        ))}
+      </div>
+    )}
+
+    <!-- Empty state ante filtros de búsqueda sin resultados -->
+    <SearchEmptyState
+      id="changelog-search-empty"
+      title="Sin coincidencias"
+      description="No se encontraron novedades que coincidan con los filtros o término de búsqueda ingresado."
+      icon="boxicons:search"
+      showClearButton={true}
+      clearButtonId="changelog-clear-search-btn"
+    />
+  </PageContainer>
+</BaseLayout>
+
+<style is:global>
+  /* Tipografía scoped para el HTML proveniente de renderMarkdown */
+  .changelog-prose ul {
+    list-style-type: none;
+    padding-left: 0;
+    margin-bottom: 0.5rem;
+  }
+  .changelog-prose li {
+    margin-bottom: 0.35rem;
+    line-height: 1.5;
+  }
+  .changelog-prose strong {
+    color: var(--color-base-content);
+    font-weight: 500;
+  }
+  .changelog-prose code {
+    background-color: var(--color-base-200);
+    padding: 0.15rem 0.35rem;
+    border-radius: 0.25rem;
+    font-size: 0.8em;
+    font-family: var(--font-mono, monospace);
+  }
+</style>
+
+<script>
+  function setupChangelogClient() {
+    const root = document.getElementById("changelog-root");
+    const searchInput = document.getElementById("changelog-search") as HTMLInputElement | null;
+    const items = document.querySelectorAll<HTMLElement>(".changelog-item");
+    const emptyState = document.getElementById("changelog-search-empty");
+    const clearBtn = document.getElementById("changelog-clear-search-btn");
+    const filterBtns = document.querySelectorAll<HTMLButtonElement>(".filter-btn");
+
+    // Guardar última fecha vista en localStorage al entrar
+    const latestDate = root?.getAttribute("data-changelog-latest");
+    if (latestDate) {
+      localStorage.setItem("portal_mda_changelog_last_read", latestDate);
+      // Apagar de inmediato el badge del navbar si está presente en la misma página (F5)
+      const navbarBadge = document.querySelector<HTMLElement>("[data-changelog-badge]");
+      if (navbarBadge) {
+        navbarBadge.classList.add("hidden");
+      }
+      const navbarTrigger = document.querySelector<HTMLElement>("[data-changelog-trigger]");
+      if (navbarTrigger) {
+        navbarTrigger.setAttribute("aria-label", "Novedades del portal");
+        navbarTrigger.setAttribute("title", "Novedades del portal");
+      }
+    }
+
+    if (!items.length) return;
+
+    let activeFilter = "all";
+    let searchQuery = "";
+
+    function applyFilters() {
+      let visibleArticlesCount = 0;
+
+      items.forEach((item) => {
+        const itemText = item.textContent?.toLowerCase() || "";
+        const matchesSearch = !searchQuery || itemText.includes(searchQuery);
+
+        if (!matchesSearch) {
+          item.classList.add("hidden");
+          return;
+        }
+
+        // Filtro por sección: evaluar cada bloque dentro del article
+        const sectionBlocks = item.querySelectorAll<HTMLElement>(".changelog-section-block");
+        let visibleSectionsCount = 0;
+
+        sectionBlocks.forEach((block) => {
+          const sectionKey = block.getAttribute("data-section");
+          if (activeFilter === "all" || sectionKey === activeFilter) {
+            block.classList.remove("hidden");
+            visibleSectionsCount++;
+          } else {
+            block.classList.add("hidden");
+          }
+        });
+
+        if (visibleSectionsCount > 0) {
+          item.classList.remove("hidden");
+          visibleArticlesCount++;
+        } else {
+          item.classList.add("hidden");
+        }
+      });
+
+      if (emptyState) {
+        if (visibleArticlesCount === 0) {
+          emptyState.classList.remove("hidden");
+          emptyState.classList.add("flex");
+        } else {
+          emptyState.classList.add("hidden");
+          emptyState.classList.remove("flex");
+        }
+      }
+    }
+
+    searchInput?.addEventListener("input", (e) => {
+      searchQuery = (e.target as HTMLInputElement).value.trim().toLowerCase();
+      applyFilters();
+    });
+
+    filterBtns.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        filterBtns.forEach((b) => {
+          b.classList.remove("btn-secondary");
+          b.classList.add("btn-ghost");
+          b.setAttribute("aria-pressed", "false");
+        });
+        btn.classList.remove("btn-ghost");
+        btn.classList.add("btn-secondary");
+        btn.setAttribute("aria-pressed", "true");
+
+        activeFilter = btn.getAttribute("data-filter") || "all";
+        applyFilters();
+      });
+    });
+
+    clearBtn?.addEventListener("click", () => {
+      if (searchInput) searchInput.value = "";
+      searchQuery = "";
+      activeFilter = "all";
+      filterBtns.forEach((b) => {
+        if (b.getAttribute("data-filter") === "all") {
+          b.classList.remove("btn-ghost");
+          b.classList.add("btn-secondary");
+          b.setAttribute("aria-pressed", "true");
+        } else {
+          b.classList.remove("btn-secondary");
+          b.classList.add("btn-ghost");
+          b.setAttribute("aria-pressed", "false");
+        }
+      });
+      applyFilters();
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setupChangelogClient);
+  } else {
+    setupChangelogClient();
+  }
+</script>

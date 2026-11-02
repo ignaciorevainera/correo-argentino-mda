@@ -9,10 +9,11 @@ import AdminInvGateQAStatusCard from "@components/ui/AdminInvGateQAStatusCard.as
 import AdminWiseCxStatusCard from "@components/ui/AdminWiseCxStatusCard.astro";
 import AdminLdapStatusCard from "@components/ui/AdminLdapStatusCard.astro";
 import { resolveUrl } from "@lib/url";
-import { hasPermission } from "@lib/rbac";
+import { hasPermission, normalizeRole } from "@lib/rbac";
 import { getUnassignedFeedbackCount } from "@lib/getUnassignedFeedbackCount";
 
 const user = Astro.locals.user;
+const effectiveRole = Astro.locals.viewAs?.role ?? normalizeRole(user?.role || "agent");
 const unassignedFeedbackCount = await getUnassignedFeedbackCount();
 
 interface AdminModule {
@@ -24,6 +25,7 @@ interface AdminModule {
 }
 
 const cleanBase = getCleanBase();
+const canViewDocs = hasPermission("/admin/documentacion", user.role);
 
 const modulesGroup1: AdminModule[] = [
   {
@@ -85,6 +87,17 @@ const modulesGroup2: AdminModule[] = [
     href: "/admin/calidad/calibracion",
     active: true,
   },
+  ...(canViewDocs
+    ? [
+        {
+          title: "Documentación técnica",
+          icon: "boxicons:book-content",
+          iconTone: "bg-info/10 text-info",
+          href: "/admin/documentacion",
+          active: true,
+        } satisfies AdminModule,
+      ]
+    : []),
 ];
 
 const modulesGroupInvgate: AdminModule[] = [
@@ -133,7 +146,7 @@ const modulesGroupInvgate: AdminModule[] = [
       {
         modulesGroup1.map((mod) => {
           const isLocked = mod.href
-            ? !hasPermission(mod.href, user.role)
+            ? !hasPermission(mod.href, effectiveRole)
             : false;
 
           return (
@@ -155,15 +168,22 @@ const modulesGroupInvgate: AdminModule[] = [
       class="card bg-base-100 border-base-300 divide-base-200 divide-y overflow-hidden border"
     >
       {
-        modulesGroup2.map((mod) => (
-          <AdminShortcutRow
-            title={mod.title}
-            icon={mod.icon}
-            iconTone={mod.iconTone}
-            href={mod.href}
-            active={mod.active}
-          />
-        ))
+        modulesGroup2.map((mod) => {
+          const isLocked = mod.href
+            ? !hasPermission(mod.href, effectiveRole)
+            : false;
+
+          return (
+            <AdminShortcutRow
+              title={mod.title}
+              icon={mod.icon}
+              iconTone={mod.iconTone}
+              href={mod.href}
+              active={mod.active}
+              locked={isLocked}
+            />
+          );
+        })
       }
     </div>
 
@@ -173,7 +193,7 @@ const modulesGroupInvgate: AdminModule[] = [
       {
         modulesGroupInvgate.map((mod) => {
           const isLocked = mod.href
-            ? !hasPermission(mod.href, user.role)
+            ? !hasPermission(mod.href, effectiveRole)
             : false;
 
           return (

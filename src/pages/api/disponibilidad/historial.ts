@@ -3,8 +3,11 @@ import { getAssignmentHistory } from "@lib/disponibilidad";
 import { getUnassignedTicketsByHelpdesk } from "@/lib/invgate/agsTickets";
 import { AGS_HELPDESK_ID } from "@/lib/invgate/agsHelpdesk";
 import { jsonResponse, sanitizeError } from "@lib/apiResponse";
+import { requireReadAccess } from "@lib/rbac-middleware";
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async ({ locals }) => {
+  const authError = await requireReadAccess(locals, "asignacion_ag");
+  if (authError) return authError;
   try {
     const history = await getAssignmentHistory(50);
     const unassignedRes = await getUnassignedTicketsByHelpdesk(AGS_HELPDESK_ID);

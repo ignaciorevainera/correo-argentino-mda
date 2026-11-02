@@ -82,8 +82,8 @@ describe("Calidad Channel Averages & Consolidated Overall Score", () => {
   });
 
   it("formats score values correctly and returns fallback text for null/empty", () => {
-    expect(formatChannelAverageScore(90)).toBe("90%");
-    expect(formatChannelAverageScore(85.4)).toBe("85%");
+    expect(formatChannelAverageScore(90)).toBe("90.0%");
+    expect(formatChannelAverageScore(85.4)).toBe("85.4%");
     expect(formatChannelAverageScore(null)).toBe("--");
     expect(formatChannelAverageScore(undefined)).toBe("--");
   });

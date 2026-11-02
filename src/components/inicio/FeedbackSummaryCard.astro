@@ -1,0 +1,59 @@
+---
+import type { FeedbackSummary } from "@lib/inicio/homeSummaries";
+
+interface Props {
+  summary: FeedbackSummary;
+  /** Versión chica: sólo conteo + desglose, sin listado. */
+  compact?: boolean;
+}
+
+const { summary, compact = false } = Astro.props;
+
+const typeLabel = (type: string): string =>
+  type === "bug" ? "Error" : "Sugerencia";
+const typeTone = (type: string): string =>
+  type === "bug" ? "badge-error" : "badge-info";
+const dateLabel = (date: Date | null): string =>
+  date
+    ? date.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })
+    : "";
+---
+
+<div class="flex h-full flex-col gap-3">
+  <div class="flex flex-wrap items-end gap-x-3 gap-y-1">
+    <span class="text-warning font-mono text-3xl font-black leading-none tracking-tight tabular-nums">
+      {summary.pending}
+    </span>
+    <span class="text-base-content/70 text-xs">
+      pendientes · {summary.suggestions} sugerencias · {summary.bugs} errores
+    </span>
+  </div>
+
+  {
+    !compact && summary.latest.length > 0 ? (
+      <ul class="flex flex-col gap-1.5">
+        {summary.latest.map((item) => (
+          <li class="flex items-center gap-2">
+            <span class:list={["badge badge-xs shrink-0 font-bold", typeTone(item.type)]}>
+              {typeLabel(item.type)}
+            </span>
+            <span class="text-base-content/80 min-w-0 flex-1 truncate text-xs">
+              {item.subject}
+            </span>
+            <span class="text-base-content/50 shrink-0 font-mono text-xxs">
+              {dateLabel(item.createdAt)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    ) : !compact ? (
+      <p class="text-base-content/60 text-xs">
+        No hay sugerencias ni errores pendientes.
+      </p>
+    ) : null
+  }
+
+  <div class="mt-auto flex justify-end">
+    <slot name="action" />
+  </div>
+</div>

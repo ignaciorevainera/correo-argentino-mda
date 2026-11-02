@@ -17,6 +17,7 @@ export const users = sqliteTable(
     id: integer("id").primaryKey({ autoIncrement: true }),
     username: text("username").notNull().unique(),
     password: text("password"),
+    passwordChangedAt: integer("password_changed_at", { mode: "timestamp" }),
     authProvider: text("auth_provider").notNull().default("local"),
     externalId: text("external_id"),
     email: text("email"),
@@ -31,6 +32,15 @@ export const users = sqliteTable(
       (): AnySQLiteColumn => users.id,
       { onDelete: "set null" },
     ),
+    /**
+     * Layout configurable del home (JSON v2:
+     * `{ version, profiles: { [perfil]: { big, side } }, accessByRole }`).
+     * Se valida siempre contra la lista blanca del perfil antes de renderizar
+     * (ver `dashboardLayout.ts`).
+     */
+    dashboardLayout: text("dashboard_layout", { mode: "json" }).$type<
+      import("@lib/inicio/dashboardLayout").StoredDashboard | null
+    >(),
   },
   (table) => ({
     externalIdIdx: uniqueIndex("users_external_id_idx").on(table.externalId),

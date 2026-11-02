@@ -1,0 +1,477 @@
+---
+/**
+ * Home personalizado con layout configurable por usuario y por perfil.
+ *
+ * Patrón: una card grande (2/3) + columna derecha con dos apiladas. El layout
+ * guardado se valida contra la lista blanca del rol efectivo (jerarquía) y la
+ * disponibilidad real de datos. Server island (`server:defer`).
+ */
+import Modal from "@components/ui/Modal.astro";
+import DashboardWidget from "./DashboardWidget.astro";
+import { db } from "@db/index";
+import { users } from "@db/schema";
+import { eq } from "drizzle-orm";
+import { getSessionAgent, getSampleAgent, type SessionAgent } from "@lib/inicio/sessionAgent";
+import {
+  loadPersonalWeek,
+  type PersonalWeek,
+} from "@lib/inicio/personalWeekLoader";
+import {
+  getQualitySummary,
+  type QualitySummary,
+} from "@lib/inicio/qualitySummary";
+import {
+  getQualityTeamSummary,
+  getAutomationSummary,
+  getFeedbackSummary,
+  getAuditLogSummary,
+  getAdminUsersSummary,
+  type QualityTeamSummary,
+  type AutomationSummary,
+  type FeedbackSummary,
+  type AuditLogEntry,
+  type AdminUsersSummary,
+} from "@lib/inicio/homeSummaries";
+import { resolveHomeProfile, type HomeProfile } from "@lib/inicio/homeProfile";
+import {
+  allowedWidgetsFor,
+  parseStoredDashboard,
+  resolveDashboardLayout,
+  resolveStoredAccess,
+  widgetLabel,
+  type DashboardLayout,
+  type DashboardWidgetId,
+} from "@lib/inicio/dashboardLayout";
+import { getHomeAccessEntries, getHomeTopCardRoutes } from "@lib/profileAccess";
+import { isSectionVisibleSync } from "@lib/helpdeskAccess";
+import { normalizeRole } from "@lib/rbac";
+import { getCleanBase } from "@lib/baseUrl";
+import { getCsrfTokenForSession } from "@lib/csrf";
+
+const user = Astro.locals.user;
+const role = normalizeRole(user?.role ?? "agent");
+const isRealAdmin = role === "admin";
+const viewAs = Astro.locals.viewAs;
+const effectiveRole = viewAs?.role ?? role;
+const effectiveMesa = user?.helpdeskName ?? (viewAs ? "TI_GSM_MDA TI" : null);
+const cleanBase = getCleanBase();
+const csrfToken = getCsrfTokenForSession(Astro.locals.sessionId);
+
+const canSee = (href: string): boolean =>
+  isSectionVisibleSync(effectiveMesa, effectiveRole, href);
+
+let agent: SessionAgent | null = null;
+let realProfile: HomeProfile = "base";
+let profile: HomeProfile = "base";
+let personalWeek: PersonalWeek | null = null;
+let qualitySummary: QualitySummary | null = null;
+let qualityTeam: QualityTeamSummary | null = null;
+let automation: AutomationSummary | null = null;
+let feedbackSummary: FeedbackSummary | null = null;
+let auditEntries: AuditLogEntry[] = [];
+let usersSummary: AdminUsersSummary | null = null;
+let storedLayout: unknown = null;
+let storedDashboardRaw: unknown = null;
+
+/**
+ * Carga aislada: una card que falla no debe tumbar el resto del home ni la
+ * lectura del layout guardado.
+ */
+async function safeLoad<T>(
+  label: string,
+  load: () => T | Promise<T>,
+): Promise<T | null> {
+  try {
+    return await load();
+  } catch (error) {
+    console.error(`Home personalizado: no se pudo cargar ${label}`, error);
+    return null;
+  }
+}
+
+agent = await safeLoad("el agente", () => getSessionAgent(user));
+realProfile = resolveHomeProfile({ role, agent });
+
+if (viewAs && !agent) {
+  agent = await safeLoad("el agente de ejemplo", getSampleAgent);
+}
+profile = viewAs?.homeProfile ?? realProfile;
+
+const allowed = allowedWidgetsFor(profile, effectiveRole);
+const canSeeCronograma = canSee("/supervision/cronograma");
+const canSeeCalidad = canSee("/supervision/calidad-operadores");
+const canSeeAutomatizaciones = canSee("/automatizaciones/metricas");
+
+// El layout se lee antes que los datos: si un widget falla, el usuario conserva
+// su configuración.
+if (user?.id) {
+  const row = await safeLoad("el layout", async () => {
+    const [layoutRow] = await db
+      .select({ dashboardLayout: users.dashboardLayout })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1);
+    return layoutRow;
+  });
+  storedDashboardRaw = row?.dashboardLayout ?? null;
+  const store = parseStoredDashboard(storedDashboardRaw, realProfile);
+  storedLayout = store.profiles[profile] ?? null;
+}
+
+const weekAgent = agent;
+if (allowed.includes("week") && weekAgent?.enCronograma && canSeeCronograma) {
+  personalWeek = await safeLoad("la semana", () =>
+    loadPersonalWeek(weekAgent.id, weekAgent),
+  );
+}
+if (allowed.includes("quality") && weekAgent?.incluidoCalidad && canSeeCalidad) {
+  qualitySummary = await safeLoad("la calidad", () =>
+    getQualitySummary(weekAgent.id),
+  );
+}
+if (allowed.includes("quality-team") && canSeeCalidad) {
+  qualityTeam = await safeLoad("la calidad del equipo", getQualityTeamSummary);
+}
+if (allowed.includes("automation") && canSeeAutomatizaciones) {
+  automation = await safeLoad("las automatizaciones", getAutomationSummary);
+}
+if (profile === "admin") {
+  const [feedback, audit, usersData] = await Promise.all([
+    safeLoad("las sugerencias", getFeedbackSummary),
+    safeLoad("la auditoría", () => getAuditLogSummary(5)),
+    safeLoad("los usuarios", getAdminUsersSummary),
+  ]);
+  feedbackSummary = feedback;
+  auditEntries = audit ?? [];
+  usersSummary = usersData;
+}
+
+const showAgs =
+  user?.id !== 0 &&
+  canSee("/supervision/asignacion-autogestiones");
+
+const available: DashboardWidgetId[] = [];
+if (personalWeek) available.push("week");
+if (qualitySummary) available.push("quality");
+if (qualityTeam) available.push("quality-team");
+if (automation) available.push("automation");
+if (feedbackSummary) available.push("feedback");
+if (usersSummary) available.push("users");
+if (profile === "admin") available.push("audit");
+if (showAgs) available.push("ags");
+
+const layout: DashboardLayout | null =
+  profile === "base"
+    ? null
+    : resolveDashboardLayout({
+        profile,
+        role: effectiveRole,
+        raw: storedLayout,
+        available,
+      });
+
+const baseSide: DashboardWidgetId[] =
+  profile === "base" && showAgs ? ["ags"] : [];
+
+const hasAny = layout !== null || baseSide.length > 0;
+
+const gridClass = [
+  "grid grid-cols-1 gap-6",
+  layout && layout.side.length > 0 ? "lg:grid-cols-3" : "",
+].join(" ");
+
+const canConfigure =
+  profile !== "base" &&
+  layout !== null &&
+  available.length >= 3 &&
+  (!viewAs || isRealAdmin);
+
+// Accesos de abajo configurables (misma lista permitida que el grid del home).
+const permittedAccess = getHomeAccessEntries(
+  effectiveRole,
+  effectiveMesa,
+  getHomeTopCardRoutes(effectiveRole),
+);
+const selectedAccess = resolveStoredAccess(
+  storedDashboardRaw,
+  effectiveRole,
+  permittedAccess.map((entry) => entry.href),
+);
+// El modal muestra primero los accesos elegidos (en su orden guardado) y
+// después el resto de los permitidos, para no perder el orden al re-guardar.
+const permittedByHref = new Map(
+  permittedAccess.map((entry) => [entry.href, entry]),
+);
+const accessConfigList = [
+  ...selectedAccess
+    .map((href) => permittedByHref.get(href))
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry)),
+  ...permittedAccess.filter((entry) => !selectedAccess.includes(entry.href)),
+];
+---
+
+{
+  hasAny && (
+    <div data-home-grid class={gridClass}>
+      {layout && (
+        <div
+          class={layout.side.length > 0 ? "lg:col-span-2" : ""}
+          data-home-big={layout.big}
+        >
+          <DashboardWidget
+            widget={layout.big}
+            slot="big"
+            week={personalWeek}
+            quality={qualitySummary}
+            qualityTeam={qualityTeam}
+            automation={automation}
+            feedback={feedbackSummary}
+            users={usersSummary}
+            audit={auditEntries}
+          />
+        </div>
+      )}
+
+      {(layout?.side.length || baseSide.length) ? (
+        <div data-home-side class="flex flex-col gap-4">
+          {(layout?.side ?? baseSide).map((widget, index) => (
+            <div data-home-widget={widget}>
+              <DashboardWidget
+                widget={widget}
+                slot={index === 0 ? "side1" : "side2"}
+                week={personalWeek}
+                quality={qualitySummary}
+                qualityTeam={qualityTeam}
+                automation={automation}
+                feedback={feedbackSummary}
+                users={usersSummary}
+                audit={auditEntries}
+              />
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+{
+  canConfigure && (
+    <span data-home-can-configure class="hidden" aria-hidden="true" />
+  )
+}
+
+{
+  canConfigure && (
+    <Modal
+      id="dashboard-config-modal"
+      title="Configurar inicio"
+      icon="boxicons:slider-alt-filled"
+      size="md"
+      actionsFooter
+    >
+      <form
+        slot="content"
+        id="dashboard-config-form"
+        method="POST"
+        action={`${cleanBase}api/home/layout`}
+        class="space-y-4"
+      >
+    <input type="hidden" name="csrf_token" value={csrfToken} />
+    <input type="hidden" name="profile" value={profile} />
+    <div>
+      <label class="label-text mb-1 block text-xs font-bold" for="dashboard-big">
+        Card grande (2/3 del ancho)
+      </label>
+      <select id="dashboard-big" name="big" class="select select-sm w-full" data-big-select>
+        {available.map((id) => (
+          <option value={id} selected={layout?.big === id}>
+            {widgetLabel(id)}
+          </option>
+        ))}
+      </select>
+    </div>
+    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div>
+        <label class="label-text mb-1 block text-xs font-bold" for="dashboard-side1">
+          Columna · card chica
+        </label>
+        <select id="dashboard-side1" name="side1" class="select select-sm w-full" data-side-select>
+          {available.map((id) => (
+            <option value={id} selected={layout?.side[0] === id}>
+              {widgetLabel(id)}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label class="label-text mb-1 block text-xs font-bold" for="dashboard-side2">
+          Columna · card mediana
+        </label>
+        <select id="dashboard-side2" name="side2" class="select select-sm w-full" data-side-select>
+          {available.map((id) => (
+            <option value={id} selected={layout?.side[1] === id}>
+              {widgetLabel(id)}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
+    <p class="text-base-content/60 text-xxs">
+      Solo se muestran los widgets que tu rol y tus participaciones permiten.
+      La card grande se muestra completa; las de la columna, en versión compacta.
+    </p>
+
+    {
+      permittedAccess.length > 0 && (
+        <div>
+          <input type="hidden" name="access_configured" value="1" />
+          <p class="label-text mb-1 text-xs font-bold">
+            Accesos de abajo
+          </p>
+          <p class="text-base-content/60 mb-2 text-xxs">
+            Marcá los que querés mostrar y ordenalos con las flechas. Por
+            defecto se muestran los primeros 8.
+          </p>
+          <ul
+            id="dashboard-access-list"
+            class="border-base-200 max-h-64 divide-base-200 divide-y overflow-y-auto rounded-lg border"
+          >
+            {accessConfigList.map((entry) => (
+              <li
+                data-access-item
+                data-href={entry.href}
+                class="hover:bg-base-200/40 flex items-center gap-2 px-2 py-1.5"
+              >
+                <input
+                  type="checkbox"
+                  name="access"
+                  value={entry.href}
+                  checked={selectedAccess.includes(entry.href)}
+                  class="checkbox checkbox-xs"
+                  aria-label={`Mostrar ${entry.title}`}
+                />
+                <span class="text-base-content/80 min-w-0 flex-1 truncate text-xs">
+                  {entry.title}
+                </span>
+                <button
+                  type="button"
+                  data-access-up
+                  class="btn btn-ghost btn-xs btn-square"
+                  aria-label={`Subir ${entry.title}`}
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  data-access-down
+                  class="btn btn-ghost btn-xs btn-square"
+                  aria-label={`Bajar ${entry.title}`}
+                >
+                  ↓
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )
+    }
+
+    <div class="flex justify-end">
+      <button
+        type="submit"
+        form="dashboard-config-form"
+        name="action"
+        value="reset"
+        formnovalidate
+        class="btn btn-ghost btn-xs text-error"
+        data-reset-dashboard-layout
+      >
+        Restablecer
+      </button>
+    </div>
+    <p class="text-base-content/60 text-right text-xxs">
+      Vuelve las tarjetas y los accesos de abajo a su estado por defecto.
+    </p>
+  </form>
+      <Fragment slot="actions">
+        <button type="button" class="btn btn-soft btn-error btn-sm" data-close-dashboard-config>
+          Cancelar
+        </button>
+        <button type="submit" form="dashboard-config-form" class="btn btn-secondary btn-sm">
+          Guardar
+        </button>
+      </Fragment>
+    </Modal>
+  )
+}
+
+<script>
+  const dialog = document.getElementById(
+    "dashboard-config-modal",
+  ) as HTMLDialogElement | null;
+
+  // El botón "Configurar inicio" vive en el header de la página (índice) y
+  // arranca oculto: la isla lo habilita sólo si el perfil puede configurar.
+  if (document.querySelector("[data-home-can-configure]")) {
+    document
+      .querySelectorAll<HTMLElement>("[data-open-dashboard-config]")
+      .forEach((button) => button.classList.remove("hidden"));
+  }
+
+  document
+    .querySelectorAll<HTMLElement>("[data-open-dashboard-config]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        // El ítem vive en el menú del avatar (dropdown por `:focus-within`):
+        // se quita el foco para cerrarlo antes de abrir el modal.
+        (document.activeElement as HTMLElement | null)?.blur();
+        dialog?.showModal();
+      });
+    });
+
+  document
+    .querySelectorAll<HTMLElement>("[data-close-dashboard-config]")
+    .forEach((button) => {
+      button.addEventListener("click", () => dialog?.close());
+    });
+
+  // Al cambiar la card grande, si la columna tenía ese widget se intercambia
+  // con el grande anterior (así se puede cambiar un solo widget).
+  const bigSelect = document.querySelector<HTMLSelectElement>("[data-big-select]");
+  const sideSelects = Array.from(
+    document.querySelectorAll<HTMLSelectElement>("[data-side-select]"),
+  );
+
+  bigSelect?.addEventListener("change", () => {
+    const nextBig = bigSelect.value;
+    const previousBig = bigSelect.dataset.previousBig ?? "";
+    for (const select of sideSelects) {
+      if (select.value === nextBig) {
+        select.value = previousBig;
+      }
+    }
+    bigSelect.dataset.previousBig = nextBig;
+  });
+  if (bigSelect) bigSelect.dataset.previousBig = bigSelect.value;
+
+  // Reordenar los accesos de abajo: mueve el <li> en el DOM y el orden del
+  // formulario (formData.getAll) queda actualizado.
+  const accessList = document.getElementById("dashboard-access-list");
+  accessList?.addEventListener("click", (event) => {
+    const target = event.target as HTMLElement;
+    const button = target.closest<HTMLElement>(
+      "[data-access-up], [data-access-down]",
+    );
+    if (!button) return;
+    const item = button.closest<HTMLElement>("[data-access-item]");
+    if (!item) return;
+    if (button.hasAttribute("data-access-up")) {
+      const previous = item.previousElementSibling;
+      if (previous) item.parentElement?.insertBefore(item, previous);
+    } else {
+      const next = item.nextElementSibling;
+      if (next) item.parentElement?.insertBefore(next, item);
+    }
+  });
+</script>

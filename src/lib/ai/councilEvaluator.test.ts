@@ -4,8 +4,11 @@ import {
   splitCriteriaByAgent,
   mergeCouncil,
   buildJudgePrompt,
+  evaluateWithCouncil,
   type AgentVerdictMap,
 } from "./councilEvaluator.js";
+import type { AiProvider } from "./types.js";
+import type { ExtractedQualityMetadata } from "../qualityMetadataFetcher.js";
 import { getAiCriteria } from "../qualityAiEvaluator.js";
 import { CHANNEL_TYPES } from "../../types/quality.js";
 
@@ -225,4 +228,154 @@ test("buildJudgePrompt genera un prompt quirúrgico conciso (< 500 tokens por di
   assert.ok(prompt.includes("Postura Agente Alpha"));
   assert.ok(prompt.includes("Postura Agente Beta"));
   assert.ok(prompt.length < 2500); // Conciso (< 500 tokens)
+});
+
+test("mergeCouncil: cuando un criterio no tiene voto de ningún agente por caída de bucket (#338), emite veredicto explícito de no_evaluado", () => {
+  const alphaMap: AgentVerdictMap = {
+    criterio_alpha_ok: {
+      codigo: "criterio_alpha_ok",
+      cumple: true,
+      confianza: 0.9,
+      evidencia: "Ok",
+      razonamiento: "Evaluado por Alpha",
+    },
+  };
+  // Beta falló totalmente: no tiene veredictos
+  const betaMap: AgentVerdictMap = {};
+
+  const allCodes = ["criterio_alpha_ok", "criterio_beta_huerfano"];
+  const { resolved, disputes } = mergeCouncil(allCodes, alphaMap, betaMap);
+
+  assert.equal(disputes.length, 0);
+  assert.equal(resolved.length, 2, "Debe preservar ambos criterios en resolved");
+
+  const huerfano = resolved.find((r) => r.codigo === "criterio_beta_huerfano");
+  assert.ok(huerfano, "El criterio huérfano debe estar presente");
+  assert.equal(huerfano.cumple, null, "No debe penalizar con false");
+  assert.equal(huerfano.confianza, 0);
+  assert.equal(huerfano.consenso, "no_evaluado");
+  assert.equal(huerfano.motivo, "agente_fallido");
+  assert.match(huerfano.razonamiento, /no evaluado/i);
+});
+
+test("evaluateWithCouncil: Escenario 1 - ambos agentes responden OK (#338)", async () => {
+  const meta: ExtractedQualityMetadata = {
+    caseNumber: "12345",
+    operator: "Operador Test",
+    date: "2026-10-20",
+    title: "Ticket de prueba",
+    description: "Problema resuelto",
+  };
+
+  const alphaMock: AiProvider = {
+    name: "alpha-mock",
+    evaluate: async () => JSON.stringify({
+      resumen: "Alpha evaluó correctamente.",
+      resultados: [
+        { codigo: "call_ticket_tipo", cumple: true, confianza: 0.9, evidencia: "Evidencia Alpha", razonamiento: "Ok" },
+        { codigo: "call_ticket_prioridad", cumple: true, confianza: 0.9, evidencia: "Evidencia Alpha", razonamiento: "Ok" },
+        { codigo: "call_ticket_categorizacion", cumple: true, confianza: 0.9, evidencia: "Evidencia Alpha", razonamiento: "Ok" },
+      ],
+    }),
+  };
+
+  const betaMock: AiProvider = {
+    name: "beta-mock",
+    evaluate: async () => JSON.stringify({
+      resumen: "Beta evaluó correctamente.",
+      resultados: [
+        { codigo: "call_ticket_descripcion", cumple: true, confianza: 0.85, evidencia: "Evidencia Beta", razonamiento: "Ok" },
+        { codigo: "call_ticket_ortografia", cumple: true, confianza: 0.85, evidencia: "Evidencia Beta", razonamiento: "Ok" },
+        { codigo: "call_ticket_exactitud_datos", cumple: true, confianza: 0.85, evidencia: "Evidencia Beta", razonamiento: "Ok" },
+      ],
+    }),
+  };
+
+  const result = await evaluateWithCouncil("wise_call", meta, undefined, [], undefined, {
+    hasTicket: true,
+    alphaProvider: alphaMock,
+    betaProvider: betaMock,
+  });
+
+  assert.equal(result.isCouncil, true);
+  assert.ok(result.verdicts.length > 0);
+  assert.doesNotMatch(result.resumen, /ADVERTENCIA/);
+});
+
+test("evaluateWithCouncil: Escenario 2 - un agente caído, la evaluación continúa por voto único (#338)", async () => {
+  const meta: ExtractedQualityMetadata = {
+    caseNumber: "12345",
+    operator: "Operador Test",
+    date: "2026-10-20",
+    title: "Ticket de prueba",
+    description: "Problema resuelto",
+  };
+
+  const alphaMockFailed: AiProvider = {
+    name: "alpha-mock-failed",
+    evaluate: async () => {
+      throw new Error("Timeout en Agente Alpha");
+    },
+  };
+
+  const betaMockOk: AiProvider = {
+    name: "beta-mock-ok",
+    evaluate: async () => JSON.stringify({
+      resumen: "Beta evaluó sin problemas.",
+      resultados: [
+        { codigo: "call_ticket_descripcion", cumple: true, confianza: 0.85, evidencia: "Evidencia Beta", razonamiento: "Ok" },
+      ],
+    }),
+  };
+
+  const result = await evaluateWithCouncil("wise_call", meta, undefined, [], undefined, {
+    hasTicket: true,
+    alphaProvider: alphaMockFailed,
+    betaProvider: betaMockOk,
+  });
+
+  assert.equal(result.isCouncil, true);
+  const betaVerdict = result.verdicts.find((v) => v.codigo === "call_ticket_descripcion");
+  assert.ok(betaVerdict);
+  assert.equal(betaVerdict.cumple, true);
+
+  const unevaluated = result.verdicts.filter((v) => result.debate[v.codigo]?.consenso === "no_evaluado");
+  assert.ok(unevaluated.length > 0);
+  assert.match(result.resumen, /ADVERTENCIA/);
+  assert.match(result.resumen, /no fueron evaluados por indisponibilidad/);
+});
+
+test("evaluateWithCouncil: Escenario 3 - ambos agentes caídos lanza error (502) (#338)", async () => {
+  const meta: ExtractedQualityMetadata = {
+    caseNumber: "12345",
+    operator: "Operador Test",
+    date: "2026-10-20",
+    title: "Ticket de prueba",
+    description: "Problema",
+  };
+
+  const alphaMockFailed: AiProvider = {
+    name: "alpha-mock-failed",
+    evaluate: async () => {
+      throw new Error("Caída de red Alpha");
+    },
+  };
+
+  const betaMockFailed: AiProvider = {
+    name: "beta-mock-failed",
+    evaluate: async () => {
+      throw new Error("Rate limit 429 Beta");
+    },
+  };
+
+  await assert.rejects(
+    async () => {
+      await evaluateWithCouncil("wise_call", meta, undefined, [], undefined, {
+        hasTicket: true,
+        alphaProvider: alphaMockFailed,
+        betaProvider: betaMockFailed,
+      });
+    },
+    /Ambos agentes del Council fallaron al evaluar el caso/
+  );
 });

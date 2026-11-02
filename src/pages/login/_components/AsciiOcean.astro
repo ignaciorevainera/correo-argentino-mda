@@ -1,0 +1,516 @@
+---
+/**
+ * Océano ASCII generativo para el panel del login.
+ *
+ * - Olas de varias capas (frecuencias/amplitudes/fases inconmensurables).
+ * - El puntero deja una estela de ondas locales que se propagan y se disipan.
+ * - Glifos prerenderizados en sprites (glyph × atenuación): el loop dibuja con
+ *   `drawImage`, sin `fillText`.
+ * - Input desacoplado del render: los eventos solo guardan la posición; los
+ *   ripples se crean en el frame (máx. 2) desde un rect cacheado.
+ * - Calidad adaptativa: si el frame supera ~22 ms baja densidad y fps.
+ * - Decorativo (`aria-hidden`), sin interacción por teclado.
+ * - `prefers-reduced-motion: reduce` → un único frame estático.
+ * - Pausa el loop con la pestaña oculta o el panel fuera del viewport.
+ */
+interface Props {
+  class?: string;
+}
+
+const { class: className = "" } = Astro.props;
+---
+
+<canvas
+  data-ascii-ocean
+  class:list={["pointer-events-none block", className]}
+  aria-hidden="true"></canvas>
+
+<script>
+  const GLYPHS = [" ", ".", "-", "~", "≈", "∿"];
+  const GLYPH_ALPHA = [0, 0.34, 0.46, 0.6, 0.74, 0.92];
+  const FADES = [0.55, 0.7, 0.85, 1];
+  const INTENSITY = 0.9;
+  const FOAM_KEY = 100;
+  const MAX_RIPPLES = 8;
+  const RIPPLE_TTL = 1300;
+  const RIPPLE_SPEED = 0.0035;
+  const RIPPLE_WAVELENGTH = 4;
+  const RIPPLE_SIGMA = 3;
+  const RIPPLE_AMP = 0.65;
+  const RIPPLE_REACH = RIPPLE_SIGMA * 3;
+  const RIPPLE_REACH_SQ = RIPPLE_REACH * RIPPLE_REACH;
+  const RIPPLE_TWO_SIGMA_SQ = 2 * RIPPLE_SIGMA * RIPPLE_SIGMA;
+  const RIPPLE_K = (Math.PI * 2) / RIPPLE_WAVELENGTH;
+  const RIPPLE_MIN_STEP = 4;
+  const RIPPLES_PER_FRAME = 2;
+  // Distancia (celdas) a partir de la cual se considera un salto y no una
+  // estela: pausas, resize o rect desactualizado.
+  const MAX_RIPPLE_JUMP = 40;
+  const SLOW_FRAME_MS = 22;
+
+  // Perfiles de calidad: densidad de columnas y fps.
+  const QUALITY = {
+    high: { cols: 72, fps: 30 },
+    low: { cols: 48, fps: 20 },
+  } as const;
+
+  type Quality = keyof typeof QUALITY;
+
+  interface Ripple {
+    x: number;
+    y: number;
+    t: number;
+  }
+
+  interface Layer {
+    ax: number;
+    ay: number;
+    k: number;
+    w: number;
+    a: number;
+    p: number;
+  }
+
+  const canvas = document.querySelector<HTMLCanvasElement>("[data-ascii-ocean]");
+
+  if (canvas) {
+    const ctx = canvas.getContext("2d");
+    const container = canvas.parentElement ?? canvas;
+    const reducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+
+    // Capas de olas: ángulos, longitudes de onda (celdas), velocidades
+    // (rad/ms) y amplitudes. Frecuencias inconmensurables → sin loop visible.
+    const LAYERS: Layer[] = [
+      { ax: Math.cos(0.05), ay: Math.sin(0.05), k: (Math.PI * 2) / 64, w: 0.00042, a: 0.95, p: 0.4 },
+      { ax: Math.cos(0.42), ay: Math.sin(0.42), k: (Math.PI * 2) / 34, w: 0.00075, a: 0.55, p: 2.1 },
+      { ax: Math.cos(-0.55), ay: Math.sin(-0.55), k: (Math.PI * 2) / 19, w: 0.0011, a: 0.28, p: 4.4 },
+      { ax: Math.cos(0.9), ay: Math.sin(0.9), k: (Math.PI * 2) / 11, w: 0.0016, a: 0.12, p: 1.3 },
+    ];
+
+    let cols = 0;
+    let rows = 0;
+    let cellW = 0;
+    let cellH = 0;
+    let fontSize = 11;
+    let quality: Quality =
+      (navigator.hardwareConcurrency || 8) <= 4 ? "low" : "high";
+    let sprites: HTMLCanvasElement[] = [];
+    let foamSprites: HTMLCanvasElement[] = [];
+    let ripples: Ripple[] = [];
+    let raf = 0;
+    let running = false;
+    let inView = true;
+    let lastFrame = 0;
+    let ready = false;
+    let frameMs = 0;
+    let slowFrames = 0;
+    let booted = false;
+    let lastFrameMsWrite = 0;
+    let lastRippleCount = -1;
+
+    // Input desacoplado: el evento solo deja la posición pendiente.
+    let bounds = { left: 0, top: 0, width: 1, height: 1 };
+    let pending: { x: number; y: number } | null = null;
+    let lastSpawn: { x: number; y: number } | null = null;
+
+    const fontFor = (size: number) =>
+      `${size}px "Geist Mono Variable", ui-monospace, monospace`;
+
+    const hash = (x: number, y: number, t: number): number => {
+      let n = x * 374761393 + y * 668265263 + t * 1274126177;
+      n = (n ^ (n >>> 13)) * 1274126177;
+      return ((n ^ (n >>> 16)) >>> 0) / 4294967295;
+    };
+
+    /** Rect del canvas para mapear el puntero. Barato, pero no por evento. */
+    function refreshBounds() {
+      bounds = canvas.getBoundingClientRect();
+    }
+
+    function measure() {
+      refreshBounds();
+      const width = Math.max(1, Math.round(bounds.width));
+      const height = Math.max(1, Math.round(bounds.height));
+      // Sin DPR extra: el canvas es decorativo y de bajo contraste; el costo
+      // de dibujar crece con DPR².
+      canvas.width = width;
+      canvas.height = height;
+
+      if (!ctx) return;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+      fontSize = height < 160 ? 10 : 11;
+      ctx.font = fontFor(fontSize);
+      ctx.textBaseline = "top";
+
+      const charW = ctx.measureText("M").width || fontSize * 0.6;
+      cols = Math.min(
+        QUALITY[quality].cols,
+        Math.max(8, Math.floor(width / charW)),
+      );
+      cellW = width / cols;
+      cellH = Math.round(fontSize * 1.3);
+      rows = Math.max(3, Math.floor(height / cellH));
+      cellH = height / rows;
+    }
+
+    function makeSprite(
+      char: string,
+      alpha: number,
+      width: number,
+      height: number,
+    ): HTMLCanvasElement {
+      const sprite = document.createElement("canvas");
+      sprite.width = width;
+      sprite.height = height;
+      const spriteCtx = sprite.getContext("2d");
+      if (spriteCtx) {
+        spriteCtx.font = fontFor(fontSize);
+        spriteCtx.textBaseline = "top";
+        spriteCtx.fillStyle = `rgba(255,255,255,${alpha})`;
+        spriteCtx.fillText(char, 0, 0);
+      }
+      return sprite;
+    }
+
+    /** Un sprite por (glifo, atenuación) y por (espuma, atenuación). */
+    function buildSprites() {
+      sprites = [];
+      foamSprites = [];
+      const width = Math.ceil(cellW) + 1;
+      const height = Math.ceil(cellH) + 1;
+      for (let glyph = 1; glyph < GLYPHS.length; glyph++) {
+        for (let fade = 0; fade < FADES.length; fade++) {
+          const alpha = GLYPH_ALPHA[glyph] * FADES[fade] * INTENSITY;
+          sprites[glyph * FADES.length + fade] = makeSprite(
+            GLYPHS[glyph],
+            alpha,
+            width,
+            height,
+          );
+        }
+      }
+      for (let fade = 0; fade < FADES.length; fade++) {
+        foamSprites[fade] = makeSprite(
+          "*",
+          0.9 * FADES[fade] * INTENSITY,
+          width,
+          height,
+        );
+      }
+    }
+
+    /** Crea hasta 2 ripples por frame a lo largo del último movimiento. */
+    function spawnRipples(now: number) {
+      if (!pending) return;
+      const target = pending;
+      pending = null;
+      let from = lastSpawn ?? target;
+      let dx = target.x - from.x;
+      let dy = target.y - from.y;
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      // Un salto grande (pestaña oculta, resize o rect viejo) no se interpola:
+      // dejaría una estela fantasma entre dos puntos sin relación.
+      if (distance > MAX_RIPPLE_JUMP) {
+        from = target;
+        dx = 0;
+        dy = 0;
+        distance = 0;
+      }
+      const steps = Math.min(
+        RIPPLES_PER_FRAME,
+        Math.max(1, Math.floor(distance / RIPPLE_MIN_STEP)),
+      );
+      for (let step = 1; step <= steps; step++) {
+        const t = steps === 1 ? 1 : step / steps;
+        ripples.push({
+          x: steps === 1 ? target.x : from.x + dx * t,
+          y: steps === 1 ? target.y : from.y + dy * t,
+          t: now,
+        });
+      }
+      while (ripples.length > MAX_RIPPLES) ripples.shift();
+      lastSpawn = { x: target.x, y: target.y };
+    }
+
+    // Muestreo sin allocaciones por celda: altura y boost del ripple.
+    const sample = { height: 0, boost: 0 };
+
+    function sampleHeight(x: number, y: number, time: number) {
+      let value = 0;
+      let norm = 0;
+      for (const layer of LAYERS) {
+        value +=
+          layer.a *
+          Math.sin(layer.k * (x * layer.ax + y * layer.ay) - layer.w * time + layer.p);
+        norm += layer.a;
+      }
+      let height = value / norm;
+      let boost = 0;
+
+      for (const ripple of ripples) {
+        const age = time - ripple.t;
+        if (age < 0 || age > RIPPLE_TTL) continue;
+        const dx = x - ripple.x;
+        const dy = (y - ripple.y) * 0.62;
+        const distSq = dx * dx + dy * dy;
+        if (distSq > RIPPLE_REACH_SQ) continue;
+        const envelope = Math.exp(-distSq / RIPPLE_TWO_SIGMA_SQ);
+        if (envelope < 0.02) continue;
+        const decay = 1 - age / RIPPLE_TTL;
+        // Perturbación sólo positiva: el cursor eleva la superficie (más
+        // glifos), nunca abre un hueco en el ASCII.
+        const wave =
+          0.5 +
+          0.5 * Math.sin(Math.sqrt(distSq) * RIPPLE_K - age * RIPPLE_SPEED);
+        const contribution = RIPPLE_AMP * envelope * decay * wave;
+        boost += contribution;
+        height += contribution;
+      }
+
+      sample.height = height;
+      sample.boost = boost;
+    }
+
+    function draw(time: number) {
+      if (!ctx || cols === 0 || rows === 0) return;
+      const started = performance.now();
+      spawnRipples(time);
+      ripples = ripples.filter((ripple) => time - ripple.t < RIPPLE_TTL);
+      if (ripples.length !== lastRippleCount) {
+        lastRippleCount = ripples.length;
+        canvas.dataset.ripples = String(ripples.length);
+      }
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Buckets por sprite: cada uno ya tiene el alpha horneado, así que el
+      // loop interior es solo drawImage (sin fillStyle ni fillText).
+      const buckets = new Map<number, number[]>();
+      const foamTime = Math.floor(time / 1400);
+
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          sampleHeight(x, y, time);
+          const u = Math.min(1, Math.max(0, (sample.height + 1) / 2));
+
+          let glyph = 0;
+          if (u > 0.28) {
+            // Las crestas llevan los glifos más densos; los valles quedan
+            // vacíos para que la silueta de la ola se lea.
+            const normalized = (u - 0.28) / 0.72;
+            glyph = Math.min(
+              GLYPHS.length - 1,
+              Math.max(1, Math.round(normalized * (GLYPHS.length - 1))),
+            );
+          }
+
+          // Rompimiento: en el núcleo de la estela se fuerza la cresta y se
+          // agrega espuma, como la superficie que se quiebra al pasar.
+          const breaking = sample.boost > 0.6;
+          if (breaking) glyph = GLYPHS.length - 1;
+
+          // Sin glifo no hay sprite: no hace falta bucketing (y en `u` bajo
+          // tampoco hay espuma).
+          if (glyph === 0) continue;
+
+          const fadeIndex = Math.min(
+            FADES.length - 1,
+            Math.floor((x / cols) * FADES.length),
+          );
+          const px = Math.round(x * cellW);
+          const py = Math.round(y * cellH);
+
+          const key = glyph * FADES.length + fadeIndex;
+          const bucket = buckets.get(key);
+          if (bucket) bucket.push(px, py);
+          else buckets.set(key, [px, py]);
+
+          const foam =
+            (breaking && hash(x, y, foamTime) > 0.85) ||
+            (u > 0.88 && hash(x, y, foamTime) > 0.94);
+          if (foam) {
+            const foamKey = FOAM_KEY + fadeIndex;
+            const foamBucket = buckets.get(foamKey);
+            if (foamBucket) foamBucket.push(px, py);
+            else buckets.set(foamKey, [px, py]);
+          }
+        }
+      }
+
+      for (const [key, coords] of buckets) {
+        const sprite =
+          key >= FOAM_KEY ? foamSprites[key - FOAM_KEY] : sprites[key];
+        if (!sprite) continue;
+        for (let i = 0; i < coords.length; i += 2) {
+          ctx.drawImage(sprite, coords[i], coords[i + 1]);
+        }
+      }
+
+      if (!ready) {
+        ready = true;
+        canvas.dataset.asciiReady = "true";
+      }
+
+      // Calidad adaptativa: si el frame se hace pesado, baja densidad y fps.
+      const now = performance.now();
+      frameMs = frameMs === 0 ? now - started : frameMs * 0.85 + (now - started) * 0.15;
+      // El dataset es diagnóstico: no hace falta escribirlo 30 veces por segundo.
+      if (now - lastFrameMsWrite > 500) {
+        lastFrameMsWrite = now;
+        canvas.dataset.frameMs = String(Math.round(frameMs * 10) / 10);
+      }
+      if (quality === "high" && frameMs > SLOW_FRAME_MS) {
+        slowFrames++;
+        if (slowFrames > 6) applyQuality("low");
+      } else if (slowFrames > 0) {
+        slowFrames = 0;
+      }
+    }
+
+    function applyQuality(next: Quality) {
+      quality = next;
+      canvas.dataset.quality = next;
+      slowFrames = 0;
+      measure();
+      buildSprites();
+      draw(performance.now());
+    }
+
+    function loop(now: number) {
+      raf = requestAnimationFrame(loop);
+      if (now - lastFrame < 1000 / QUALITY[quality].fps) return;
+      lastFrame = now;
+      draw(now);
+    }
+
+    function start() {
+      if (!booted || running || reducedMotion || !inView) return;
+      running = true;
+      raf = requestAnimationFrame(loop);
+    }
+
+    function stop() {
+      if (!running) return;
+      running = false;
+      cancelAnimationFrame(raf);
+      // Al reanudar no se debe interpolar desde la última posición conocida.
+      pending = null;
+      lastSpawn = null;
+    }
+
+    function updatePointer(event: PointerEvent) {
+      if (reducedMotion) return;
+      const { left, top, width, height } = bounds;
+      if (width === 0 || height === 0) return;
+      if (
+        event.clientX < left ||
+        event.clientX > left + width ||
+        event.clientY < top ||
+        event.clientY > top + height
+      ) {
+        return;
+      }
+      pending = {
+        x: ((event.clientX - left) / width) * cols,
+        y: ((event.clientY - top) / height) * rows,
+      };
+    }
+
+    function resize() {
+      // El primer callback del ResizeObserver llega antes del boot: el estado
+      // inicial lo arma `boot()`, una sola vez.
+      if (!booted) return;
+      measure();
+      buildSprites();
+      draw(performance.now());
+    }
+
+    // Listeners en el contenedor: el canvas está debajo del contenido.
+    // `bounds` se refresca en eventos de entrada/scroll (nunca en
+    // `pointermove`, que está en camino caliente).
+    container.addEventListener("pointerenter", refreshBounds, { passive: true });
+    container.addEventListener("pointermove", updatePointer, { passive: true });
+    container.addEventListener("pointerdown", refreshBounds, { passive: true });
+    container.addEventListener("pointerdown", updatePointer, { passive: true });
+    window.addEventListener("scroll", refreshBounds, {
+      passive: true,
+      capture: true,
+    });
+
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(canvas);
+
+    const intersectionObserver = new IntersectionObserver(
+      (entries) => {
+        inView = entries.some((entry) => entry.isIntersecting);
+        if (inView) start();
+        else stop();
+      },
+      { threshold: 0 },
+    );
+    intersectionObserver.observe(canvas);
+
+    const onVisibilityChange = () => {
+      if (document.hidden) stop();
+      else start();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    let disposed = false;
+    const dispose = () => {
+      if (disposed) return;
+      disposed = true;
+      stop();
+      resizeObserver.disconnect();
+      intersectionObserver.disconnect();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      container.removeEventListener("pointerenter", refreshBounds);
+      container.removeEventListener("pointermove", updatePointer);
+      container.removeEventListener("pointerdown", refreshBounds);
+      container.removeEventListener("pointerdown", updatePointer);
+      window.removeEventListener("scroll", refreshBounds, { capture: true });
+    };
+    document.addEventListener("astro:before-swap", dispose, { once: true });
+
+    function boot() {
+      if (booted) return;
+      booted = true;
+      measure();
+      buildSprites();
+      if (reducedMotion) {
+        draw(0);
+        canvas.dataset.asciiStatic = "true";
+      } else {
+        draw(performance.now());
+        start();
+      }
+    }
+
+    canvas.dataset.quality = quality;
+    boot();
+
+    // Los sprites se rasterizan con la fuente activa al momento del boot. Si
+    // "Geist Mono" no había cargado, quedaron con el fallback: se fuerza la
+    // carga y se re-mide/re-hornea (la fuente cambia el ancho de celda).
+    const rebuildAfterFonts = () => {
+      if (disposed || !booted) return;
+      measure();
+      buildSprites();
+      draw(reducedMotion ? 0 : performance.now());
+    };
+
+    const fonts = document.fonts;
+    if (fonts) {
+      const timeout = new Promise<void>((resolve) => setTimeout(resolve, 3000));
+      Promise.race([
+        fonts.load(fontFor(fontSize), "M≈∿*").then(() => undefined),
+        timeout,
+      ])
+        .catch(() => undefined)
+        .then(rebuildAfterFonts);
+    }
+  }
+</script>

@@ -103,9 +103,13 @@ export async function createTestUserAndSession(
 
 export async function cleanupTestUser(
   userId: number,
-  sessionId: string,
+  sessionId?: string,
 ): Promise<void> {
-  await db.delete(sessions).where(eq(sessions.id, sessionId));
+  if (sessionId) {
+    await db.delete(sessions).where(eq(sessions.id, sessionId));
+  } else {
+    await db.delete(sessions).where(eq(sessions.userId, userId));
+  }
   await db.delete(users).where(eq(users.id, userId));
 }
 

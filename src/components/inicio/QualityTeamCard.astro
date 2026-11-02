@@ -1,0 +1,62 @@
+---
+import type { QualityTeamSummary } from "@lib/inicio/homeSummaries";
+
+interface Props {
+  summary: QualityTeamSummary;
+}
+
+const { summary } = Astro.props;
+
+const tone =
+  summary.average >= 90
+    ? "text-success"
+    : summary.average >= 80
+      ? "text-warning"
+      : "text-error";
+---
+
+<div class="flex h-full flex-col gap-3">
+  <div class="flex flex-wrap items-end gap-x-3 gap-y-1">
+    <span
+      class:list={[
+        "font-mono text-3xl font-black leading-none tracking-tight tabular-nums",
+        tone,
+      ]}
+    >
+      {summary.average}%
+    </span>
+    <span class="text-base-content/70 text-xs">
+      promedio del equipo · {summary.monthLabel}
+    </span>
+  </div>
+
+  <dl class="grid grid-cols-3 gap-2">
+    <div class="bg-base-200/30 rounded-lg px-2.5 py-2">
+      <dt class="text-base-content/60 text-xxs">Operadores</dt>
+      <dd class="text-base-content font-mono text-lg font-bold tabular-nums">
+        {summary.operators}
+      </dd>
+    </div>
+    <div class="bg-base-200/30 rounded-lg px-2.5 py-2">
+      <dt class="text-base-content/60 text-xxs">Auditorías</dt>
+      <dd class="text-base-content font-mono text-lg font-bold tabular-nums">
+        {summary.auditsCount}
+      </dd>
+    </div>
+    <div class="bg-base-200/30 rounded-lg px-2.5 py-2">
+      <dt class="text-base-content/60 text-xxs">Bajo 80%</dt>
+      <dd
+        class:list={[
+          "font-mono text-lg font-bold tabular-nums",
+          summary.belowThreshold > 0 ? "text-error" : "text-base-content",
+        ]}
+      >
+        {summary.belowThreshold}
+      </dd>
+    </div>
+  </dl>
+
+  <div class="mt-auto flex justify-end">
+    <slot name="action" />
+  </div>
+</div>

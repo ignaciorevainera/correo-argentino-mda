@@ -1,8 +1,11 @@
 import type { APIRoute } from "astro";
 import { rejectRelease } from "@lib/disponibilidad";
 import { jsonResponse, jsonError, sanitizeError } from "@lib/apiResponse";
+import { requireWriteAccess } from "@lib/rbac-middleware";
 
 export const POST: APIRoute = async ({ locals }) => {
+  const authError = await requireWriteAccess(locals, "asignacion_ag");
+  if (authError) return authError;
   if (!locals.user) {
     return jsonError("No autorizado", 401);
   }

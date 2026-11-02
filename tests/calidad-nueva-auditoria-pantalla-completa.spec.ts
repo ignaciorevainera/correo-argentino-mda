@@ -460,4 +460,108 @@ test.describe("Nueva Auditoría de Calidad - Pantalla Completa UI/UX", () => {
     await expect(btnInspectInvgate).toHaveAttribute("disabled", "");
     await expect(btnInspectWise).toHaveAttribute("disabled", "");
   });
+
+  test("Evaluación IA Council: criterio con estado 'no_evaluado' muestra badge explícito y no viene pre-seleccionado (#338)", async ({
+    page,
+    context,
+  }) => {
+    await setSessionCookie(context, testSupervisor.signedSessionId);
+    await page.goto(`/supervision/calidad-operadores/nueva?agentId=${operatorAgentId}`);
+
+    // Mock de fetch-metadata para cargar ticket
+    await page.route("**/api/calidad/fetch-metadata*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ok: true,
+          data: {
+            caseNumber: "776655",
+            title: "Consulta sobre clave de red",
+            category: "Soporte TI",
+            status: "Cerrado",
+            priority: "Media",
+          },
+        }),
+      });
+    });
+
+    // Mock de ai-evaluate que devuelve un criterio normal y uno con no_evaluado
+    await page.route("**/api/calidad/ai-evaluate*", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          model: "council",
+          isCouncil: true,
+          resumen: "Evaluación con falla parcial de un agente.",
+          verdicts: [
+            {
+              codigo: "call_ticket_tipo",
+              cumple: true,
+              confianza: 0.9,
+              evidencia: "Ok",
+              razonamiento: "Evaluado por Alpha",
+            },
+            {
+              codigo: "call_ticket_descripcion",
+              cumple: null,
+              confianza: 0,
+              evidencia: "",
+              razonamiento: "No evaluado: el agente especialista asignado no completó la evaluación.",
+            },
+          ],
+          debate: {
+            call_ticket_tipo: {
+              codigo: "call_ticket_tipo",
+              criterioNombre: "Tipo de Solicitud",
+              consenso: "agente_especialista",
+              alphaVote: { model: "qwen", cumple: true, confianza: 0.9, evidencia: "Ok", razonamiento: "Ok" },
+            },
+            call_ticket_descripcion: {
+              codigo: "call_ticket_descripcion",
+              criterioNombre: "Descripción",
+              consenso: "no_evaluado",
+              motivo: "agente_fallido",
+            },
+          },
+        }),
+      });
+    });
+
+    // Cargar ticket
+    await page.locator("#form-ticket-id").fill("776655");
+    await page.locator("#btn-fetch-invgate-api").click();
+    await expect(page.locator("#ticket-context-badge")).toHaveText("Ticket cargado");
+
+    // Abrir modal de IA
+    const btnAiEvaluate = page.locator("#btn-ai-evaluate");
+    await btnAiEvaluate.click();
+
+    // El modal de inspección IA se abre
+    const modal = page.locator("#modal-ai-inspection");
+    await expect(modal).toBeVisible();
+
+    // Iniciar evaluación dentro del modal
+    const btnStart = modal.locator("#ai-modal-btn-start");
+    await btnStart.click();
+
+    // Esperar a que se procesen los resultados
+    const toggleTipo = modal.locator('input.ai-verdict-toggle[data-code="call_ticket_tipo"]');
+    await expect(toggleTipo).toBeVisible();
+    await expect(toggleTipo).toBeChecked();
+
+    // Verificar que el criterio no evaluado muestra badge de no evaluado y NO está pre-seleccionado
+    const toggleDesc = modal.locator('input.ai-verdict-toggle[data-code="call_ticket_descripcion"]');
+    await expect(toggleDesc).toBeVisible();
+    await expect(toggleDesc).not.toBeChecked();
+
+    // Verificar badges de estado en el criterio no evaluado
+    const rowDesc = modal.locator('label:has(input[data-code="call_ticket_descripcion"])');
+    await expect(rowDesc).toBeVisible();
+    const statusBadge = rowDesc.locator(".badge", { hasText: "No evaluado" });
+    await expect(statusBadge).toBeVisible();
+    const consensusBadge = rowDesc.locator(".badge", { hasText: "Agente no disponible" });
+    await expect(consensusBadge).toBeVisible();
+  });
 });

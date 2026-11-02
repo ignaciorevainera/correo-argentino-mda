@@ -1,0 +1,46 @@
+---
+import type { AdminUsersSummary } from "@lib/inicio/homeSummaries";
+
+interface Props {
+  summary: AdminUsersSummary;
+}
+
+const { summary } = Astro.props;
+---
+
+<div class="flex h-full flex-col gap-3">
+  <dl class="grid grid-cols-3 gap-2">
+    <div class="bg-base-200/30 rounded-lg px-2.5 py-2">
+      <dt class="text-base-content/60 text-xxs">Usuarios</dt>
+      <dd class="text-base-content font-mono text-lg font-bold tabular-nums">
+        {summary.total}
+      </dd>
+    </div>
+    <div class="bg-base-200/30 rounded-lg px-2.5 py-2">
+      <dt class="text-base-content/60 text-xxs">Inactivos</dt>
+      <dd
+        class:list={[
+          "font-mono text-lg font-bold tabular-nums",
+          summary.inactive > 0 ? "text-warning" : "text-base-content",
+        ]}
+      >
+        {summary.inactive}
+      </dd>
+    </div>
+    <div class="bg-base-200/30 rounded-lg px-2.5 py-2">
+      <dt class="text-base-content/60 text-xxs">Sin ubicación</dt>
+      <dd
+        class:list={[
+          "font-mono text-lg font-bold tabular-nums",
+          summary.unassigned > 0 ? "text-warning" : "text-base-content",
+        ]}
+      >
+        {summary.unassigned}
+      </dd>
+    </div>
+  </dl>
+
+  <div class="mt-auto flex justify-end">
+    <slot name="action" />
+  </div>
+</div>

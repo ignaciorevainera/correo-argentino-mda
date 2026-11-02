@@ -82,6 +82,14 @@ export const profileAccessCatalog: ProfileAccessEntry[] = [
     group: "supervision",
   },
   {
+    href: "/supervision/autogestiones-metricas",
+    title: "Métricas de autogestiones",
+    description: "Evolución de la cola y los tiempos de autogestión.",
+    icon: "boxicons:chart-line-filled",
+    iconTone: "bg-accent/10 text-accent",
+    group: "supervision",
+  },
+  {
     href: "/titulos",
     title: "Títulos",
     description: "Títulos normalizados listos para la tipificación de tickets.",
@@ -123,8 +131,8 @@ export const profileAccessCatalog: ProfileAccessEntry[] = [
   },
   {
     href: "/recursos",
-    title: "Enlaces y recursos",
-    description: "Centraliza accesos a plataformas internas y externas.",
+    title: "Recursos",
+    description: "Enlaces, contactos y aplicativos del portal en un solo lugar.",
     icon: "boxicons:link-filled",
     iconTone: "bg-error/10 text-error",
     group: "herramientas",
@@ -159,6 +167,46 @@ export const profileAccessCatalog: ProfileAccessEntry[] = [
     description: "Genera firmas institucionales para correo electrónico.",
     icon: "boxicons:pencil-draw-filled",
     iconTone: "bg-accent/10 text-accent",
+    group: "herramientas",
+  },
+  {
+    href: "/automatizaciones",
+    title: "Automatizaciones",
+    description: "Seguimiento de las automatizaciones de sucursal.",
+    icon: "boxicons:rocket-filled",
+    iconTone: "bg-error/10 text-error",
+    group: "herramientas",
+  },
+  {
+    href: "/reportes",
+    title: "Métricas",
+    description: "Dashboard general de la mesa de ayuda.",
+    icon: "boxicons:chart-line-filled",
+    iconTone: "bg-info/10 text-info",
+    group: "herramientas",
+  },
+  {
+    href: "/reportes/categorias",
+    title: "Árbol de categorías",
+    description: "Análisis de la taxonomía de tickets.",
+    icon: "boxicons:network-chart-filled",
+    iconTone: "bg-accent/10 text-accent",
+    group: "herramientas",
+  },
+  {
+    href: "/reportes/mesas",
+    title: "Flujo de mesas",
+    description: "Métricas de derivación y satisfacción por mesa.",
+    icon: "boxicons:headphone-mic-filled",
+    iconTone: "bg-warning/10 text-warning",
+    group: "herramientas",
+  },
+  {
+    href: "/reportes/workflows",
+    title: "Workflows de proceso",
+    description: "Métricas de los procesos de trabajo.",
+    icon: "boxicons:git-branch-filled",
+    iconTone: "bg-secondary/10 text-secondary",
     group: "herramientas",
   },
   {
@@ -201,6 +249,54 @@ export const profileAccessCatalog: ProfileAccessEntry[] = [
     iconTone: "bg-neutral/10 text-neutral",
     group: "admin",
   },
+  {
+    href: "/admin/contactos",
+    title: "Contactos (admin)",
+    description: "ABM de contactos de proveedores y servicios.",
+    icon: "boxicons:phone-filled",
+    iconTone: "bg-secondary/10 text-secondary",
+    group: "admin",
+  },
+  {
+    href: "/admin/recursos",
+    title: "Recursos (admin)",
+    description: "ABM de enlaces, categorías y recursos del portal.",
+    icon: "boxicons:link-filled",
+    iconTone: "bg-error/10 text-error",
+    group: "admin",
+  },
+  {
+    href: "/admin/oficinas/edificios",
+    title: "Agrupación de oficinas",
+    description: "Reconciliación de oficinas que comparten edificio.",
+    icon: "boxicons:building-house-filled",
+    iconTone: "bg-success/10 text-success",
+    group: "admin",
+  },
+  {
+    href: "/admin/usuarios-sin-ubicacion",
+    title: "Usuarios sin ubicación",
+    description: "Personal registrado sin sucursal asignada.",
+    icon: "boxicons:user-x-filled",
+    iconTone: "bg-warning/10 text-warning",
+    group: "admin",
+  },
+  {
+    href: "/admin/automatizaciones/etapas",
+    title: "Etapas de workflow",
+    description: "Configuración de etapas de automatización.",
+    icon: "boxicons:git-branch-filled",
+    iconTone: "bg-info/10 text-info",
+    group: "admin",
+  },
+  {
+    href: "/admin/calidad/calibracion",
+    title: "Calibración de calidad IA",
+    description: "Comparación de evaluaciones IA contra humanas.",
+    icon: "boxicons:bar-chart-big-filled",
+    iconTone: "bg-accent/10 text-accent",
+    group: "admin",
+  },
 ];
 
 export function isProfileRouteAllowed(
@@ -230,6 +326,52 @@ export function getVisibleProfileAccess(
       ),
     }))
     .filter((group) => group.entries.length > 0);
+}
+
+/**
+ * Accesos del home: catálogo completo filtrado por la matriz (rol + mesa).
+ *
+ * - Deduplica las sub-secciones de Recursos: en el home hay una sola card
+ *   (`/recursos`) porque el hub ya tiene pestañas para contactos y aplicativos.
+ * - `excludeHrefs` permite sacar las rutas que ya tienen card en el bloque de
+ *   arriba (semana, calidad, AGS, feedback, auditoría, usuarios).
+ */
+const HOME_DEDUPED_ROUTES = ["/recursos/contactos", "/recursos/aplicativos"];
+
+export function getHomeAccessEntries(
+  role: string,
+  helpdeskName: string | null,
+  excludeHrefs: string[] = [],
+): ProfileAccessEntry[] {
+  const excluded = new Set([...HOME_DEDUPED_ROUTES, ...excludeHrefs]);
+  return profileAccessCatalog.filter(
+    (entry) =>
+      !excluded.has(entry.href) &&
+      isProfileRouteAllowed(entry.href, role, helpdeskName),
+  );
+}
+
+/**
+ * Rutas que ya tienen card arriba en el home y no deben repetirse en los
+ * accesos de abajo. Depende del rol efectivo: el admin usa sus cards y el resto
+ * las de supervisión.
+ *
+ * Fuente única para `index.astro`, el configurador y `api/home/layout`.
+ */
+export function getHomeTopCardRoutes(role: string): string[] {
+  const normalized = normalizeRole(role);
+  if (normalized === "admin") {
+    return ["/admin/feedback", "/admin/auditoria", "/admin/usuarios"];
+  }
+  if (normalized === "supervisor") {
+    // Supervisor no amputa accesos de supervisión abajo: el usuario puede elegir mostrarlos u ocultarlos
+    return [];
+  }
+  return [
+    "/supervision/cronograma",
+    "/supervision/calidad-operadores",
+    "/supervision/asignacion-autogestiones",
+  ];
 }
 
 export interface ProfileEmployee {

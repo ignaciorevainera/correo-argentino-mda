@@ -14,6 +14,7 @@ import { getRubricsForCriteria } from "@/lib/ai/rubricsLoader";
 import { OpenCodeProvider } from "@/lib/ai/opencodeProvider";
 import { fetchInvgateTicketTimeline, type InvgateTimelineEntry } from "@/lib/invgate/timelineScraper";
 import type {
+  AiProvider,
   AiVerdict,
   CouncilVote,
   CouncilDebateEntry,
@@ -126,6 +127,17 @@ export function mergeCouncil(
           consenso: "agente_especialista",
           motivo: "agente_unico",
         });
+      } else {
+        // Ningún agente devolvió veredicto para este criterio (ej: caída del agente asignado al bucket)
+        resolved.push({
+          codigo: code,
+          cumple: null,
+          confianza: 0,
+          evidencia: "",
+          razonamiento: "No evaluado: el agente especialista asignado no completó la evaluación.",
+          consenso: "no_evaluado",
+          motivo: "agente_fallido",
+        });
       }
       continue;
     }
@@ -224,7 +236,12 @@ export async function evaluateWithCouncil(
   rawIncident?: any,
   preloadedTimeline?: InvgateTimelineEntry[],
   audioTranscript?: string,
-  options?: { hasTicket?: boolean },
+  options?: {
+    hasTicket?: boolean;
+    alphaProvider?: AiProvider;
+    betaProvider?: AiProvider;
+    judgeProvider?: AiProvider;
+  },
 ): Promise<CouncilEvaluationResult> {
   const hasAudio = Boolean(audioTranscript?.trim());
   const hasEmailThread = Boolean(meta.emailThread?.hasOperatorReply);
@@ -254,8 +271,8 @@ export async function evaluateWithCouncil(
     const ticketContext = buildTicketContext(meta, rawIncident, timeline, audioTranscript);
     const { alpha: alphaCriteria, beta: betaCriteria } = splitCriteriaByAgent(criteria);
 
-    const alphaProvider = new OpenCodeProvider(ALPHA_MODEL);
-    const betaProvider = new OpenCodeProvider(BETA_MODEL);
+    const alphaProvider = options?.alphaProvider ?? new OpenCodeProvider(ALPHA_MODEL);
+    const betaProvider = options?.betaProvider ?? new OpenCodeProvider(BETA_MODEL);
 
     const includeReclamo = channel === "wise_call" || channel === "wise_email";
     const includeCoaching = channel !== "invgate_ticket";
@@ -341,7 +358,7 @@ export async function evaluateWithCouncil(
 
     // Invocación del Juez Nemotron si existen disputas
     if (disputes.length > 0) {
-      const judgeProvider = new OpenCodeProvider(JUDGE_MODEL);
+      const judgeProvider = options?.judgeProvider ?? new OpenCodeProvider(JUDGE_MODEL);
       const judgePrompt = buildJudgePrompt(disputes);
       try {
         const judgeRaw = await judgeProvider.evaluate(judgePrompt);
@@ -406,7 +423,14 @@ export async function evaluateWithCouncil(
       }
     }
 
-    const finalSummary = alphaSummary || betaSummary || "Atención evaluada por el Council de Calidad MDA.";
+    const unevaluated = resolved.filter((r) => r.consenso === "no_evaluado");
+    let finalSummary = alphaSummary || betaSummary || "Atención evaluada por el Council de Calidad MDA.";
+    if (unevaluated.length > 0) {
+      const criteriaList = unevaluated
+        .map((u) => (criteriaMeta[u.codigo]?.name ? `${criteriaMeta[u.codigo].name} (${u.codigo})` : u.codigo))
+        .join(", ");
+      finalSummary += `\n\n[ADVERTENCIA: ${unevaluated.length} criterio(s) no fueron evaluados por indisponibilidad del agente especialista: ${criteriaList}]`;
+    }
 
     // Preservar el orden exacto de los criterios según la rúbrica del canal
     const verdictsByCode = new Map(finalVerdicts.map((v) => [v.codigo, v]));

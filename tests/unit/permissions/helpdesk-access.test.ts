@@ -9,6 +9,8 @@ import {
   MDA_TI_HELPDESK,
   COORD_HELPDESK,
 } from "../../../src/lib/helpdeskAccess";
+import { hasPermission, getModulePermissions } from "../../../src/lib/rbac";
+import { can } from "../../../src/lib/roleConfig";
 
 describe("isSectionVisibleSync", () => {
   it("admin ve todo, sin importar la mesa", () => {
@@ -19,6 +21,40 @@ describe("isSectionVisibleSync", () => {
     expect(isSectionVisibleSync(MDA_TI_HELPDESK, "agent", "/supervision/cronograma")).toBe(true);
     expect(isSectionVisibleSync(MDA_TI_HELPDESK, "agent", "/supervision/asistencia")).toBe(false);
     expect(isSectionVisibleSync(MDA_TI_HELPDESK, "supervisor", "/supervision/asistencia")).toBe(true);
+  });
+
+  it("MDA TI: autogestiones / AGS oculto para agente, visible para referente, team leader, supervisor y admin", () => {
+    expect(isSectionVisibleSync(MDA_TI_HELPDESK, "agent", "/supervision/asignacion-autogestiones")).toBe(false);
+    expect(isSectionVisibleSync(MDA_TI_HELPDESK, "agent", "/supervision/autogestiones-metricas")).toBe(false);
+    expect(isSectionVisibleSync(MDA_TI_HELPDESK, "agent", "/api/disponibilidad")).toBe(false);
+    expect(isSectionVisibleSync(MDA_TI_HELPDESK, "agent", "/api/autogestion")).toBe(false);
+    expect(isSectionVisibleSync(MDA_TI_HELPDESK, "referent", "/supervision/asignacion-autogestiones")).toBe(true);
+    expect(isSectionVisibleSync(MDA_TI_HELPDESK, "referent", "/supervision/autogestiones-metricas")).toBe(true);
+    expect(isSectionVisibleSync(MDA_TI_HELPDESK, "referent", "/api/disponibilidad")).toBe(true);
+    expect(isSectionVisibleSync(MDA_TI_HELPDESK, "referent", "/api/autogestion")).toBe(true);
+    expect(isSectionVisibleSync(MDA_TI_HELPDESK, "team_leader", "/supervision/asignacion-autogestiones")).toBe(true);
+    expect(isSectionVisibleSync(MDA_TI_HELPDESK, "supervisor", "/supervision/asignacion-autogestiones")).toBe(true);
+    expect(isSectionVisibleSync(MDA_TI_HELPDESK, "admin", "/supervision/asignacion-autogestiones")).toBe(true);
+  });
+
+  it("Interacciones de AGS: referente, team leader, supervisor y admin pueden leer, escribir y activar reglas; agente bloqueado", () => {
+    const allowedRoles = ["referent", "team_leader", "supervisor", "admin"] as const;
+
+    for (const role of allowedRoles) {
+      expect(hasPermission("/supervision/asignacion-autogestiones", role)).toBe(true);
+      expect(hasPermission("/supervision/autogestiones-metricas", role)).toBe(true);
+      const perm = getModulePermissions("asignacion_ag", role);
+      expect(perm.canRead, `${role} canRead`).toBe(true);
+      expect(perm.canWrite, `${role} canWrite`).toBe(true);
+      expect(can(role, "referent"), `${role} can toggle rules`).toBe(true);
+    }
+
+    expect(hasPermission("/supervision/asignacion-autogestiones", "agent")).toBe(false);
+    expect(hasPermission("/supervision/autogestiones-metricas", "agent")).toBe(false);
+    const agentPerm = getModulePermissions("asignacion_ag", "agent");
+    expect(agentPerm.canRead).toBe(false);
+    expect(agentPerm.canWrite).toBe(false);
+    expect(can("agent", "referent")).toBe(false);
   });
 
   it("Coord bloqueada de supervisión/admin/cubics y APIs restringidas", () => {

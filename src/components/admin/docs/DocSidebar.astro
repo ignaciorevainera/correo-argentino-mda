@@ -1,0 +1,32 @@
+---
+import DocNavList from "./DocNavList.astro";
+import type { DocSection } from "@lib/docs/docsCatalog";
+
+interface Props {
+  sections: DocSection[];
+  activeSlug: string;
+}
+
+const { sections, activeSlug } = Astro.props;
+---
+
+<aside class="min-w-0">
+  <details class="border-base-300 bg-base-100 rounded-box border p-4 lg:hidden">
+    <summary class="cursor-pointer text-sm font-semibold">
+      Documentos ({
+        sections.reduce((total, section) => total + section.docs.length, 0)
+      })
+    </summary>
+    <div class="mt-4">
+      <DocNavList sections={sections} activeSlug={activeSlug} />
+    </div>
+  </details>
+
+  <div class="hidden lg:sticky lg:top-24 lg:block">
+    <div
+      class="border-base-300 bg-base-100 rounded-box max-h-[calc(100vh-8rem)] overflow-y-auto border p-4"
+    >
+      <DocNavList sections={sections} activeSlug={activeSlug} />
+    </div>
+  </div>
+</aside>

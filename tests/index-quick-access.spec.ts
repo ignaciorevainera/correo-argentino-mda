@@ -86,20 +86,32 @@ test.describe("Index: accesos visibles segun rol y mesa", () => {
     await expect(page.locator('[aria-label$="(Restringido)"]')).toHaveCount(0);
     // Tarjeta de Cronograma del panel (aria-label "Abrir Cronograma") ausente.
     await expect(card(page, /^Abrir Cronograma$/i)).toHaveCount(0);
-    await expect(card(page, /^Abrir Calidad$/i)).toHaveCount(0);
+    await expect(card(page, /^Abrir Calidad de operadores$/i)).toHaveCount(0);
     await expect(card(page, /^Abrir Inventario de terminales$/i)).toBeVisible();
-    await expect(card(page, /^Abrir Aplicativos$/i)).toBeVisible();
     // Comunes permitidos.
     await expect(card(page, /^Abrir Títulos$/i)).toBeVisible();
-    await expect(card(page, /^Abrir Contactos$/i)).toBeVisible();
+    // Recursos es una sola card (Contactos y Aplicativos viven en sus pestañas).
+    await expect(card(page, /^Abrir Recursos$/i)).toBeVisible();
+    await expect(card(page, /^Abrir Contactos$/i)).toHaveCount(0);
+    await expect(card(page, /^Abrir Aplicativos$/i)).toHaveCount(0);
   });
 
-  test("MDA TI/team_leader ve Supervisión (tarjeta Cronograma) y sin restringidos", async ({ context, page }) => {
+  test("MDA TI/team_leader ve Asistencia y sin restringidos; AGS ya no es card del panel", async ({ context, page }) => {
     const { sess } = await seedUser("team_leader", MDA);
     await login(context, sess);
     await page.goto("/");
-    await expect(card(page, /^Abrir Cronograma$/i)).toBeVisible();
+    await expect(card(page, /^Abrir Control de asistencia$/i)).toBeVisible();
+    await expect(card(page, /^Abrir Asignación de autogestiones$/i)).toHaveCount(0);
+    await expect(card(page, /^Abrir Cronograma$/i)).toHaveCount(0);
+    await expect(card(page, /^Abrir Calidad de operadores$/i)).toHaveCount(0);
     await expect(page.locator('[aria-label$="(Restringido)"]')).toHaveCount(0);
+
+    // Asistencia comparte el grid con los atajos: ocupa una columna, no la fila.
+    const asistencia = await card(page, /^Abrir Control de asistencia$/i).boundingBox();
+    const titulos = await card(page, /^Abrir Títulos$/i).boundingBox();
+    expect(asistencia).not.toBeNull();
+    expect(titulos).not.toBeNull();
+    expect(Math.abs((asistencia?.width ?? 0) - (titulos?.width ?? 0))).toBeLessThan(2);
   });
 
   test("admin ve accesos comunes sin restringidos visibles", async ({ context, page }) => {

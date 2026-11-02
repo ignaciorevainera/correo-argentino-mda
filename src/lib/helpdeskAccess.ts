@@ -61,7 +61,8 @@ export function isSectionVisibleSync(
   // Politica: el rol admin siempre tiene acceso a todo (no revocable).
   if (normalizedRole === "admin") return true;
 
-  const isMdaTi = mesa === MDA_TI_HELPDESK;
+  const isMdaTi =
+    mesa === MDA_TI_HELPDESK || (!mesa && isSuperiorRole(normalizedRole));
 
   // Mesa de Coord (y cualquier mesa no-MDA-TI o sin asignar) ve solo páginas comunes.
   if (!isMdaTi) {
@@ -73,7 +74,9 @@ export function isSectionVisibleSync(
     const blocked =
       coordBlocked.some((s) => lower === s || lower.startsWith(`${s}/`)) ||
       lower.startsWith("/api/cronograma") ||
+      lower.startsWith("/api/ags") ||
       lower.startsWith("/api/disponibilidad") ||
+      lower.startsWith("/api/autogestion") ||
       lower.startsWith("/api/asistencia") ||
       lower.startsWith("/api/calidad") ||
       lower.startsWith("/api/export") ||
@@ -91,14 +94,23 @@ export function isSectionVisibleSync(
     if (lower.startsWith("/supervision/asistencia")) {
       return isSuperiorRole(normalizedRole);
     }
-    if (lower.startsWith("/supervision/asignacion-autogestiones")) {
-      return true;
+    if (
+      lower.startsWith("/supervision/asignacion-autogestiones") ||
+      lower.startsWith("/supervision/autogestiones-metricas")
+    ) {
+      return normalizedRole !== "agent";
     }
     return isSuperiorRole(normalizedRole);
   }
 
   if (lower.startsWith("/api/asistencia")) return isSuperiorRole(normalizedRole);
   if (lower.startsWith("/api/export")) return isSuperiorRole(normalizedRole);
+  if (
+    lower.startsWith("/api/disponibilidad") ||
+    lower.startsWith("/api/autogestion")
+  ) {
+    return normalizedRole !== "agent";
+  }
 
   return true;
 }

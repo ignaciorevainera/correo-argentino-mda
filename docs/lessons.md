@@ -24,6 +24,46 @@ Cada entrada sigue este formato:
 
 ---
 
+### 2026-10-22 — `activeAgentCondition()` necesita el LEFT JOIN a `users`; sin el join la consulta falla en silencio
+
+**Problema:** Al quitar un `leftJoin(users, eq(users.id, agents.userId))` que parecía no usarse en `getSampleAgent()` (la selección no devolvía columnas de `users`), el simulador de vista dejó de mostrar "Mi semana": el agente de ejemplo quedaba en `null` y el home caía al perfil base.
+**Causa:** `activeAgentCondition()` (`src/lib/activeUsers.ts:14`) genera `(users.active IS NULL OR users.active = 1)`. Sin el join, SQLite no resuelve `users.active`, la consulta lanza y el `safeLoad` del home la captura devolviendo `null`: el síntoma es "no hay tarjeta", sin error visible en la UI.
+**Solución:** mantener el join mientras se use `activeAgentCondition()` (quedó comentado en el código). Lo detectaron los E2E del simulador, no el build ni los tests de dominio.
+**Regla:** antes de borrar un join que "no selecciona columnas", buscar si alguna condición lo referencia (`activeAgentCondition`, `activeUserCondition`). Un helper con `try/catch` vuelve invisible la falla: el test tiene que mirar el resultado, no el error.
+**Archivos afectados:** src/lib/inicio/sessionAgent.ts, src/lib/activeUsers.ts
+
+---
+
+### 2026-10-20 — Un `<p>` dentro de un flex column se apropia del espacio libre y deja el grid sin crecer
+
+**Problema:** En la card "Mi semana" del home, el grid de días no ocupaba el alto de la card: las celdas quedaban con su altura natural (≈112 px) y sobraba un bloque de aire de ~110 px, mientras la etiqueta de la semana (`<p>`) medía 129 px de alto con una sola línea de texto.
+**Causa:** El `<p>` de la etiqueta, hijo directo de un contenedor `flex flex-col`, quedó con `flex-grow: 1` (computado `flex: 1 1 auto`) sin que ninguna regla del CSS del repo lo justificara. Competía con el `flex-1` del grid por el espacio libre y el reparto (≈112 px / ≈112 px) dejaba el grid clavado en su mínimo.
+**Solución:** Fijar `flex-none` en los hijos estáticos (etiquetas, `<p>`) de un contenedor flex column, y dejar `flex-1` sólo para el bloque que debe crecer (el grid de días). Con eso el grid toma todo el alto disponible.
+**Regla:** En contenedores `flex flex-col`, todo hijo que NO deba crecer lleva `flex-none`/`shrink-0` explícito: el crecimiento por defecto no es determinista y se-come el espacio del hermano con `flex-1`.
+**Archivos afectados:** src/components/inicio/WeekCard.astro
+
+---
+
+### 2026-10-20 — `astro dev` no arranca por un literal `<!--` dentro de un `<script>` (aunque el build pase)
+
+**Problema:** `npx astro dev` moría en el scan inicial de dependencias con `[PARSE_ERROR] Expected ) but found Unknown` señalando `virtual-module:...CalibracionContent.astro`, mientras que `npm run build` compilaba sin errores.
+**Causa:** El script del componente contenía los literales `"<!-- calibrado:"` y `/<!--\s*calibrado:[^->]*-->/`. El parser de Rolldown (scan de dev) interpreta la secuencia `<!--` como apertura de comentario HTML y corta el string/regex, generando un módulo inválido. El build no usa ese scan, por eso pasaba.
+**Solución:** Se escapó la secuencia sin cambiar la semántica: `"<\!-- calibrado:"` y `/<\!--\s*calibrado:[^->]*-->/` (en strings y regex, `\!` es `!`). Con eso el dev server arranca.
+**Regla:** No escribir `<!--` literal dentro de bloques `<script>` de `.astro` (ni en strings, ni en regex, ni en templates): construirlo por partes o escaparlo. Si `astro dev` falla en el scan pero `astro build` pasa, buscar `<!--` en scripts.
+**Archivos afectados:** src/components/admin/calidad/CalibracionContent.astro
+
+---
+
+### 2026-10-20 — PowerShell 5.1 se come `--` y `npm run dev -- --port` no reenvía los flags
+
+**Problema:** `npm run dev -- --port 4329 --ignore-lock` desde PowerShell arrancó `astro dev 4329` (interpretó 4329 como subcomando) y npm avisó `Unknown cli config "--port"`.
+**Causa:** PowerShell 5.1 descarta el separador `--` al invocar comandos nativos; npm recibe `--port` como configuración propia, no como argumento del script.
+**Solución:** Invocar Astro directo para levantar el server a mano: `$env:ASTRO_DEV_BACKGROUND="0"; npx astro dev --port <PORT> --ignore-lock`. Desde Playwright (`cmd`) el `--` sí sobrevive, así que `playwright.config.ts` queda igual.
+**Regla:** En PowerShell, para pasar flags a un script de npm usar `npx <bin>` directo o `cmd /c "npm run ... -- ..."`; no confiar en `npm run x -- --flag`.
+**Archivos afectados:** ninguno (comando de desarrollo)
+
+---
+
 ### 2026-10-19 — Etiquetas de cierre huérfanas al envolver tablas en TableShell descartan scripts cliente
 
 **Problema:** En `/supervision/asistencia`, la tabla de operadores permanecía indefinidamente en el estado de loading ("Cargando registros..."), sin arrojar errores en consola del navegador ni en el dev server.

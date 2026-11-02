@@ -1,8 +1,11 @@
 import type { APIRoute } from "astro";
 import { getDisponibilidadHoy } from "@lib/disponibilidad";
 import { jsonResponse, sanitizeError } from "@lib/apiResponse";
+import { requireReadAccess } from "@lib/rbac-middleware";
 
-export const GET: APIRoute = async ({ url }) => {
+export const GET: APIRoute = async ({ url, locals }) => {
+  const authError = await requireReadAccess(locals, "asignacion_ag");
+  if (authError) return authError;
   try {
     const forceRefresh = url.searchParams.get("force_refresh") === "true";
     const list = await getDisponibilidadHoy(forceRefresh);

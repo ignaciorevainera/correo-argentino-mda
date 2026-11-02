@@ -242,14 +242,50 @@ export function formatCalibrationComment(
 }
 
 /**
+ * Expresión regular canónica para detectar y parsear el comentario HTML de calibración completo.
+ */
+export const CALIBRATION_COMMENT_REGEX =
+  /<!--\s*calibrado:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})(?:\s*\|\s*([\s\S]*?))?\s*-->/;
+
+/**
+ * Verifica si un bloque contiene un comentario de calibración.
+ */
+export function hasCalibrationComment(block: string): boolean {
+  return CALIBRATION_COMMENT_REGEX.test(block);
+}
+
+/**
+ * Reemplaza el comentario de calibración existente en un bloque.
+ */
+export function replaceCalibrationComment(block: string, newComment: string): string {
+  return block.replace(CALIBRATION_COMMENT_REGEX, newComment);
+}
+
+/**
+ * Inserta o actualiza el comentario de calibración en un bloque.
+ */
+export function upsertCalibrationComment(
+  block: string,
+  criterionCode: string,
+  newComment: string,
+): string {
+  if (hasCalibrationComment(block)) {
+    return replaceCalibrationComment(block, newComment);
+  }
+  const headerRegex = new RegExp(`(## criterio:\\s*${criterionCode}\\s*\\n)`);
+  if (headerRegex.test(block)) {
+    return block.replace(headerRegex, `$1${newComment}\n`);
+  }
+  return `${newComment}\n${block}`;
+}
+
+/**
  * Extrae fecha y metadatos del comentario de calibración si existe en el texto.
  */
 export function extractCalibrationMetadata(
   content: string,
 ): CalibrationMetadata | null {
-  const match = content.match(
-    /<!--\s*calibrado:\s*([0-9]{4}-[0-9]{2}-[0-9]{2})(?:\s*\|\s*([^->]*?))?\s*-->/,
-  );
+  const match = content.match(CALIBRATION_COMMENT_REGEX);
   if (!match) return null;
 
   return {

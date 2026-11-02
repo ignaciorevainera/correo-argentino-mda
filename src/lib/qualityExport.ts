@@ -71,6 +71,7 @@ export function getAuditExportHeaders(
 }
 import { XLSX_STYLE_INDEX, type XlsxCellData, type XlsxColWidth } from "./xlsx";
 import { getChannelParameters } from "../config/qualityParams";
+import { calculateMultiChannelAuditScores, QUALITY_APPROVAL_THRESHOLD } from "./qualityCalculator";
 
 /**
  * Resuelve la celda "Cumple" de un ítem a partir de su score.
@@ -311,9 +312,19 @@ export function buildOperatorFullEvaluationSheet(
       // Row 15: Totals
       const hasSection2 = callAudit.appliesMda !== false;
       const s1Display = hasSection2 ? Math.round(s1TotalEval * 100) / 100 : Math.round((s1TotalEval / 0.45) * 100) / 100;
-      const totalScore = callAudit.totalScore ?? (hasSection2 ? Math.round(s1TotalEval * 100 + s2TotalEval * 100) : Math.round(s1Display * 100));
+      const callCompliantCodes = new Set(
+        (callAudit.scores || []).filter((s) => s.score).map((s) => s.parameterCode),
+      );
+      const computedCallScore = calculateMultiChannelAuditScores(
+        "wise_call",
+        wiseCallParams,
+        callCompliantCodes,
+        hasSection2,
+        callAudit.isReclamoNovedad === true,
+      );
+      const totalScore = callAudit.totalScore ?? computedCallScore.totalScore;
       callScores[sIdx] = totalScore;
-      const isApproved = totalScore >= 75;
+      const isApproved = totalScore >= QUALITY_APPROVAL_THRESHOLD;
       setCell(callB + 15, 5, "Cumplimientos ", XLSX_STYLE_INDEX.SUMMARY_LABEL);
       setCell(callB + 15, 6, 1, XLSX_STYLE_INDEX.DATA_PERCENT);
       setCell(callB + 15, 7, s1Display, XLSX_STYLE_INDEX.DATA_PERCENT);
@@ -411,9 +422,19 @@ export function buildOperatorFullEvaluationSheet(
       });
 
       // Row 14: Totals
-      const totalScore = emailAudit.totalScore ?? (appliesMda ? Math.round(((s1TotalEval + s2TotalEval) / 2) * 100) : Math.round(s1TotalEval * 100));
+      const emailCompliantCodes = new Set(
+        (emailAudit.scores || []).filter((s) => s.score).map((s) => s.parameterCode),
+      );
+      const computedEmailScore = calculateMultiChannelAuditScores(
+        "wise_email",
+        wiseEmailParams,
+        emailCompliantCodes,
+        appliesMda,
+        emailAudit.isReclamoNovedad === true,
+      );
+      const totalScore = emailAudit.totalScore ?? computedEmailScore.totalScore;
       emailScores[sIdx] = totalScore;
-      const isApproved = totalScore >= 75;
+      const isApproved = totalScore >= QUALITY_APPROVAL_THRESHOLD;
       setCell(mailB + 14, 20, "Cumplimientos ", XLSX_STYLE_INDEX.SUMMARY_LABEL);
       setCell(mailB + 14, 21, 1, XLSX_STYLE_INDEX.DATA_PERCENT);
       setCell(mailB + 14, 22, Math.round(s1TotalEval * 100) / 100, XLSX_STYLE_INDEX.DATA_PERCENT);
@@ -488,9 +509,19 @@ export function buildOperatorFullEvaluationSheet(
       });
 
       // Row 14: Totals
-      const totalScore = agAudit.totalScore ?? (staysInMda ? Math.round(((s1TotalEval + s2TotalEval) / 2) * 100) : Math.round(s1TotalEval * 100));
+      const agCompliantCodes = new Set(
+        (agAudit.scores || []).filter((s) => s.score).map((s) => s.parameterCode),
+      );
+      const computedAgScore = calculateMultiChannelAuditScores(
+        "invgate_ticket",
+        invgateAgParams,
+        agCompliantCodes,
+        staysInMda,
+        false,
+      );
+      const totalScore = agAudit.totalScore ?? computedAgScore.totalScore;
       agScores[sIdx] = totalScore;
-      const isApproved = totalScore >= 75;
+      const isApproved = totalScore >= QUALITY_APPROVAL_THRESHOLD;
       setCell(agB + 14, 35, "Cumplimientos ", XLSX_STYLE_INDEX.SUMMARY_LABEL);
       setCell(agB + 14, 36, 1, XLSX_STYLE_INDEX.DATA_PERCENT);
       setCell(agB + 14, 37, Math.round(s1TotalEval * 100) / 100, XLSX_STYLE_INDEX.DATA_PERCENT);
@@ -723,7 +754,7 @@ export function buildGeneralSummarySheet(
     setCell(row, 5, op.overallAvg / 100, XLSX_STYLE_INDEX.DATA_PERCENT_DECIMAL);
     totalOverallSum += op.overallAvg;
 
-    const isApproved = op.overallAvg >= 75;
+    const isApproved = op.overallAvg >= QUALITY_APPROVAL_THRESHOLD;
     setCell(
       row,
       6,
@@ -759,8 +790,8 @@ export function buildGeneralSummarySheet(
     setCell(
       totalRow,
       6,
-      mdaOverall >= 0.75 ? "APROBADO" : "REPROBADO",
-      mdaOverall >= 0.75 ? XLSX_STYLE_INDEX.STATUS_APROBADO : XLSX_STYLE_INDEX.STATUS_REPROBADO,
+      mdaOverall >= QUALITY_APPROVAL_THRESHOLD / 100 ? "APROBADO" : "REPROBADO",
+      mdaOverall >= QUALITY_APPROVAL_THRESHOLD / 100 ? XLSX_STYLE_INDEX.STATUS_APROBADO : XLSX_STYLE_INDEX.STATUS_REPROBADO,
     );
   }
 

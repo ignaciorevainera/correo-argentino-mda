@@ -1,0 +1,53 @@
+---
+import type { AutomationSummary } from "@lib/inicio/homeSummaries";
+
+interface Props {
+  summary: AutomationSummary;
+}
+
+const { summary } = Astro.props;
+
+const slaText =
+  summary.onTimeRate === null ? "—" : `${Math.round(summary.onTimeRate)}%`;
+const slaTone =
+  summary.onTimeRate === null
+    ? "text-base-content/60"
+    : summary.onTimeRate >= 80
+      ? "text-success"
+      : summary.onTimeRate >= 60
+        ? "text-warning"
+        : "text-error";
+---
+
+<div class="flex h-full flex-col gap-3">
+  <dl class="grid grid-cols-2 gap-2">
+    <div class="bg-base-200/30 rounded-lg px-2.5 py-2">
+      <dt class="text-base-content/60 text-xxs">Activas</dt>
+      <dd class="text-secondary dark:text-accent font-mono text-lg font-bold tabular-nums">
+        {summary.active}
+      </dd>
+    </div>
+    <div class="bg-base-200/30 rounded-lg px-2.5 py-2">
+      <dt class="text-base-content/60 text-xxs">Cerradas</dt>
+      <dd class="text-base-content font-mono text-lg font-bold tabular-nums">
+        {summary.finalized}
+      </dd>
+    </div>
+    <div class="bg-base-200/30 rounded-lg px-2.5 py-2">
+      <dt class="text-base-content/60 text-xxs">En plazo (SLA)</dt>
+      <dd class:list={["font-mono text-lg font-bold tabular-nums", slaTone]}>
+        {slaText}
+      </dd>
+    </div>
+    <div class="bg-base-200/30 rounded-lg px-2.5 py-2">
+      <dt class="text-base-content/60 text-xxs">Activa más vieja</dt>
+      <dd class="text-base-content font-mono text-lg font-bold tabular-nums">
+        {summary.oldestDays === null ? "—" : `${summary.oldestDays}d`}
+      </dd>
+    </div>
+  </dl>
+
+  <div class="mt-auto flex justify-end">
+    <slot name="action" />
+  </div>
+</div>

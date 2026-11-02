@@ -1,0 +1,322 @@
+---
+import InitialsAvatar from "@components/ui/InitialsAvatar.astro";
+import { Icon } from "astro-icon/components";
+import { getCleanBase } from "@lib/baseUrl";
+
+/**
+ * "Próximo en autogestiones": se hidrata con `GET /api/ags/next` y refresca
+ * cada 30 s (pausa con la pestaña oculta). No bloquea el SSR del home.
+ *
+ * Variantes:
+ * - `big` (2/3 del ancho): lista los primeros 5 operadores de la cola, para
+ *   llenar el alto de la card.
+ * - `compact` (columna derecha): una sola fila con el próximo.
+ */
+interface Props {
+  variant?: "big" | "compact";
+}
+
+const { variant = "compact" } = Astro.props;
+const isBig = variant === "big";
+const cleanBase = getCleanBase();
+const skeletonRows = Array.from({ length: 5 });
+---
+
+<section
+  data-ags-instance
+  data-home-card="ags"
+  data-ags-base={cleanBase}
+  data-ags-variant={variant}
+  class="card bg-base-100 border-base-200 flex h-full border shadow-sm"
+>
+  <div class="card-body flex flex-col gap-2.5 p-3">
+    <header class="flex items-center justify-between gap-2">
+      <h2 class="text-base-content flex min-w-0 items-center gap-1.5 text-sm font-bold">
+        <Icon
+          name="boxicons:git-branch-filled"
+          size={16}
+          is:inline
+          class="text-secondary dark:text-accent shrink-0"
+          aria-hidden="true"
+        />
+        <span class="truncate">Próximo en autogestiones</span>
+      </h2>
+      <span
+        data-ags-updated
+        class="text-base-content/40 shrink-0 font-mono text-xxs"
+      />
+    </header>
+
+    {
+      isBig ? (
+        <ul
+          data-ags-list
+          class="divide-base-200 flex min-h-0 flex-1 flex-col divide-y"
+        >
+          {skeletonRows.map(() => (
+            <li
+              data-ags-skeleton
+              class="flex flex-1 items-center gap-2.5 py-2"
+              aria-hidden="true"
+            >
+              <div class="skeleton size-8 shrink-0 rounded-full" />
+              <div class="flex-1 space-y-1.5">
+                <div class="skeleton h-2.5 w-1/2 rounded" />
+                <div class="skeleton h-2 w-2/3 rounded" />
+              </div>
+              <div class="skeleton h-2 w-10 rounded" />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div class="flex items-center gap-2.5">
+          <span data-ags-avatar class="flex">
+            <InitialsAvatar name="Operador" size="sm" data-ags-initials />
+          </span>
+          <div class="min-w-0">
+            <p data-ags-name class="text-base-content truncate text-sm font-bold">
+              —
+            </p>
+            <p data-ags-meta class="text-base-content/70 truncate text-xxs">—</p>
+          </div>
+          <div class="ml-auto">
+            <slot name="action" />
+          </div>
+        </div>
+      )
+    }
+
+    {
+      isBig && (
+        <footer class="border-base-200 mt-auto flex items-center justify-between gap-2 border-t pt-2">
+          <span data-ags-more class="text-base-content/50 text-xxs" />
+          <slot name="action" />
+        </footer>
+      )
+    }
+  </div>
+</section>
+
+<script>
+  interface AgsQueueItem {
+    agentId: number;
+    name: string;
+    modality: string | null;
+    status: string;
+    available: boolean;
+    lastAssignedAt: number | null;
+  }
+
+  interface AgsNextPayload {
+    next: AgsQueueItem | null;
+    queue?: AgsQueueItem[];
+    availableCount: number;
+    generatedAt: string;
+  }
+
+  const REFRESH_MS = 30_000;
+
+  const instances = Array.from(
+    document.querySelectorAll<HTMLElement>("[data-ags-instance]"),
+  );
+
+  if (instances.length > 0) {
+    const getInitials = (fullName: string): string => {
+      const parts = fullName.trim().split(/\s+/).filter(Boolean);
+      if (parts.length === 0) return "?";
+      if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+      return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+    };
+
+    const timeLabel = (iso: string): string => {
+      const date = new Date(iso);
+      if (Number.isNaN(date.getTime())) return "";
+      return date.toLocaleTimeString("es-AR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+    };
+
+    const lastAssignedLabel = (timestamp: number | null): string => {
+      if (timestamp === null || timestamp === undefined) return "sin asignar";
+      const diffMinutes = Math.max(
+        0,
+        Math.floor((Date.now() - timestamp) / 60_000),
+      );
+      if (diffMinutes < 60) return "hace <1 h";
+      const hours = Math.floor(diffMinutes / 60);
+      if (hours < 24) return `hace ${hours} h`;
+      const days = Math.floor(hours / 24);
+      return `hace ${days} d`;
+    };
+
+    const renderQueueRow = (item: AgsQueueItem): HTMLLIElement => {
+      const row = document.createElement("li");
+      row.setAttribute("data-ags-row", "");
+      row.className = "flex flex-1 items-center gap-2.5 py-2";
+
+      const avatar = document.createElement("div");
+      avatar.className = "avatar avatar-placeholder shrink-0";
+      const avatarInner = document.createElement("div");
+      avatarInner.className =
+        "bg-base-200 text-base-content/70 flex size-8 items-center justify-center rounded-full text-xxs font-semibold select-none";
+      avatarInner.setAttribute("role", "img");
+      avatarInner.setAttribute("aria-label", item.name);
+      avatarInner.textContent = getInitials(item.name);
+      avatar.append(avatarInner);
+
+      const text = document.createElement("div");
+      text.className = "min-w-0 flex-1";
+      const name = document.createElement("p");
+      name.className = "text-base-content truncate text-sm font-bold";
+      name.textContent = item.name;
+      name.setAttribute("data-ags-row-name", "");
+      const meta = document.createElement("p");
+      meta.className = "text-base-content/70 truncate text-xxs";
+      // El payload conserva `modality`; el inicio no muestra la ubicación del
+      // operador, sólo el estado.
+      meta.textContent = item.status;
+      text.append(name, meta);
+
+      const when = document.createElement("span");
+      when.className = "text-base-content/50 shrink-0 font-mono text-xxs";
+      when.textContent = lastAssignedLabel(item.lastAssignedAt);
+
+      row.append(avatar, text, when);
+      return row;
+    };
+
+    const renderBig = (
+      instance: HTMLElement,
+      items: AgsQueueItem[],
+      message: string,
+    ) => {
+      const list = instance.querySelector<HTMLElement>("[data-ags-list]");
+      if (!list) return;
+      list.replaceChildren();
+      if (items.length === 0) {
+        const empty = document.createElement("li");
+        empty.className = "text-base-content/60 py-2 text-xs";
+        empty.textContent = message;
+        list.append(empty);
+        return;
+      }
+      for (const item of items) list.append(renderQueueRow(item));
+    };
+
+    const render = (payload: AgsNextPayload) => {
+      const count = payload.availableCount;
+      const disponibles = `${count} ${count === 1 ? "disponible" : "disponibles"}`;
+      const time = timeLabel(payload.generatedAt);
+
+      for (const instance of instances) {
+        const isBig = instance.getAttribute("data-ags-variant") === "big";
+        const updatedEl = instance.querySelector<HTMLElement>("[data-ags-updated]");
+
+        if (isBig) {
+          const items =
+            payload.queue && payload.queue.length > 0
+              ? payload.queue
+              : payload.next
+                ? [payload.next]
+                : [];
+          renderBig(instance, items, "Sin operadores disponibles");
+
+          const moreEl = instance.querySelector<HTMLElement>("[data-ags-more]");
+          if (moreEl) {
+            const remaining = count - items.length;
+            moreEl.textContent =
+              items.length === 0
+                ? ""
+                : remaining > 0
+                  ? `y ${remaining} más ${remaining === 1 ? "disponible" : "disponibles"}`
+                  : disponibles;
+          }
+        } else {
+          const nameEl = instance.querySelector<HTMLElement>("[data-ags-name]");
+          const metaEl = instance.querySelector<HTMLElement>("[data-ags-meta]");
+          const avatarEl = instance.querySelector<HTMLElement>("[data-ags-initials]");
+          const avatarWrap = instance.querySelector<HTMLElement>("[data-ags-avatar]");
+
+          if (payload.next && nameEl && metaEl) {
+            nameEl.textContent = payload.next.name;
+            // La ubicación (modalidad) no se muestra en el inicio; el payload
+            // sigue enviándola por si otro consumidor la necesita.
+            metaEl.textContent = payload.next.status;
+            if (avatarEl) {
+              avatarEl.textContent = getInitials(payload.next.name);
+              avatarEl
+                .closest('[role="img"]')
+                ?.setAttribute("aria-label", payload.next.name);
+            }
+            avatarWrap?.classList.remove("hidden");
+          } else {
+            if (nameEl) nameEl.textContent = "Sin operadores disponibles";
+            if (metaEl) metaEl.textContent = "";
+            avatarWrap?.classList.add("hidden");
+          }
+        }
+
+        if (updatedEl) {
+          updatedEl.textContent = time;
+          updatedEl.title = `Actualizado ${time} · ${disponibles}`;
+        }
+      }
+    };
+
+    let timer: number | undefined;
+
+    const load = async () => {
+      if (document.hidden) return;
+      const base = instances[0]?.getAttribute("data-ags-base") || "/";
+      try {
+        const res = await fetch(`${base}api/ags/next`, {
+          headers: { Accept: "application/json" },
+          credentials: "same-origin",
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        render((await res.json()) as AgsNextPayload);
+      } catch {
+        // Si es la primera carga, se informa que no hay datos; si ya había, se
+        // conserva el último valor bueno.
+        for (const instance of instances) {
+          if (instance.getAttribute("data-ags-variant") === "big") {
+            if (instance.querySelector("[data-ags-row]")) continue;
+            renderBig(instance, [], "Sin datos de autogestiones");
+            continue;
+          }
+          const nameEl = instance.querySelector<HTMLElement>("[data-ags-name]");
+          const metaEl = instance.querySelector<HTMLElement>("[data-ags-meta]");
+          if (nameEl && nameEl.textContent?.trim() === "—") {
+            nameEl.textContent = "Sin datos de autogestiones";
+            if (metaEl) metaEl.textContent = "";
+          }
+        }
+      }
+    };
+
+    const start = () => {
+      if (timer !== undefined) return;
+      timer = window.setInterval(load, REFRESH_MS);
+    };
+
+    const stop = () => {
+      if (timer === undefined) return;
+      window.clearInterval(timer);
+      timer = undefined;
+    };
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        stop();
+        return;
+      }
+      void load();
+      start();
+    });
+
+    void load();
+    start();
+  }
+</script>

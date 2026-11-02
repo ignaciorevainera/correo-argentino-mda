@@ -1,8 +1,11 @@
 import type { APIRoute } from "astro";
 import { getLockStatus, acquireLock, releaseLock } from "@lib/disponibilidad";
 import { jsonResponse, sanitizeError } from "@lib/apiResponse";
+import { requireReadAccess, requireWriteAccess } from "@lib/rbac-middleware";
 
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async ({ locals }) => {
+  const authError = await requireReadAccess(locals, "asignacion_ag");
+  if (authError) return authError;
   try {
     return jsonResponse(await getLockStatus());
   } catch (error: any) {
@@ -11,6 +14,8 @@ export const GET: APIRoute = async () => {
 };
 
 export const POST: APIRoute = async ({ locals }) => {
+  const authError = await requireWriteAccess(locals, "asignacion_ag");
+  if (authError) return authError;
   const user = locals.user;
   if (!user) return jsonResponse({ error: "No autorizado" }, 401);
   try {
@@ -31,6 +36,8 @@ export const POST: APIRoute = async ({ locals }) => {
 };
 
 export const DELETE: APIRoute = async ({ locals }) => {
+  const authError = await requireWriteAccess(locals, "asignacion_ag");
+  if (authError) return authError;
   const user = locals.user;
   if (!user) return jsonResponse({ error: "No autorizado" }, 401);
   try {

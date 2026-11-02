@@ -59,8 +59,8 @@ export interface CouncilVote {
 export interface CouncilDebateEntry {
   codigo: string;
   criterioNombre: string;
-  consenso: "directo" | "arbitrado" | "sin_oposicion" | "agente_especialista" | "arbitraje_fallido";
-  motivo?: "sin_evidencia" | "acuerdo_alto" | "baja_confianza" | "discrepancia_cumple" | "agente_unico";
+  consenso: "directo" | "arbitrado" | "sin_oposicion" | "agente_especialista" | "arbitraje_fallido" | "no_evaluado";
+  motivo?: "sin_evidencia" | "acuerdo_alto" | "baja_confianza" | "discrepancia_cumple" | "agente_unico" | "agente_fallido";
   alphaVote?: CouncilVote;
   betaVote?: CouncilVote;
   judgeVote?: CouncilVote;

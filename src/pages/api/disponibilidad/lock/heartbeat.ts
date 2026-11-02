@@ -1,8 +1,11 @@
 import type { APIRoute } from "astro";
 import { getLockStatus, heartbeatLock } from "@lib/disponibilidad";
 import { jsonResponse, sanitizeError } from "@lib/apiResponse";
+import { requireWriteAccess } from "@lib/rbac-middleware";
 
 export const POST: APIRoute = async ({ locals }) => {
+  const authError = await requireWriteAccess(locals, "asignacion_ag");
+  if (authError) return authError;
   const user = locals.user;
   if (!user) return jsonResponse({ error: "No autorizado" }, 401);
   try {

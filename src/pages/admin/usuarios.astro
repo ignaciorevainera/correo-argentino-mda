@@ -135,6 +135,7 @@ if (Astro.request.method === "POST") {
               .values({
                 username,
                 password: hashedPassword,
+                passwordChangedAt: new Date(),
                 role: role as any,
                 helpdeskId,
                 helpdeskName,
@@ -593,7 +594,7 @@ if (Astro.request.method === "POST") {
           const hashedPassword = await hashPassword(newPassword);
           db.transaction((tx) => {
             tx.update(users)
-              .set({ password: hashedPassword })
+              .set({ password: hashedPassword, passwordChangedAt: new Date() })
               .where(eq(users.id, userId))
               .run();
 

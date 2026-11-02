@@ -116,12 +116,12 @@ test.describe("Controles de Acceso (RBAC) - Agente", () => {
     ]);
   });
 
-  test("Agente deberia poder acceder a /supervision/asignacion-autogestiones", async ({
+  test("Agente no deberia poder acceder a /supervision/asignacion-autogestiones", async ({
     page,
   }) => {
     await page.goto("/supervision/asignacion-autogestiones");
-    await expect(page).not.toHaveURL(basePath());
-    await expect(page.locator("#global-toast-container")).not.toContainText(
+    await expect(page).toHaveURL(basePath());
+    await expect(page.locator("#global-toast-container")).toContainText(
       "Acceso no autorizado",
     );
   });

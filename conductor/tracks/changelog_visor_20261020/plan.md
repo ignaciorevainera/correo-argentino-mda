@@ -1,0 +1,76 @@
+# Plan de Implementación: Visor de Changelog y Novedades del Portal
+
+## Phase 1: Configuración de Tests, Reuso de `@lib/markdown` y Servicio de Changelog [checkpoint: 64c2c3a9]
+- [x] Task: Actualizar package.json y documentar arquitectura (9594b11)
+  - [x] Agregar `src/lib/markdown.test.ts` y `src/lib/changelog/*.test.ts` al script `test:domain` en `package.json`
+  - [x] Documentar en `conductor/tech-stack.md` la decisión arquitectónica: reuso estricto de `renderMarkdown` de `@lib/markdown` (sin allowlists duplicadas, sin atributo `class` para blindar contra UI-redressing), carga desde `src/config/changelog/` con candidatos (`../../config/changelog`, `src/config/changelog`, `dist/config/changelog`), deploy del repo completo en prod, y cache indexado por directorio (`Map<string, ChangelogEntry[]>`) para evitar contaminación en tests
+- [x] Task: Escribir tests de dominio aislados con fixtures temporales (TDD - Fase Roja) (b03f6ed1)
+  - [x] Crear `src/lib/markdown.test.ts` con tests de seguridad estricta anti-XSS sobre `renderMarkdown` (`<script>`, eventos `onerror`/`onload`, esquemas `javascript:`/data URIs, iframes, atributo `class` rechazado/despojado, y degradación segura de `<img>` a `<span>` con alt)
+  - [x] Crear `src/lib/changelog/changelogService.test.ts` parametrizando la lectura del directorio (`getChangelogEntries(dir?)`) con fixtures temporales (`fs.mkdtemp`, ≥3 entradas con fechas distintas y una con `draft: true`), probando orden cronológico inverso, exclusión de `draft: true`, retorno de `[]` si el directorio no existe y cálculo de `getLatestChangelogDate(dir?)`
+  - [x] Ejecutar `npm run test:domain` y verificar que los nuevos tests corran explícitamente (nombres visibles en consola) y fallen (Red)
+- [x] Task: Implementar el servicio lector de changelog (TDD - Fase Verde) (47ef34e0)
+  - [x] Crear `src/lib/changelog/changelogService.ts` implementando `resolveChangelogDir()` con fallback resiliente a lista vacía `[]` si el directorio aún no existe o está vacío
+  - [x] Implementar cache por directorio (`const changelogCacheByDir = new Map<string, ChangelogEntry[]>()`)
+  - [x] Implementar parseo de frontmatter, exclusión de `draft: true`, ordenamiento por fecha descendente y renderizado delegando en `renderMarkdown()` de `@lib/markdown`
+  - [x] Exponer funciones `getChangelogEntries(dir?: string): Promise<ChangelogEntry[]>` y `getLatestChangelogDate(dir?: string): Promise<string | null>` (o síncronas si se usa `fs`)
+  - [x] Ejecutar `npm run test:domain` y confirmar que pasan todas las pruebas (Green)
+- [x] Task: Crear plantilla de ejemplo y guía de Prompt de Gemini Spark (1a4cc308)
+  - [x] Crear el directorio `src/config/changelog/`
+  - [x] Crear `src/config/changelog/example.md` con metadato `draft: true` y estructura por módulos
+  - [x] Crear `docs/PROMPT_GEMINI_SPARK.md` fuera de la carpeta de entries con el prompt exacto para Gemini Spark
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md) (068d3016)
+  - [x] Ejecutar `npm run test:domain`
+  - [x] Ejecutar `npm run test:unit`
+  - [x] Ejecutar `npm run build`
+  - [x] Commit del código de la fase
+  - [x] Adjuntar resumen detallado con `git notes add` al commit de la fase
+  - [x] Marcar tareas con `[x]` y registrar `[checkpoint: <sha>]` en plan.md
+  - [x] Commit de actualización de plan.md (`conductor(plan): Mark phase 'Phase 1' as complete`)
+  - [x] Presentar plan de verificación manual detallado y esperar confirmación explícita del usuario
+
+## Phase 2: Permisos RBAC, Vista `/changelog` y Reutilización de Componentes UI [checkpoint: f40b0d63]
+- [x] Task: Registrar permisos de ruta en RBAC y actualizar documentación (8e7b2a1d)
+  - [x] Agregar `{ path: "/changelog", roles: ALL_ROLES }` en `routePermissions` dentro de `src/lib/rbac.ts`
+  - [x] Actualizar el sitemap en `docs/CONTEXT.md` incorporando la ruta `/changelog`
+- [x] Task: Crear página `/changelog` reutilizando componentes oficiales (8e7b2a1d)
+  - [x] Crear `src/pages/changelog.astro` utilizando `BaseLayout.astro`, `PageContainer.astro` y `PageHeader.astro` con `title` y `description` (según convención 12 de `docs/CONTEXT.md`)
+  - [x] Excepción arquitectónica documentada: no se aplica `server:defer` porque la fuente es local, sin I/O remoto y cacheada en memoria.
+  - [x] Renderizar las versiones cronológicas reutilizando `SectionCard.astro` con badges temáticos de DaisyUI v5 y estilos tipográficos scoped (`<style is:global>`) para los tags permitidos de `@lib/markdown`
+  - [x] Integrar `SearchEmptyState.astro` para cuando no existan entradas o la búsqueda no arroje resultados
+- [x] Task: Interactividad de búsqueda, filtros y guardado de lectura (8e7b2a1d)
+  - [x] Implementar filtrado dinámico en cliente por palabras clave y secciones
+  - [x] Guardar la fecha del changelog más reciente en `localStorage` (`portal_mda_changelog_last_read`) al ingresar
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+  - [x] Ejecutar `npm run test:domain`
+  - [x] Ejecutar `npm run test:unit`
+  - [x] Ejecutar `npm run build`
+  - [x] Commit del código de la fase
+  - [x] Adjuntar resumen detallado con `git notes add` al commit de la fase
+  - [x] Marcar tareas con `[x]` y registrar `[checkpoint: <sha>]` en plan.md
+  - [x] Commit de actualización de plan.md (`conductor(plan): Mark phase 'Phase 2' as complete`)
+  - [x] Presentar plan de verificación manual detallado y esperar confirmación explícita del usuario
+
+## Phase 3: Indicadores en Navbar/Drawer, Navegación y Pruebas E2E Playwright [checkpoint: 26ef40ef]
+- [x] Task: Inyectar fecha server-side e integrar indicador en `navbar.astro` y `drawerContent.astro`
+  - [x] Obtener `latestDate` en servidor mediante `getLatestChangelogDate()` (con cache indexado por mtime) e inyectar `data-changelog-latest={latestDate}` en el markup del navbar
+  - [x] Añadir ícono/enlace hacia `/changelog` con badge de notificación no leída en `src/layouts/_components/navbar.astro`
+  - [x] Añadir enlace y badge correspondiente en `src/layouts/_components/drawerContent.astro`
+  - [x] Implementar script cliente que lea `data-changelog-latest`, compare contra `localStorage.getItem("portal_mda_changelog_last_read")` y active/desactive el badge con accesibilidad a11y
+- [x] Task: Registrar ruta en navegación global
+  - [x] Registrar `/changelog` en `src/lib/navigation.ts` con sección apropiada y con ícono estándar con sufijo `-filled` (`boxicons:news-filled`) para autopropagación a Command Palette (`Ctrl+K`)
+- [x] Task: Pruebas E2E autenticadas con Playwright y verificación de build
+  - [x] Crear `tests/changelog/changelog.spec.ts` importando `dotenv/config` y reutilizando `tests/helpers/auth.ts` (`createTestUserAndSession("agent")` + `setSessionCookie(context, signedSessionId)` + `cleanupTestUser(userId)`)
+  - [x] Usar rol NO-admin (`agent`) para verificar el acceso real bajo `ALL_ROLES` en `hasPermission`
+  - [x] Configurar ejecución con puerto dedicado `$env:PLAYWRIGHT_BASE_URL="http://localhost:4323"` y resolver URLs mediante `test.info().project.use.baseURL` sin URLs hardcodeadas
+  - [x] Validar navegación autenticada, visualización de entradas, filtrado en vivo, apagado del badge y redirección a login en sesión anónima
+  - [x] Fixture desacoplada de fechas reales (`2099-12-31`) y gitignored (`src/config/changelog/_e2e-*.md`)
+  - [x] Generar reporte reproducible con `npx playwright show-report`
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+  - [x] Ejecutar `npm run test:domain`
+  - [x] Ejecutar `npm run test:unit`
+  - [x] Ejecutar `npm run build`
+  - [x] Commit del código de la fase
+  - [x] Adjuntar resumen detallado con `git notes add` al commit de la fase
+  - [x] Marcar tareas con `[x]` y registrar `[checkpoint: <sha>]` en plan.md
+  - [x] Commit de actualización de plan.md (`conductor(plan): Mark phase 'Phase 3' as complete`)
+  - [x] Presentar plan de verificación manual detallado y esperar confirmación explícita del usuario

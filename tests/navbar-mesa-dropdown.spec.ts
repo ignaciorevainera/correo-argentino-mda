@@ -144,4 +144,51 @@ test.describe("Navbar dropdown mesa display", () => {
     expect(roleBox).not.toBeNull();
     expect(mesaBox!.y).toBeGreaterThan(roleBox!.y);
   });
+
+  test("dropdown abre el modal de blanqueo de contraseña", async ({
+    page,
+    context,
+  }) => {
+    await context.addCookies([
+      {
+        name: "session_id",
+        value: signSessionId(withMesaSession),
+        domain: "localhost",
+        path: "/",
+      },
+    ]);
+    await page.goto("/");
+    await page.locator("nav.navbar .dropdown [role='button']").first().click();
+    await page
+      .locator("nav.navbar .dropdown")
+      .getByRole("button", { name: /blanqueo de contrase[ñn]a/i })
+      .click();
+    await expect(page.locator("#modal-self-password")).toBeVisible();
+  });
+
+  test("cerrar sesión responde en todo el ancho del botón", async ({
+    page,
+    context,
+  }) => {
+    await context.addCookies([
+      {
+        name: "session_id",
+        value: signSessionId(withoutMesaSession),
+        domain: "localhost",
+        path: "/",
+      },
+    ]);
+    await page.goto("/");
+    await page.locator("nav.navbar .dropdown [role='button']").first().click();
+
+    const button = page
+      .locator("nav.navbar .dropdown")
+      .getByRole("button", { name: /cerrar sesi[oó]n/i });
+    const box = await button.boundingBox();
+    expect(box).not.toBeNull();
+
+    // Clic cerca del borde derecho: antes caía fuera del hitbox real.
+    await page.mouse.click(box!.x + box!.width - 4, box!.y + box!.height / 2);
+    await page.waitForURL(/\/login/);
+  });
 });

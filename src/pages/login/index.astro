@@ -14,6 +14,9 @@ import FormField from "@components/ui/forms/FormField.astro";
 import PasswordField from "@components/ui/forms/PasswordField.astro";
 import { getCleanBase } from "@lib/baseUrl";
 import { computeFingerprint } from "@lib/sessionFingerprint";
+import ActionButton from "@components/ui/ActionButton.astro";
+import correoLogo from "@/assets/correo-argentino-logo-simple.svg?url";
+import AsciiOcean from "./_components/AsciiOcean.astro";
 
 if (Astro.locals.user.id !== 0) {
   return Astro.redirect(getCleanBase());
@@ -92,77 +95,145 @@ if (Astro.request.method === "POST") {
 ---
 
 <BaseLayout title="Iniciar sesión">
-  <div class="flex min-h-[80vh] items-center justify-center px-4">
-    <div class="w-full max-w-sm">
-      <div class="card bg-base-100 border-base-300 border shadow-md">
-        <div class="card-body">
-          <div class="text-center">
-            <div
-              class="bg-secondary text-secondary-content mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl shadow-sm"
+  <div class="flex min-h-screen flex-col lg:grid lg:grid-cols-2 xl:grid-cols-10">
+    <!-- Panel de marca: franja en mobile, columna en desktop -->
+    <aside
+      class="bg-login-panel text-secondary-content relative isolate flex flex-col justify-between gap-8 overflow-hidden p-5 sm:p-8 lg:col-span-1 lg:p-12 xl:col-span-6"
+    >
+      <!-- Océano ASCII: textura generativa del panel -->
+      <AsciiOcean class="absolute inset-0 -z-10 hidden h-full w-full lg:block" />
+
+      <div class="flex flex-col gap-6">
+        <div class="flex items-center gap-3">
+          <img
+            src={correoLogo}
+            alt=""
+            width="36"
+            height="36"
+            class="h-9 w-9 shrink-0 lg:h-10 lg:w-10"
+            aria-hidden="true"
+            data-brand-logo
+          />
+          <div class="min-w-0">
+            <h1 class="text-lg font-bold tracking-tight lg:text-4xl">Portal MDA</h1>
+            <p
+              class="text-secondary-content/70 mt-0.5 text-xxs font-semibold tracking-wider uppercase"
             >
-              <Icon
-                name="boxicons:building-house"
-                size={28}
-                aria-hidden="true"
-              />
-            </div>
-            <h1 class="text-base-content text-xl font-bold tracking-tight">
-              Mesa de Ayuda
-            </h1>
-            <p class="text-base-content/60 mt-1 text-xs">
-              Inicia sesión con tu usuario
+              Correo Argentino
             </p>
           </div>
+        </div>
 
-          <form method="POST">
-            <FormField
-              id="login-username"
-              name="username"
-              label="Usuario"
-              required
-              placeholder="irevainera"
-              autocomplete="username"
-              pattern="[A-Za-z][A-Za-z0-9\\-]*"
-              minlength="3"
-              maxlength="30"
-              title="Solo letras, números o guion"
-              icon="boxicons:user-filled"
-              inputClass="validator"
+        <p
+          class="text-secondary-content/80 hidden max-w-sm text-sm leading-relaxed lg:block"
+        >
+          Herramientas diarias de la Mesa de Ayuda: tipificación de tickets,
+          derivaciones, oficinas y automatizaciones.
+        </p>
+      </div>
+
+      <p class="text-secondary-content/60 hidden text-xxs lg:block">
+        © {new Date().getFullYear()} Correo Argentino
+      </p>
+    </aside>
+
+    <!-- Formulario -->
+    <main
+      class="bg-base-100 flex flex-1 items-start justify-center px-6 py-8 sm:px-10 lg:col-span-1 lg:items-center lg:py-10 xl:col-span-4"
+    >
+      <div class="w-full max-w-sm">
+        <div class="mb-6 space-y-1.5">
+          <h2 class="text-base-content text-2xl font-bold tracking-tight">
+            Iniciar sesión
+          </h2>
+          <p class="text-base-content/60 text-sm">
+            Ingresá con tu usuario del portal.
+          </p>
+        </div>
+
+        <form method="POST" data-login-form>
+          <FormField
+            id="login-username"
+            name="username"
+            label="Usuario"
+            required
+            placeholder="irevainera"
+            autocomplete="username"
+            pattern="[A-Za-z][A-Za-z0-9\\-]*"
+            minlength="3"
+            maxlength="30"
+            title="Solo letras, números o guion"
+            icon="boxicons:user-filled"
+            inputClass="validator"
+          />
+
+          <PasswordField
+            id="login-password"
+            name="password"
+            label="Contraseña"
+            required
+            minlength="4"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            title="Contraseña requerida (mínimo 4 caracteres)"
+            icon="boxicons:lock-filled"
+            inputClass="validator"
+            confirmPassword={false}
+            showRequirements={false}
+          />
+
+          <ActionButton
+            type="submit"
+            color="btn-secondary"
+            size="md"
+            block
+            label="Ingresar"
+            labelId="login-submit-label"
+            class="border-login-blue bg-login-blue hover:bg-login-blue/90 mt-4 text-white"
+            data-login-submit
+          />
+        </form>
+
+        <div class="border-base-200 mt-6 border-t pt-4">
+          <p
+            class="text-base-content/60 flex items-start gap-2 text-xs leading-relaxed"
+          >
+            <Icon
+              name="boxicons:info-circle"
+              size={16}
+              class="mt-0.5 shrink-0"
+              aria-hidden="true"
+              is:inline
             />
-
-            <PasswordField
-              id="login-password"
-              name="password"
-              label="Contraseña"
-              required
-              minlength="4"
-              placeholder="••••••••"
-              autocomplete="current-password"
-              title="Contraseña requerida (mínimo 4 caracteres)"
-              icon="boxicons:lock-filled"
-              inputClass="validator"
-              confirmPassword={false}
-              showRequirements={false}
-            />
-
-            <button type="submit" class="btn btn-primary mt-4 w-full">
-              Ingresar
-            </button>
-          </form>
-
-          <div role="alert" class="alert alert-info mt-4">
-            <Icon name="boxicons:info-circle" size={20} class="shrink-0" />
             <span>
               Si no contás con un usuario o requerís acceso al portal,
               comunicate con los administradores de la Mesa de Ayuda.
             </span>
-          </div>
+          </p>
         </div>
       </div>
-
-      <p class="text-base-content/40 mt-6 text-center text-xs">
-        © {new Date().getFullYear()} Correo Argentino · Portal interno
-      </p>
-    </div>
+    </main>
   </div>
 </BaseLayout>
+
+<script>
+  const loginForm = document.querySelector<HTMLFormElement>("[data-login-form]");
+  const loginSubmit =
+    document.querySelector<HTMLButtonElement>("[data-login-submit]");
+  const loginSubmitLabel = document.getElementById("login-submit-label");
+
+  loginForm?.addEventListener("submit", () => {
+    if (!loginSubmit) return;
+    loginSubmit.disabled = true;
+    loginSubmit.setAttribute("aria-busy", "true");
+    if (loginSubmitLabel) loginSubmitLabel.textContent = "Ingresando…";
+  });
+
+  // Al volver con "atrás" (bfcache) el botón tiene que quedar habilitado.
+  window.addEventListener("pageshow", () => {
+    if (!loginSubmit) return;
+    loginSubmit.disabled = false;
+    loginSubmit.removeAttribute("aria-busy");
+    if (loginSubmitLabel) loginSubmitLabel.textContent = "Ingresar";
+  });
+</script>

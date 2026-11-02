@@ -1,0 +1,58 @@
+---
+import type { AuditLogEntry } from "@lib/inicio/homeSummaries";
+
+interface Props {
+  entries: AuditLogEntry[];
+  /** Cantidad de movimientos a mostrar según el slot. */
+  limit?: number;
+}
+
+const { entries, limit = 5 } = Astro.props;
+
+const visible = entries.slice(0, Math.max(1, limit));
+
+const dateLabel = (timestamp: string): string => {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return timestamp;
+  return date.toLocaleString("es-AR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+---
+
+<div class="flex h-full flex-col gap-3">
+  {
+    visible.length > 0 ? (
+      <ul class="flex flex-col gap-2">
+        {visible.map((entry) => (
+          <li
+            class="flex items-baseline gap-2"
+            title={`${entry.username} · ${dateLabel(entry.timestamp)}`}
+          >
+            <span
+              class="bg-secondary dark:bg-accent mt-1 h-1.5 w-1.5 shrink-0 rounded-full"
+              aria-hidden="true"
+            />
+            <span class="text-base-content/80 min-w-0 flex-1 truncate text-xs">
+              {entry.action}
+            </span>
+            <span class="text-base-content/50 shrink-0 font-mono text-xxs">
+              {dateLabel(entry.timestamp)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p class="text-base-content/60 text-xs">
+        Todavía no hay movimientos registrados.
+      </p>
+    )
+  }
+
+  <div class="mt-auto flex justify-end">
+    <slot name="action" />
+  </div>
+</div>

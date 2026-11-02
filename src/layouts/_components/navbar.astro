@@ -4,6 +4,9 @@ import { resolveUrl } from "@/lib/url";
 import { getResolvedPathname } from "@/lib/navigation";
 import { getBaseNoSlash } from "@/lib/baseUrl";
 import { getCsrfTokenForSession } from "@/lib/csrf";
+import { VIEW_PROFILES } from "@/lib/viewSimulation";
+import { getLatestChangelogDate } from "@/lib/changelog/changelogService";
+import { isLoggedIn } from "@/lib/rbac";
 
 const roleAvatarClasses: Record<string, string> = {
   admin: "bg-error text-error-content",
@@ -24,8 +27,20 @@ const roleLabelMap: Record<string, string> = {
 interface Props {
   user: any;
   normalizedUserRole: string;
+  /** true cuando el usuario REAL es admin (aunque esté simulando otro rol). */
+  isRealAdmin?: boolean;
+  viewAs?: { id: string; label: string } | null;
+  canChangePassword?: boolean;
+  minimal?: boolean;
 }
-const { user, normalizedUserRole } = Astro.props;
+const {
+  user,
+  normalizedUserRole,
+  isRealAdmin = false,
+  viewAs = null,
+  canChangePassword = false,
+  minimal = false,
+} = Astro.props;
 
 const avatarClass =
   roleAvatarClasses[normalizedUserRole] ?? roleAvatarClasses.agent;
@@ -33,65 +48,127 @@ const roleLabel = roleLabelMap[normalizedUserRole] ?? "Agente";
 const userInitials = user.username.slice(0, 2).toUpperCase();
 
 const resolvedPath = getResolvedPathname(Astro.request, Astro.url);
-const isLoginPage = resolvedPath === `${getBaseNoSlash()}/login`;
+const baseNoSlash = getBaseNoSlash();
+const isLoginPage = resolvedPath === `${baseNoSlash}/login`;
+// El modal de personalización vive en el home: el ítem del menú solo existe ahí.
+const isHomePage = resolvedPath === `${baseNoSlash}/` || resolvedPath === "/";
 const csrfToken = Astro.locals.sessionId ? getCsrfTokenForSession(Astro.locals.sessionId) : "";
+const userIsLoggedIn = isLoggedIn(user);
+const latestChangelogDate = userIsLoggedIn ? ((await getLatestChangelogDate()) || "") : "";
 ---
 
 <header class="border-base-300 bg-base-100/95 z-150 min-h-20 border-b">
   <nav
     class="navbar text-base-content/95 flex h-full w-full items-center justify-between pr-2 md:pr-8"
   >
-    <!-- Drawer trigger on mobile -->
+    <!-- Drawer trigger on mobile / brand en modo minimal -->
     <div class="flex items-center gap-2">
-      <label
-        for="main-drawer"
-        aria-label="open sidebar"
-        aria-controls="main-drawer"
-        role="button"
-        tabindex="0"
-        class="btn btn-ghost btn-circle drawer-button lg:hidden"
-      >
-        <Icon name="boxicons:menu-filled" size={24} is:inline />
-      </label>
+      {
+        minimal ? (
+          <div class="flex items-center pl-2 md:pl-4">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 100 100"
+              fill="currentColor"
+              class="text-secondary dark:text-base-content size-7 shrink-0"
+              role="img"
+              aria-label="Portal MDA"
+            >
+              <g transform="matrix(2.376852, 0, 0, 2.376852, -93.201141, -111.433426)">
+                <path d="m 80.699,57.653 c -1.243,-0.053 -2.487,-0.026 -3.757,-0.026 0.185,0.979 0.397,1.852 0.503,2.752 0.688,6.958 -4.789,13.097 -11.827,13.256 -5.08,0.132 -9.737,-2.937 -11.615,-7.699 -0.159,-0.397 -0.344,-0.529 -0.767,-0.529 -4.339,0.026 -8.652,0 -12.991,0 -0.159,0 -0.344,0 -0.556,0 0.027,0.212 0.027,0.397 0.053,0.556 2.328,11.007 13.176,18.283 24.289,16.245 9.922,-1.799 17.118,-10.239 17.251,-20.294 0.026,-1.243 -0.159,-2.513 -0.265,-3.757 0,-0.159 -0.185,-0.503 -0.318,-0.503 z" />
+                <path d="m 65.195,69.692 c 4.63,0.026 8.308,-3.598 8.361,-8.176 0.026,-4.498 -3.651,-8.176 -8.149,-8.228 -4.577,-0.026 -8.308,3.625 -8.334,8.176 -0.026,4.498 3.625,8.202 8.122,8.228 z m 0.106,-12.515 c 2.434,0 4.366,1.931 4.366,4.366 0,2.381 -1.984,4.313 -4.366,4.313 -2.381,0 -4.339,-1.958 -4.339,-4.339 0,-2.408 1.931,-4.313 4.339,-4.34 z" />
+                <path d="m 53.632,57.627 c -0.159,0 -0.344,0 -0.556,0 -4.26,0 -8.52,0 -12.779,0 -0.106,0 -0.238,-0.026 -0.318,0 -0.159,0.079 -0.37,0.212 -0.37,0.318 -0.132,1.164 -0.265,2.302 -0.397,3.519 4.71,0 9.26,0 13.811,0 0.212,-1.27 0.423,-2.514 0.609,-3.837 z" />
+              </g>
+            </svg>
+          </div>
+        ) : (
+          <label
+            for="main-drawer"
+            aria-label="open sidebar"
+            aria-controls="main-drawer"
+            role="button"
+            tabindex="0"
+            class="btn btn-ghost btn-circle drawer-button lg:hidden"
+          >
+            <Icon name="boxicons:menu-filled" size={24} is:inline />
+          </label>
+        )
+      }
     </div>
 
     <div class="flex items-center gap-2">
       <!-- Search button -->
-      <button
-        type="button"
-        data-open-command-palette
-        aria-label="Abrir búsqueda maestra"
-        class="btn btn-ghost border-base-300 hover:bg-base-200 text-base-content/70 group inline-flex items-center justify-between gap-x-6 border px-4 text-sm font-normal normal-case md:w-52"
-      >
-        <div class="flex items-center gap-x-2">
-          <Icon name="boxicons:search" size={20} is:inline />
-          Buscar...
-        </div>
-        <div class="ml-auto flex items-center gap-1">
-          <kbd class="kbd kbd-sm">Ctrl</kbd>
-          <kbd class="kbd kbd-sm">K</kbd>
-        </div>
-      </button>
+      {
+        !minimal && (
+          <button
+            type="button"
+            data-open-command-palette
+            aria-label="Abrir búsqueda maestra"
+            class="btn btn-ghost border-base-300 hover:bg-base-200 text-base-content/70 group inline-flex items-center justify-between gap-x-6 border px-4 text-sm font-normal normal-case md:w-52"
+          >
+            <div class="flex items-center gap-x-2">
+              <Icon name="boxicons:search" size={20} is:inline />
+              Buscar...
+            </div>
+            <div class="ml-auto flex items-center gap-1">
+              <kbd class="kbd kbd-sm">Ctrl</kbd>
+              <kbd class="kbd kbd-sm">K</kbd>
+            </div>
+          </button>
+        )
+      }
 
       <div class="flex items-center gap-1">
-        <!-- About this project's modal trigger -->
-        <button
-          type="button"
-          data-open-about-project
-          title="Acerca de este proyecto"
-          aria-label="Acerca de este proyecto"
-          class="btn btn-ghost btn-circle group"
-        >
-          <Icon
-            name="boxicons:help-circle-filled"
-            size={24}
-            class="transition-transform duration-200 ease-out group-hover:scale-110"
-            is:inline
-          />
-        </button>
+        <!-- Changelog novedades trigger -->
+        {
+          userIsLoggedIn && (
+            <a
+              href={resolveUrl("/changelog")}
+              data-changelog-trigger
+              data-changelog-latest={latestChangelogDate}
+              title="Novedades del portal"
+              aria-label="Novedades del portal"
+              class="btn btn-ghost btn-circle group relative"
+            >
+              <Icon
+                name="boxicons:news-filled"
+                size={22}
+                class="transition-transform duration-200 ease-out group-hover:scale-110"
+                is:inline
+              />
+              <span
+                data-changelog-badge
+                class="badge badge-secondary badge-xs absolute top-2 right-2 hidden size-2 p-0 rounded-full"
+                aria-hidden="true"
+              />
+            </a>
+          )
+        }
 
-        <!-- Divider -->
-        <div class="divider divider-horizontal mx-0 hidden md:flex"></div>
+        <!-- About this project's modal trigger -->
+        {
+          !minimal && (
+            <>
+              <button
+                type="button"
+                data-open-about-project
+                title="Acerca de este proyecto"
+                aria-label="Acerca de este proyecto"
+                class="btn btn-ghost btn-circle group"
+              >
+                <Icon
+                  name="boxicons:help-circle-filled"
+                  size={24}
+                  class="transition-transform duration-200 ease-out group-hover:scale-110"
+                  is:inline
+                />
+              </button>
+
+              <!-- Divider -->
+              <div class="divider divider-horizontal mx-0 hidden md:flex"></div>
+            </>
+          )
+        }
       </div>
 
       <!-- Toggle dark mode -->
@@ -170,7 +247,35 @@ const csrfToken = Astro.locals.sessionId ? getCsrfTokenForSession(Astro.locals.s
                 >
                   {user.helpdeskName ?? "Sin mesa"}
                 </span>
+                {viewAs && (
+                  <span
+                    data-view-as-label
+                    class="text-warning mt-1 block truncate text-xxs font-bold tracking-wider uppercase"
+                  >
+                    Vista previa · {viewAs.label}
+                  </span>
+                )}
               </li>
+              {
+                isHomePage && (
+                  <li>
+                    <button
+                      type="button"
+                      data-open-dashboard-config
+                      aria-controls="dashboard-config-modal"
+                      class="hidden w-full gap-2 py-2 text-left text-xs focus:bg-transparent focus:text-inherit"
+                    >
+                      <Icon
+                        name="boxicons:pencil-filled"
+                        size={16}
+                        is:inline
+                      />
+                      Personalizar inicio
+                    </button>
+                  </li>
+                )
+              }
+
               <li>
                 <a
                   href={resolveUrl("/profile")}
@@ -196,25 +301,118 @@ const csrfToken = Astro.locals.sessionId ? getCsrfTokenForSession(Astro.locals.s
                 </button>
               </li>
 
+              {
+                isRealAdmin && (
+                  <>
+                    <li class="menu-title border-base-200 text-base-content/50 mt-1 border-t px-4 py-2 text-xxs font-bold tracking-wider uppercase">
+                      {viewAs ? "Vista previa activa" : "Simular vista"}
+                    </li>
+                    {viewAs ? (
+                      <li>
+                        <form
+                          method="POST"
+                          action={`${getBaseNoSlash()}/api/admin/view-as`}
+                          class="w-full"
+                        >
+                          <input
+                            type="hidden"
+                            name="csrf_token"
+                            value={csrfToken}
+                          />
+                          <input
+                            type="hidden"
+                            name="profile"
+                            value="none"
+                          />
+                          <button
+                            type="submit"
+                            data-exit-view-as
+                            class="text-warning flex w-full cursor-pointer items-center gap-2 text-left text-xs"
+                          >
+                            <Icon
+                              name="boxicons:arrow-out-right-stroke-circle-half-filled"
+                              size={16}
+                              is:inline
+                            />
+                            Salir de la vista previa
+                          </button>
+                        </form>
+                      </li>
+                    ) : (
+                      VIEW_PROFILES.map((profile) => (
+                        <li>
+                          <form
+                            method="POST"
+                            action={`${getBaseNoSlash()}/api/admin/view-as`}
+                            class="w-full"
+                          >
+                            <input
+                              type="hidden"
+                              name="csrf_token"
+                              value={csrfToken}
+                            />
+                            <input
+                              type="hidden"
+                              name="profile"
+                              value={profile.id}
+                            />
+                            <button
+                              type="submit"
+                              data-view-as={profile.id}
+                              class="flex w-full cursor-pointer items-center gap-2 text-left text-xs"
+                            >
+                              <Icon
+                                name="boxicons:user-voice-filled"
+                                size={16}
+                                is:inline
+                              />
+                              Ver como {profile.label}
+                            </button>
+                          </form>
+                        </li>
+                      ))
+                    )}
+                  </>
+                )
+              }
+
+              {
+                canChangePassword && (
+                  <li>
+                    <button
+                      type="button"
+                      class="w-full gap-2 py-2 text-left text-xs focus:bg-transparent focus:text-inherit"
+                      aria-haspopup="dialog"
+                      onclick="document.getElementById('modal-self-password').showModal()"
+                    >
+                      <Icon name="boxicons:lock-open-filled" size={16} is:inline />
+                      Blanqueo de contraseña
+                    </button>
+                  </li>
+                )
+              }
+
               <li>
                 <form
+                  id="logout-form"
                   method="POST"
                   action={resolveUrl("/logout")}
-                  class="text-error block py-2"
+                  class="hidden"
                 >
                   <input type="hidden" name="csrf_token" value={csrfToken} />
-                  <button
-                    type="submit"
-                    class="flex w-full cursor-pointer items-center gap-2 text-left text-xs"
-                  >
-                    <Icon
-                      name="boxicons:door-open-alt-filled"
-                      size={16}
-                      is:inline
-                    />
-                    Cerrar sesión
-                  </button>
                 </form>
+                <button
+                  type="submit"
+                  form="logout-form"
+                  class="text-error w-full cursor-pointer gap-2 py-2 text-left text-xs focus:bg-transparent focus:text-inherit"
+                >
+                  <Icon
+                    name="boxicons:door-open-alt-filled"
+                    size={16}
+                    is:inline
+                  />
+                  Cerrar sesión
+                </button>
               </li>
             </ul>
           </div>
@@ -245,3 +443,36 @@ const csrfToken = Astro.locals.sessionId ? getCsrfTokenForSession(Astro.locals.s
     opacity: 1;
   }
 </style>
+
+<script>
+  function setupNavbarChangelogBadge() {
+    const trigger = document.querySelector<HTMLElement>("[data-changelog-trigger]");
+    const badge = document.querySelector<HTMLElement>("[data-changelog-badge]");
+    if (!trigger || !badge) return;
+
+    const latest = trigger.getAttribute("data-changelog-latest") || "";
+    if (!latest) {
+      badge.classList.add("hidden");
+      trigger.setAttribute("aria-label", "Novedades del portal");
+      trigger.setAttribute("title", "Novedades del portal");
+      return;
+    }
+
+    const lastRead = localStorage.getItem("portal_mda_changelog_last_read") || "";
+    if (!lastRead || lastRead < latest) {
+      badge.classList.remove("hidden");
+      trigger.setAttribute("aria-label", "Novedades del portal — hay novedades sin leer");
+      trigger.setAttribute("title", "Novedades del portal — hay novedades sin leer");
+    } else {
+      badge.classList.add("hidden");
+      trigger.setAttribute("aria-label", "Novedades del portal");
+      trigger.setAttribute("title", "Novedades del portal");
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setupNavbarChangelogBadge);
+  } else {
+    setupNavbarChangelogBadge();
+  }
+</script>

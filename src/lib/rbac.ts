@@ -75,10 +75,11 @@ export const routePermissions: RoutePermission[] = [
   { path: "/admin/feedback", roles: ["admin"] },
   { path: "/admin/permisos", roles: ["admin"] },
   { path: "/admin/papelera", roles: ["admin"] },
+  { path: "/admin/documentacion", roles: ["admin"] },
   { path: "/admin/oficinas/edificios", roles: ["admin"] },
   {
     path: "/admin/calidad/calibracion",
-    roles: ["admin", "supervisor"],
+    roles: ["admin"],
   },
   {
     path: "/admin/invgate/ubicaciones",
@@ -107,11 +108,11 @@ export const routePermissions: RoutePermission[] = [
   },
   {
     path: "/supervision/autogestiones-metricas",
-    roles: ["admin", "supervisor", "team_leader"],
+    roles: ["admin", "supervisor", "team_leader", "referent"],
   },
   {
     path: "/supervision/asignacion-autogestiones",
-    roles: ["admin", "supervisor", "team_leader", "referent", "agent"],
+    roles: ["admin", "supervisor", "team_leader", "referent"],
   },
   {
     path: "/supervision",
@@ -155,6 +156,7 @@ export const routePermissions: RoutePermission[] = [
   // Astro Actions (/_actions/*): los checks de rol viven dentro de cada
   // action (context.locals.user); el middleware solo exige sesion valida.
   { path: "/_actions", roles: ALL_ROLES },
+  { path: "/changelog", roles: ALL_ROLES },
   { path: "/profile", roles: ALL_ROLES },
   { path: "/buscador-usuarios", roles: ALL_ROLES },
   { path: "/contactos", roles: ALL_ROLES },
@@ -177,6 +179,8 @@ export const routePermissions: RoutePermission[] = [
   // Toggle de automatizaciones AGS: el gate real (referent+) vive en el endpoint
   // vía requireWriteAccess("asignacion_ag"), igual que /api/disponibilidad.
   { path: "/api/autogestion", roles: ALL_ROLES },
+  { path: "/api/ags", roles: ALL_ROLES },
+  { path: "/api/home", roles: ALL_ROLES },
   // El gate real de cada endpoint de calidad vive en requireRead/WriteAccess.
   { path: "/api/calidad", roles: ALL_ROLES },
   { path: "/api/credentials", roles: ALL_ROLES },
@@ -265,8 +269,8 @@ export function getModulePermissions(
       perm.canViewTotals = false;
     }
   } else if (moduleName === "asignacion_ag") {
-    // Todos leen
-    perm.canRead = true;
+    // Leen: referente, team_leader, supervisor, admin
+    perm.canRead = rank >= ROLE_HIERARCHY.referent;
     // Escriben: todos excepto agent
     perm.canWrite = rank >= ROLE_HIERARCHY.referent;
   } else if (moduleName === "calidad") {

@@ -49,6 +49,14 @@ async function getPasswordHash(userId: number): Promise<string> {
 
 test.describe('Self Password Change', () => {
   test.beforeEach(async ({ context }) => {
+    // El cambio exitoso revoca todas las sesiones, incluida la de este test:
+    // se recrea la fila para que cada caso arranque autenticado.
+    await db.delete(sessions).where(eq(sessions.id, testUser.sessionId));
+    await db.insert(sessions).values({
+      id: testUser.sessionId,
+      userId: testUser.userId,
+      expiresAt: Date.now() + 1000 * 60 * 60 * 24,
+    });
     await setSessionCookie(context, testUser.signedSessionId);
     await db
       .update(users)
@@ -58,20 +66,29 @@ test.describe('Self Password Change', () => {
 
   test('muestra el boton blanque en el perfil', async ({ page }) => {
     await page.goto('/profile');
-    await expect(page.getByRole('button', { name: /blanqueo de contrase[ñn]a/i })).toBeVisible();
+    await expect(
+      page.locator('main').getByRole('button', { name: /blanqueo de contrase[ñn]a/i }),
+    ).toBeVisible();
   });
 
   test('abre el modal al hacer clic en blanque', async ({ page }) => {
     await page.goto('/profile');
-    await page.getByRole('button', { name: /blanqueo de contrase[ñn]a/i }).click();
+    await page
+      .locator('main')
+      .getByRole('button', { name: /blanqueo de contrase[ñn]a/i })
+      .click();
     const dialog = page.locator('#modal-self-password');
     await expect(dialog).toBeVisible();
     await expect(dialog).toContainText('Blanquear contraseña');
+    await expect(dialog).toContainText('Último cambio');
   });
 
-  test('cambia la contraseña con datos validos en UI y muestra toast de exito', async ({ page }) => {
+  test('cambia la contraseña con datos validos en UI y cierra la sesión', async ({ page }) => {
     await page.goto('/profile');
-    await page.getByRole('button', { name: /blanqueo de contrase[ñn]a/i }).click();
+    await page
+      .locator('main')
+      .getByRole('button', { name: /blanqueo de contrase[ñn]a/i })
+      .click();
 
     const dialog = page.locator('#modal-self-password');
     await expect(dialog).toBeVisible();
@@ -87,11 +104,10 @@ test.describe('Self Password Change', () => {
     await dialog.locator('#self-new-password-repeat').fill(newPassword);
     await dialog.getByRole('button', { name: /guardar/i }).click();
 
+    await page.waitForURL(/\/login/);
     await expect(page.locator('#global-toast-container')).toContainText(
-      'Contraseña actualizada exitosamente'
+      'Contraseña actualizada'
     );
-
-    await expect(dialog).not.toBeVisible();
 
     const hashAfter = await getPasswordHash(testUser.userId);
     expect(hashAfter).not.toBe(hashBefore);
@@ -102,7 +118,10 @@ test.describe('Self Password Change', () => {
     const hashBefore = await getPasswordHash(testUser.userId);
 
     await page.goto('/profile');
-    await page.getByRole('button', { name: /blanqueo de contrase[ñn]a/i }).click();
+    await page
+      .locator('main')
+      .getByRole('button', { name: /blanqueo de contrase[ñn]a/i })
+      .click();
 
     const dialog = page.locator('#modal-self-password');
     await expect(dialog).toBeVisible();
@@ -124,7 +143,10 @@ test.describe('Self Password Change', () => {
 
   test('bloquea contraseñas que no coinciden', async ({ page }) => {
     await page.goto('/profile');
-    await page.getByRole('button', { name: /blanqueo de contrase[ñn]a/i }).click();
+    await page
+      .locator('main')
+      .getByRole('button', { name: /blanqueo de contrase[ñn]a/i })
+      .click();
 
     const dialog = page.locator('#modal-self-password');
     await expect(dialog).toBeVisible();
@@ -248,7 +270,7 @@ test.describe('Self Password Change', () => {
     expect(json.error).toContain('al menos 8 caracteres');
   });
 
-  test('actualiza el hash y revoca sesiones secundarias con datos validos', async ({ context }) => {
+  test('actualiza el hash y revoca todas las sesiones con datos validos', async ({ context }) => {
     const secondarySessionId = `session_secondary_${randomUUID()}`;
     await db.insert(sessions).values({
       id: secondarySessionId,
@@ -281,7 +303,7 @@ test.describe('Self Password Change', () => {
       .select()
       .from(sessions)
       .where(eq(sessions.id, testUser.sessionId));
-    expect(currentSession).toHaveLength(1);
+    expect(currentSession).toHaveLength(0);
 
     const newHash = await getPasswordHash(testUser.userId);
     expect(await bcrypt.compare('NuevaClave456', newHash)).toBe(true);

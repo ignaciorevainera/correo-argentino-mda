@@ -1,0 +1,43 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  title: string;
+  subtitle?: string;
+  icon: string;
+  /** Identificador del panel expuesto como `data-home-card`. */
+  panel: "week" | "quality" | "ags" | string;
+  class?: string;
+}
+
+const { title, subtitle, icon, panel, class: className = "" } = Astro.props;
+---
+
+<section
+  data-home-card={panel}
+  class:list={[
+    "card bg-base-100 border-base-200 h-full border shadow-sm",
+    className,
+  ]}
+>
+  <div class="card-body gap-3 p-3 sm:p-4">
+    <header class="flex items-start justify-between gap-3">
+      <div class="min-w-0 space-y-1">
+        <h2 class="text-base-content flex items-center gap-2 text-base font-bold">
+          <span
+            class="bg-secondary/10 text-secondary dark:bg-accent/15 dark:text-accent flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+            aria-hidden="true"
+          >
+            <Icon name={icon} size={20} is:inline />
+          </span>
+          {title}
+        </h2>
+        {subtitle && <p class="text-base-content/60 text-xs">{subtitle}</p>}
+      </div>
+    </header>
+
+    <div class="min-w-0 flex flex-1 flex-col">
+      <slot />
+    </div>
+  </div>
+</section>

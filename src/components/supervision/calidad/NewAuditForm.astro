@@ -2154,7 +2154,7 @@ const returnUrl = `${cleanBase}supervision/calidad-operadores?month=${encodeURIC
       debate?: Record<string, {
         codigo: string;
         criterioNombre: string;
-        consenso: "directo" | "arbitrado" | "sin_oposicion" | "agente_especialista" | "arbitraje_fallido";
+        consenso: "directo" | "arbitrado" | "sin_oposicion" | "agente_especialista" | "arbitraje_fallido" | "no_evaluado";
         motivo?: string;
         alphaVote?: { model: string; cumple: boolean | null; confianza: number; evidencia: string; razonamiento?: string };
         betaVote?: { model: string; cumple: boolean | null; confianza: number; evidencia: string; razonamiento?: string };
@@ -3130,7 +3130,11 @@ function evaluateOrthographyRule(title: string, description: string) {
         if (aiVerdictsList) {
           aiVerdictsList.innerHTML = "";
           json.verdicts.forEach((v: any) => {
-            selectedVerdicts.add(v.codigo);
+            const deb = json.debate?.[v.codigo];
+            const isNoEvaluado = deb?.consenso === "no_evaluado";
+            if (!isNoEvaluado) {
+              selectedVerdicts.add(v.codigo);
+            }
             const isCompliant = v.cumple === true;
             const isNull = v.cumple === null;
             const pct = Math.round((v.confianza || 0) * 100);
@@ -3141,15 +3145,16 @@ function evaluateOrthographyRule(title: string, description: string) {
             const safeEvidencia = v.evidencia ? escapeHtml(String(v.evidencia)) : "";
             const safeRazonamiento = v.razonamiento ? escapeHtml(String(v.razonamiento)) : "";
 
-            const statusBadgeClass = isNull
-              ? "border-base-300 bg-base-200 text-base-content/70"
-              : isCompliant
-                ? "border-success/30 bg-success/15 text-success"
-                : "border-error/30 bg-error/15 text-error";
-            const statusText = isNull ? "Sin evidencia" : isCompliant ? "Cumple" : "No cumple";
+            const statusBadgeClass = isNoEvaluado
+              ? "border-warning/40 bg-warning/15 text-warning font-semibold"
+              : isNull
+                ? "border-base-300 bg-base-200 text-base-content/70"
+                : isCompliant
+                  ? "border-success/30 bg-success/15 text-success"
+                  : "border-error/30 bg-error/15 text-error";
+            const statusText = isNoEvaluado ? "No evaluado" : isNull ? "Sin evidencia" : isCompliant ? "Cumple" : "No cumple";
 
             // Metadata de debate / consenso si está presente
-            const deb = json.debate?.[v.codigo];
             let consensusBadgeHtml = "";
             let debateAccordionHtml = "";
 
@@ -3162,6 +3167,8 @@ function evaluateOrthographyRule(title: string, description: string) {
                 consensusBadgeHtml = `<span class="badge badge-sm border border-secondary/40 bg-secondary/15 text-secondary font-medium">Laudo Juez Nemotron</span>`;
               } else if (deb.consenso === "arbitraje_fallido") {
                 consensusBadgeHtml = `<span class="badge badge-sm border border-warning/40 bg-warning/15 text-warning font-medium">Arbitraje Fallido</span>`;
+              } else if (deb.consenso === "no_evaluado") {
+                consensusBadgeHtml = `<span class="badge badge-sm border border-warning/40 bg-warning/15 text-warning font-medium">Agente no disponible</span>`;
               } else if (deb.consenso === "agente_especialista" || deb.consenso === "sin_oposicion") {
                 const label = deb.alphaVote ? "Alpha (Procesos)" : deb.betaVote ? "Beta (Comunicación)" : "Especialista";
                 consensusBadgeHtml = `<span class="badge badge-sm border border-base-300 bg-base-200 text-base-content/80 font-medium">${label}</span>`;
@@ -3254,7 +3261,7 @@ function evaluateOrthographyRule(title: string, description: string) {
                 type="checkbox"
                 class="ai-verdict-toggle checkbox checkbox-sm checkbox-secondary rounded-sm border-base-300 shadow-none mt-1 shrink-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-secondary/40"
                 data-code="${safeCode}"
-                checked
+                ${!isNoEvaluado ? "checked" : ""}
               />
             `;
             aiVerdictsList.appendChild(row);

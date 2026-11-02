@@ -1,0 +1,125 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import DocArticle from "@components/admin/docs/DocArticle.astro";
+import DocSidebar from "@components/admin/docs/DocSidebar.astro";
+import { Icon } from "astro-icon/components";
+import {
+  getAdjacentDocs,
+  getDocBySlug,
+  getDocSections,
+  getDocUrl,
+  getDocsIndexUrl,
+  renderDocHtml,
+} from "@lib/docs/docsCatalog";
+
+export const prerender = false;
+
+const slug = String(Astro.params.slug ?? "");
+const doc = getDocBySlug(slug);
+
+if (!doc) {
+  Astro.response.status = 404;
+}
+
+const sections = getDocSections();
+const html = doc ? renderDocHtml(doc.slug) : null;
+const adjacent = doc
+  ? getAdjacentDocs(doc.slug)
+  : { previous: null, next: null };
+---
+
+<BaseLayout title={`${doc ? `${doc.title} | ` : ""}Documentación MDA`}>
+  <PageContainer width="xxl" gap="lg" class="py-6">
+    {
+      doc && html ? (
+        <>
+          <div class="flex flex-col gap-2">
+            <a
+              href={getDocsIndexUrl()}
+              class="text-base-content/60 hover:text-secondary inline-flex items-center gap-1 text-sm font-semibold"
+            >
+              <Icon name="boxicons:arrow-big-left-filled" size={24} />
+              Documentación
+            </a>
+            <div class="text-base-content/60 flex flex-wrap items-center gap-2 text-sm">
+              <span>{doc.sectionLabel}</span>
+              <span aria-hidden="true">/</span>
+              <span class="text-base-content/80">{doc.title}</span>
+              <span aria-hidden="true">·</span>
+              <code class="text-base-content/40 text-[0.7rem]">
+                {doc.filePath}
+              </code>
+            </div>
+          </div>
+
+          <div class="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]">
+            <DocSidebar sections={sections} activeSlug={doc.slug} />
+
+            <main class="min-w-0">
+              <DocArticle html={html} />
+
+              {(adjacent.previous || adjacent.next) && (
+                <nav
+                  class="mt-8 grid gap-3 sm:grid-cols-2"
+                  aria-label="Documento anterior y siguiente"
+                >
+                  {adjacent.previous ? (
+                    <a
+                      href={getDocUrl(adjacent.previous.slug)}
+                      class="border-base-300 bg-base-100 hover:border-secondary/60 rounded-box border p-4 transition-colors"
+                    >
+                      <span class="text-base-content/50 text-xs font-semibold">
+                        ← Anterior
+                      </span>
+                      <span class="text-base-content mt-1 block text-sm font-semibold">
+                        {adjacent.previous.title}
+                      </span>
+                    </a>
+                  ) : (
+                    <span />
+                  )}
+                  {adjacent.next ? (
+                    <a
+                      href={getDocUrl(adjacent.next.slug)}
+                      class="border-base-300 bg-base-100 hover:border-secondary/60 rounded-box border p-4 text-right transition-colors"
+                    >
+                      <span class="text-base-content/50 text-xs font-semibold">
+                        Siguiente →
+                      </span>
+                      <span class="text-base-content mt-1 block text-sm font-semibold">
+                        {adjacent.next.title}
+                      </span>
+                    </a>
+                  ) : (
+                    <span />
+                  )}
+                </nav>
+              )}
+            </main>
+          </div>
+        </>
+      ) : (
+        <div class="mx-auto max-w-xl space-y-4 py-10 text-center">
+          <Icon
+            name="boxicons:file-detail-filled"
+            size={48}
+            class="text-base-content/40 mx-auto"
+          />
+          <h1 class="text-base-content text-2xl font-bold">
+            Documento no encontrado
+          </h1>
+          <p class="text-base-content/60 text-sm">
+            El documento que buscás no existe o fue movido.
+          </p>
+          <a
+            href={getDocsIndexUrl()}
+            class="btn btn-secondary btn-sm text-secondary-content"
+          >
+            Volver a documentación
+          </a>
+        </div>
+      )
+    }
+  </PageContainer>
+</BaseLayout>

@@ -5,6 +5,9 @@ import {
   computeSimpleDiff,
   extractCalibrationMetadata,
   formatCalibrationComment,
+  hasCalibrationComment,
+  replaceCalibrationComment,
+  upsertCalibrationComment,
   normalizeRuleText,
   checkCausalHint,
   insertRuleIntoBlock,
@@ -149,6 +152,17 @@ describe("rubricValidator - extractCalibrationMetadata & formatCalibrationCommen
     const meta = extractCalibrationMetadata(cleanBlock);
     assert.equal(meta, null);
   });
+
+  it("extrae metadatos correctamente aún cuando info contiene guiones (ej. caso #ticket-123 o falso-positivo) (#370/MEDIO 5)", () => {
+    const blockWithHyphens = `## criterio: call_ticket_tipo
+<!-- calibrado: 2026-10-18 | falso-positivo | caso #ticket-98765-ext -->
+- **Nombre:** Test`;
+    const meta = extractCalibrationMetadata(blockWithHyphens);
+    assert.ok(meta, "Debe extraer metadatos sin fallar por guiones");
+    assert.equal(meta.date, "2026-10-18");
+    assert.equal(meta.info, "falso-positivo | caso #ticket-98765-ext");
+    assert.equal(meta.raw, "<!-- calibrado: 2026-10-18 | falso-positivo | caso #ticket-98765-ext -->");
+  });
 });
 
 describe("rubricValidator - normalizeRuleText & checkCausalHint", () => {
@@ -263,6 +277,43 @@ describe("rubricValidator - insertRuleIntoBlock (No-destructivo byte a byte)", (
     assert.equal(res.success, false);
     assert.equal(res.newBlock, VALID_SAMPLE_BLOCK);
     assert.ok(res.errors[0].includes("vacío"));
+  });
+});
+
+describe("rubricValidator - hasCalibrationComment, replaceCalibrationComment y upsertCalibrationComment (#370)", () => {
+  const blockWithCanonicalComment = `## criterio: call_ticket_tipo
+<!-- calibrado: 2026-10-17 | FP×2 | caso #90123 -->
+- **Nombre:** Tipo de solicitud (Llamada Wise)`;
+
+  const blockWithoutComment = `## criterio: call_ticket_tipo
+- **Nombre:** Tipo de solicitud (Llamada Wise)`;
+
+  it("hasCalibrationComment reconoce el comentario canónico con fecha ISO y guiones", () => {
+    assert.equal(hasCalibrationComment(blockWithCanonicalComment), true);
+    assert.equal(hasCalibrationComment(blockWithoutComment), false);
+  });
+
+  it("replaceCalibrationComment reemplaza el comentario canónico completo por uno nuevo", () => {
+    const updated = replaceCalibrationComment(
+      blockWithCanonicalComment,
+      "<!-- calibrado: 2026-10-20 | Falso Positivo | caso #99999 -->",
+    );
+    assert.ok(updated.includes("<!-- calibrado: 2026-10-20 | Falso Positivo | caso #99999 -->"));
+    assert.ok(!updated.includes("2026-10-17"));
+    assert.ok(!updated.includes("90123"));
+  });
+
+  it("upsertCalibrationComment actualiza el comentario existente o lo inyecta bajo el encabezado de criterio", () => {
+    const newComment = "<!-- calibrado: 2026-10-20 | Calibración | caso #12345 -->";
+
+    // Caso 1: ya tiene comentario
+    const updated1 = upsertCalibrationComment(blockWithCanonicalComment, "call_ticket_tipo", newComment);
+    assert.ok(updated1.includes(newComment));
+    assert.ok(!updated1.includes("2026-10-17"));
+
+    // Caso 2: no tiene comentario
+    const updated2 = upsertCalibrationComment(blockWithoutComment, "call_ticket_tipo", newComment);
+    assert.ok(updated2.includes(`## criterio: call_ticket_tipo\n${newComment}\n`));
   });
 });
 

@@ -1,14 +1,17 @@
 import type { APIRoute } from "astro";
 import { db } from "@db/index";
 import { sessions, users } from "@db/schema";
-import { and, eq, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { passwordSchema, hashPassword } from "@lib/security";
 import { logAdminFromAstro } from "@lib/auditLogger";
 import { jsonResponse, jsonError } from "@lib/apiResponse";
 import { validateRequestCsrf, validateCsrfToken } from "@lib/csrf";
+import { deleteSessionCookie } from "@lib/session";
+import { invalidateUserSessionsCache } from "@lib/sessionCache";
+import { resolveUrl } from "@lib/url";
 
-export const POST: APIRoute = async ({ request, locals }) => {
+export const POST: APIRoute = async ({ request, locals, cookies }) => {
   const user = locals.user;
   if (!user || user.id === 0) {
     return jsonError("Sesión no iniciada", 401);
@@ -69,27 +72,26 @@ export const POST: APIRoute = async ({ request, locals }) => {
     const hashedPassword = await hashPassword(newPassword);
     db.transaction((tx) => {
       tx.update(users)
-        .set({ password: hashedPassword })
+        .set({ password: hashedPassword, passwordChangedAt: new Date() })
         .where(eq(users.id, user.id))
         .run();
 
-      if (locals.sessionId) {
-        tx.delete(sessions)
-          .where(
-            and(
-              eq(sessions.userId, user.id),
-              ne(sessions.id, locals.sessionId),
-            ),
-          )
-          .run();
-      }
+      // Se cierran TODAS las sesiones, incluida la actual: el cambio de clave
+      // invalida el acceso de inmediato y obliga a reautenticarse.
+      tx.delete(sessions).where(eq(sessions.userId, user.id)).run();
     });
+
+    invalidateUserSessionsCache(user.id);
+    deleteSessionCookie(cookies);
 
     await logAdminFromAstro(locals, "Cambió su propia contraseña");
 
     return jsonResponse({
       success: true,
-      message: "Contraseña actualizada exitosamente",
+      message: "Contraseña actualizada. Iniciá sesión nuevamente.",
+      redirectUrl: resolveUrl(
+        `/login?toast_msg=${encodeURIComponent("Contraseña actualizada. Iniciá sesión nuevamente.")}&toast_type=success`,
+      ),
     });
   } catch (e) {
     console.error("Change password error:", e);

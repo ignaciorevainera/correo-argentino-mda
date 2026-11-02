@@ -311,6 +311,8 @@ Todas las graficas del portal usan `src/components/ui/ChartCard.astro` (con `cha
 | 11  | `/automatizaciones`      | Monitoreo de workflows de automatizacion de sucursales (InvGate). Lectura (listado y detalle) para todos los usuarios con sesion iniciada. Cierre/reapertura local (portal, no InvGate) y edicion de datos manuales para `supervisor`+ desde el detalle cuando el progreso supera `AUTOMATION_CLOSE_THRESHOLD` (80%); auto-finalizado al 100% sin etapas bloqueantes faltantes. Listado con busqueda y filtros (estado/region/antiguedad), orden (nuevas/antiguas/actualizadas), vista tarjetas/tabla y export CSV (`/api/automatizaciones/export.csv`) |
 | 11b | `/automatizaciones/metricas` | KPIs del flujo (total, WIP, finalizadas, lead time, SLA, tiempo trabajado), resumen ejecutivo, gráficos (líneas de casos/tiempo de ciclo por mes, donuts de región y SLA), ritmo de cierre + ETA del backlog, backlog por antiguedad, ranking de sucursales y monitoreo post-automatización (errores Mosaic por sucursal). Se calculan sobre el historial local (`automation_parents` + `automation_closures` + `automation_activity_days`), sin consultar InvGate salvo la vista Mosaic. Lectura para todos los logueados |
 
+| 12  | `/changelog`             | Visor de novedades y cambios del portal MDA con resumenes claros y filtro por seccion |
+
 ### Supervision (sub-rutas)
 
 | Ruta                                    | Descripcion                             |

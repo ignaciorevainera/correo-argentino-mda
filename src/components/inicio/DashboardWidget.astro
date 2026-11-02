@@ -1,0 +1,86 @@
+---
+/**
+ * Renderiza un widget del home según su id y el slot que ocupa.
+ *
+ * La card grande usa la versión completa; la columna derecha, las compactas
+ * (ej. sugerencias sin listado, auditoría con menos filas).
+ */
+import WeekPanel from "./WeekPanel.astro";
+import QualityPanel from "./QualityPanel.astro";
+import QualityTeamPanel from "./QualityTeamPanel.astro";
+import AutomationPanel from "./AutomationPanel.astro";
+import FeedbackPanel from "./FeedbackPanel.astro";
+import UsersPanel from "./UsersPanel.astro";
+import AuditPanel from "./AuditPanel.astro";
+import AgsPanel from "./AgsPanel.astro";
+import type { DashboardWidgetId } from "@lib/inicio/dashboardLayout";
+import type { PersonalWeek } from "@lib/inicio/personalWeekLoader";
+import type { QualitySummary } from "@lib/inicio/qualitySummary";
+import type {
+  AdminUsersSummary,
+  AuditLogEntry,
+  AutomationSummary,
+  FeedbackSummary,
+  QualityTeamSummary,
+} from "@lib/inicio/homeSummaries";
+
+interface Props {
+  widget: DashboardWidgetId;
+  slot?: "big" | "side1" | "side2";
+  week?: PersonalWeek | null;
+  quality?: QualitySummary | null;
+  qualityTeam?: QualityTeamSummary | null;
+  automation?: AutomationSummary | null;
+  feedback?: FeedbackSummary | null;
+  users?: AdminUsersSummary | null;
+  audit?: AuditLogEntry[] | null;
+}
+
+const {
+  widget,
+  slot = "big",
+  week = null,
+  quality = null,
+  qualityTeam = null,
+  automation = null,
+  feedback = null,
+  users = null,
+  audit = null,
+} = Astro.props;
+
+const isSide = slot !== "big";
+const auditLimit = slot === "big" ? 5 : slot === "side2" ? 3 : 2;
+---
+
+{
+  widget === "week" && week && <WeekPanel week={week} />
+}
+{
+  widget === "quality" && quality && <QualityPanel summary={quality} />
+}
+{
+  widget === "quality-team" && qualityTeam && (
+    <QualityTeamPanel summary={qualityTeam} />
+  )
+}
+{
+  widget === "automation" && automation && (
+    <AutomationPanel summary={automation} />
+  )
+}
+{
+  widget === "feedback" && feedback && (
+    <FeedbackPanel summary={feedback} compact={isSide} />
+  )
+}
+{
+  widget === "users" && users && <UsersPanel summary={users} />
+}
+{
+  widget === "audit" && audit && <AuditPanel entries={audit} limit={auditLimit} />
+}
+{
+  widget === "ags" && (
+    <AgsPanel variant={slot === "big" ? "big" : "compact"} />
+  )
+}

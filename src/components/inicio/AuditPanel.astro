@@ -1,0 +1,36 @@
+---
+import ActionButton from "@components/ui/ActionButton.astro";
+import HomePanelCard from "./HomePanelCard.astro";
+import AuditLogCard from "./AuditLogCard.astro";
+import type { AuditLogEntry } from "@lib/inicio/homeSummaries";
+
+interface Props {
+  entries: AuditLogEntry[];
+  /** Filas según el slot: grande 5, mediana 3, chica 2. */
+  limit?: number;
+}
+
+const { entries, limit = 5 } = Astro.props;
+---
+
+<HomePanelCard
+  panel="audit"
+  title="Registro de auditoría"
+  subtitle="Últimos movimientos"
+  icon="boxicons:history-filled"
+>
+  <AuditLogCard entries={entries} limit={limit}>
+    <ActionButton
+      slot="action"
+      href="/admin/auditoria"
+      label="Ver más"
+      icon="boxicons:chevron-right"
+      variant="soft"
+      color="btn-secondary"
+      size="xs"
+      class="dark:btn-accent"
+      ariaLabel="Ver más: Registro de auditoría"
+      data-home-more="audit"
+    />
+  </AuditLogCard>
+</HomePanelCard>

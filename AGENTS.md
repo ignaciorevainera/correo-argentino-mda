@@ -42,11 +42,14 @@
 
 ## Testing
 
-- `npm run test:domain` — tests de dominio con `node:test` sobre los 7 archivos `*.test.ts` de `src/lib/` (52 tests). **No los cubre vitest**: `vitest.config.ts` incluye únicamente `tests/unit/**`.
-- `npm run test:unit` — vitest sobre `tests/unit/**` (48 archivos, 332 tests). Hay **1 fallo pre-existente** en `tests/unit/navigation/base-conocimiento.test.ts` (no relacionado con edificios); no scopear el glob, ya no hace falta.
-- `npm test` — `test:domain` primero y después `test:unit`. Sale con código 1 hoy por ese fallo pre-existente; el dominio corre primero para que una regresión real no quede enmascarada.
+- `npm run test:domain` — tests de dominio con `node:test` sobre los `*.test.ts` de `src/lib/` + `src/pages/api/calidad/*.test.ts` (329 tests). **No los cubre vitest**: `vitest.config.ts` incluye únicamente `tests/unit/**`.
+- `npm run test:unit` — vitest sobre `tests/unit/**` (701 tests). Hay **3 fallos pre-existentes**: dos en `tests/unit/phase1-buttons-standardization.test.ts` (el `Cancelar` de `src/pages/profile.astro` ya no es un `ActionButton` tras el cambio de blanqueo de contraseña, y la assertion de `DirectorioContent`) y uno en `tests/unit/challenger-remaining-empirical.test.ts` (paginación); no scopear el glob.
+- `npm test` — `test:domain` primero y después `test:unit`. Sale con código 1 hoy por esos fallos pre-existentes; el dominio corre primero para que una regresión real no quede enmascarada.
 - `npm run test:e2e` — Playwright completo (`tests/**/*.spec.ts`). Workers: 1 (serial). Requiere dev server; ver "Puertos de la suite E2E" abajo.
+- `npm run test:e2e:home` — solo el spec del home personalizado (26 tests: perfiles, calidad-only, simulador de vista, configurador de widgets y de accesos de abajo, vínculo de agente y CSRF).
 - `npm run test:e2e:reconcile` — solo el spec de reconciliación de edificios (7 tests).
+- `npm run changelog:validate` — valida integridad de archivos Markdown en `src/config/changelog/` (fechas ISO, existencia de commits en git, ausencia de commits duplicados entre releases, ausencia de links markdown externos y parseo exitoso).
+- `npm run changelog:prune` — dry-run: lista los changelogs fuera de la ventana de retención (3 meses, anclada al release más reciente). `-- --apply` los borra del disco.
 - `npx playwright show-report` — reporte HTML + trazas.
 - No hay CI: los tests corren a mano.
 - La sección **Testing policy** (arriba) gobierna cómo se _escriben_ los tests; esta gobierna cómo se _ejecutan_.

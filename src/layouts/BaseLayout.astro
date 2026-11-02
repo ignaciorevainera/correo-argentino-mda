@@ -18,6 +18,9 @@ import { COLUMN_CAP_SM, COLUMN_CAP_LG } from "@lib/enlacesColumns";
 import { DEFAULT_VIEW_COLUMNS } from "@lib/viewMode";
 import { ClientRouter } from "astro:transitions";
 import { getCsrfTokenForSession } from "@lib/csrf";
+import { db } from "@db/index";
+import { users } from "@db/schema";
+import { eq } from "drizzle-orm";
 
 // Components
 import { Navbar, DrawerContent } from "./_components";
@@ -25,8 +28,10 @@ import {
   AboutProjectModal,
   FeedbackModal,
   CommandPaletteModal,
+  PasswordChangeModal,
 } from "@/components/ui/modals";
 import ToastContainer from "@components/ui/ToastContainer.astro";
+import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
 import AdminChatbotWidget from "@/components/admin/ai/AdminChatbotWidget";
 
 interface Props {
@@ -73,6 +78,7 @@ const getRelativePath = (path: string) => {
 };
 
 const relativeCurrentPath = getRelativePath(currentPath);
+const isLoginRoute = /^\/login\/?$/.test(relativeCurrentPath);
 
 /**
  * View transitions scoped al módulo de automatizaciones: el ClientRouter
@@ -91,9 +97,33 @@ const isActiveRoute = (href: string) =>
 
 const user = Astro.locals.user;
 const normalizedUserRole = normalizeRole(user.role);
+const viewAs = Astro.locals.viewAs;
+// Rol efectivo para la capa de presentación (sidebar/home/cards). La cookie
+// sólo la aplica el middleware si el rol real es admin.
+const effectiveRole = viewAs?.role ?? normalizedUserRole;
+const effectiveMesa = user?.helpdeskName ?? (viewAs ? "TI_GSM_MDA TI" : null);
+const isRealAdmin = normalizedUserRole === "admin";
+const isPublicGeneratorRoute =
+  user.id === 0 && /^\/generador-firmas\/?$/.test(relativeCurrentPath);
+
+let canChangePassword = false;
+let passwordChangedAt: Date | null = null;
+if (user.id > 0) {
+  const [account] = await db
+    .select({
+      authProvider: users.authProvider,
+      hasPassword: users.password,
+      passwordChangedAt: users.passwordChangedAt,
+    })
+    .from(users)
+    .where(eq(users.id, user.id));
+  canChangePassword =
+    account?.authProvider === "local" && Boolean(account.hasPassword);
+  passwordChangedAt = account?.passwordChangedAt ?? null;
+}
 
 let unassignedFeedbackCount = 0;
-if (normalizedUserRole === "admin") {
+if (effectiveRole === "admin") {
   unassignedFeedbackCount = await getUnassignedFeedbackCount();
 }
 
@@ -108,8 +138,8 @@ const isRouteLocked = (href: string): boolean => {
   ) {
     return true;
   }
-  if (!hasPermission(href, normalizedUserRole)) return true;
-  if (!isSectionVisibleSync(user.helpdeskName, user.role, href)) return true;
+  if (!hasPermission(href, effectiveRole)) return true;
+  if (!isSectionVisibleSync(effectiveMesa, effectiveRole, href)) return true;
   return false;
 };
 
@@ -235,26 +265,72 @@ const globalFontFaceCss = `
   <body
     class="bg-base-100 text-base-content min-h-screen max-w-full overflow-x-hidden"
   >
-    <div class="drawer lg:drawer-open h-screen overflow-hidden">
-      <input
-        id="main-drawer"
-        type="checkbox"
-        class="drawer-toggle"
-        aria-label="toggle sidebar"
-      />
-      <!-- Drawer content -->
-      <DrawerContent
-        visibleNavSections={visibleNavSections}
-        isActiveRoute={isActiveRoute}
-        isRouteLocked={isRouteLocked}
-        unassignedFeedbackCount={unassignedFeedbackCount}
-      />
+    {
+      isLoginRoute ? (
+        // El login define su propio layout (panel de marca + formulario).
+        <div class="min-h-screen">
+          <slot />
+        </div>
+      ) : isPublicGeneratorRoute ? (
+        <div class="flex h-screen flex-col overflow-hidden">
+          <Navbar
+            user={user}
+            normalizedUserRole={normalizedUserRole}
+            minimal
+          />
+          <main class="flex-1 overflow-x-hidden overflow-y-auto p-4 [scrollbar-gutter:stable_both-edges] md:p-6">
+            <slot />
+          </main>
+        </div>
+      ) : (
+        <div class="drawer lg:drawer-open h-screen overflow-hidden">
+          <input
+            id="main-drawer"
+            type="checkbox"
+            class="drawer-toggle"
+            aria-label="toggle sidebar"
+          />
+          <DrawerContent
+            visibleNavSections={visibleNavSections}
+            isActiveRoute={isActiveRoute}
+            isRouteLocked={isRouteLocked}
+            unassignedFeedbackCount={unassignedFeedbackCount}
+          />
 
-      <div
-        class="drawer-content flex h-screen max-w-full flex-col overflow-hidden"
-      >
+          <div class="drawer-content flex h-screen max-w-full flex-col overflow-hidden">
         <!-- Navbar -->
-        <Navbar user={user} normalizedUserRole={normalizedUserRole} />
+        <Navbar
+          user={user}
+          normalizedUserRole={effectiveRole}
+          isRealAdmin={isRealAdmin}
+          viewAs={viewAs}
+          canChangePassword={canChangePassword}
+        />
+
+        {
+          viewAs && (
+            <div
+              data-view-as-banner
+              class="border-secondary/30 bg-secondary/10 text-secondary dark:border-accent/40 dark:bg-accent/10 dark:text-accent flex flex-wrap items-center justify-between gap-2 border-b px-4 py-1.5 text-xs"
+            >
+              <span>
+                Viendo como <strong>{viewAs.label}</strong> · vista previa (tus
+                permisos reales no cambian)
+              </span>
+              <form method="POST" action={`${cleanBase}api/admin/view-as`}>
+                <input type="hidden" name="csrf_token" value={csrfToken} />
+                <input type="hidden" name="profile" value="none" />
+                <button
+                  type="submit"
+                  class="btn btn-soft btn-secondary dark:btn-accent btn-xs"
+                  data-exit-view-as
+                >
+                  Salir
+                </button>
+              </form>
+            </div>
+          )
+        }
 
         <!-- Main content -->
         <main
@@ -264,14 +340,29 @@ const globalFontFaceCss = `
         </main>
       </div>
     </div>
+      )
+    }
   </body>
 
   <!-- Modals & Toast's container-->
-  <CommandPaletteModal items={quickAccessItems} isRouteLocked={isRouteLocked} />
-  <AboutProjectModal />
+  {
+    !isLoginRoute && !isPublicGeneratorRoute && (
+      <>
+        <CommandPaletteModal
+          items={quickAccessItems}
+          isRouteLocked={isRouteLocked}
+        />
+        <AboutProjectModal />
+      </>
+    )
+  }
   <FeedbackModal />
+  {canChangePassword && (
+    <PasswordChangeModal lastChangedAt={passwordChangedAt} />
+  )}
   <ToastContainer />
-  {normalizedUserRole === "admin" && (
+  <AsyncFormScript />
+  {effectiveRole === "admin" && (
     <div class="hidden md:block">
       <AdminChatbotWidget client:idle />
     </div>

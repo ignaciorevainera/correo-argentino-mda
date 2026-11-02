@@ -13,12 +13,6 @@ import {
   getVisibleProfileAccess,
 } from "@lib/profileAccess";
 import { normalizeRole } from "@lib/rbac";
-import Modal from "@components/ui/Modal.astro";
-import PasswordField from "@components/ui/forms/PasswordField.astro";
-import FormLegend from "@components/ui/forms/FormLegend.astro";
-import AsyncFormScript from "@components/admin/ui/AsyncFormScript.astro";
-import { getBaseNoSlash } from "@lib/baseUrl";
-import { getCsrfTokenForSession } from "@lib/csrf";
 import { db } from "@db/index";
 import { users } from "@db/schema";
 import { eq } from "drizzle-orm";
@@ -64,8 +58,6 @@ const role = normalizeRole(user.role);
 const roleLabel = roleLabelMap[role] ?? "Agente";
 const avatarClass = roleAvatarClasses[role] ?? roleAvatarClasses.agent;
 const badgeClass = badgeClasses[role] ?? badgeClasses.agent;
-const apiBase = getBaseNoSlash();
-const csrfToken = getCsrfTokenForSession(Astro.locals.sessionId);
 
 const { employee, agent, sessionExpiresAt } = await getProfileDetails({
   userId: user.id,
@@ -368,82 +360,5 @@ const participations = agent
         }
       </section>
     </div>
-
-    <Modal id="modal-self-password" size="sm">
-      <Fragment slot="content">
-        <h3 class="text-base-content mb-1 text-base font-semibold">
-          Blanquear contraseña
-        </h3>
-        <p class="text-base-content/60 mb-4 text-xs">
-          Cambiá la contraseña de tu cuenta. Por seguridad, se cerrarán las
-          demás sesiones activas.
-        </p>
-        <form
-          method="POST"
-          action={`${apiBase}/api/profile/change-password`}
-          class="space-y-3"
-          data-async-form
-        >
-          <input type="hidden" name="csrf_token" value={csrfToken} />
-          <fieldset class="fieldset">
-            <FormLegend class="font-bold tracking-wider">
-              Contraseña actual <span class="text-error">*</span>
-            </FormLegend>
-            <input
-              type="password"
-              id="self-current-password"
-              name="currentPassword"
-              required
-              autocomplete="current-password"
-              class="input input-sm w-full"
-              placeholder="Ingresá tu contraseña actual"
-            />
-          </fieldset>
-          <PasswordField
-            id="self-new-password"
-            name="newPassword"
-            required
-            label="Nueva contraseña"
-            confirmPassword={true}
-            confirmLabel="Repetir nueva contraseña"
-            autocomplete="new-password"
-            inputClass="input-sm"
-          />
-          <div
-            class="border-base-200 mt-4 flex items-center justify-end gap-2 border-t pt-3"
-          >
-            <ActionButton
-              type="button"
-              variant="soft"
-              color="btn-error"
-              label="Cancelar"
-              onclick="this.closest('dialog').close()"
-            />
-            <ActionButton
-              type="submit"
-              color="btn-warning"
-              label="Guardar"
-              icon="boxicons:check-filled"
-            />
-          </div>
-        </form>
-      </Fragment>
-    </Modal>
   </PageContainer>
-
-  <AsyncFormScript />
-
-  <script>
-    document.addEventListener("async-form:success", (e) => {
-      const form = e.target as HTMLFormElement;
-      if (form.closest("#modal-self-password")) {
-        form.reset();
-        (
-          document.getElementById(
-            "modal-self-password",
-          ) as HTMLDialogElement | null
-        )?.close();
-      }
-    });
-  </script>
 </BaseLayout>

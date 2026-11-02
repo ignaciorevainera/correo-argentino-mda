@@ -16,6 +16,7 @@ import {
   resolveSessionUser,
   invalidateSessionCache,
 } from "./lib/sessionCache";
+import { resolveViewAs, VIEW_AS_COOKIE } from "./lib/viewSimulation";
 import { assertServerEnv } from "./lib/env";
 assertServerEnv();
 
@@ -300,6 +301,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   locals.user = currentUser;
   locals.sessionId = sessionId;
+  // Simulación de vista: sólo se aplica si el rol real es admin (fail-closed).
+  locals.viewAs = resolveViewAs(
+    currentUser.role,
+    cookies.get(VIEW_AS_COOKIE)?.value,
+  );
 
   const rateLimited = applyRateLimit(context, relativePath);
   if (rateLimited) {

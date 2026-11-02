@@ -1,0 +1,176 @@
+---
+import type { PersonalWeekDay } from "@lib/inicio/personalWeek";
+
+interface Props {
+  days: PersonalWeekDay[];
+  rangeLabel: string;
+}
+
+const { days, rangeLabel } = Astro.props;
+
+interface StatusMeta {
+  label: string;
+  tone: string;
+}
+
+// Los estados son los mismos que usa el cronograma. Tonos con tokens DaisyUI:
+// presencial en secondary sólido y Home Office en secondary outline. En modo
+// oscuro el azul secondary (#254888) no contrasta, así que se pasa al accent
+// (#5f88d3), el mismo acento que usa /automatizaciones.
+const STATUS_META: Record<string, StatusMeta> = {
+  "Presencial Monte Grande": {
+    label: "MG",
+    tone: "badge-secondary dark:badge-accent",
+  },
+  "Presencial Parque Patricios": {
+    label: "PP",
+    tone: "badge-secondary dark:badge-accent",
+  },
+  "Home Office": {
+    label: "HO",
+    tone: "badge-outline badge-secondary dark:badge-accent",
+  },
+  Vacaciones: { label: "VAC", tone: "badge-success" },
+  Licencia: { label: "LIC", tone: "badge-error" },
+  Franco: { label: "F", tone: "badge-ghost" },
+};
+
+const statusMeta = (status: string): StatusMeta =>
+  STATUS_META[status] ?? {
+    label: status.length > 4 ? status.slice(0, 4).toUpperCase() : status.toUpperCase(),
+    tone: "badge-neutral",
+  };
+
+// Nombre legible de la modalidad (descomenta los códigos MG/PP/HO).
+const statusLabel = (status: string): string =>
+  status === "Presencial Monte Grande"
+    ? "Presencial MG"
+    : status === "Presencial Parque Patricios"
+      ? "Presencial PP"
+      : status;
+
+const dayNumber = (date: string): string => date.slice(8, 10);
+
+// Resumen de la semana: ocupa el aire de la card y ayuda a leer los códigos.
+const summary = days.reduce(
+  (acc, day) => {
+    if (
+      day.status === "Presencial Monte Grande" ||
+      day.status === "Presencial Parque Patricios"
+    ) {
+      acc.presencial++;
+    } else if (day.status === "Home Office") {
+      acc.homeOffice++;
+    } else if (day.status === "Vacaciones" || day.status === "Licencia") {
+      acc.ausencia++;
+    } else {
+      acc.franco++;
+    }
+    return acc;
+  },
+  { presencial: 0, homeOffice: 0, ausencia: 0, franco: 0 },
+);
+
+const summaryItems = [
+  { count: summary.presencial, label: "presencial", dot: "bg-secondary" },
+  { count: summary.homeOffice, label: "home office", dot: "bg-secondary/40" },
+  { count: summary.ausencia, label: "ausencia", dot: "bg-success" },
+  { count: summary.franco, label: "franco", dot: "bg-base-300" },
+].filter((item) => item.count > 0);
+---
+
+<div class="flex @container flex-1 flex-col">
+  <p class="text-base-content/60 mb-3 flex-none text-xs font-medium">
+    Semana del <span class="text-base-content/80 font-semibold">{rangeLabel}</span>
+    {days.some((day) => day.isToday) && (
+      <span class="badge badge-secondary badge-soft dark:badge-accent badge-xs ml-1 align-middle">
+        Hoy
+      </span>
+    )}
+  </p>
+
+  <div class="grid flex-1 auto-rows-fr grid-cols-2 gap-1.5 @sm:grid-cols-3 @2xl:grid-cols-6">
+  {
+    days.map((day) => {
+      const meta = statusMeta(day.status);
+      return (
+        <div
+          data-week-day
+          data-week-date={day.date}
+          data-week-status={day.status}
+          data-today={day.isToday ? "true" : undefined}
+          data-week-holiday={day.holiday ?? undefined}
+          title={
+            day.holiday
+              ? `${day.dayName} ${dayNumber(day.date)} · ${day.status} · Feriado: ${day.holiday}`
+              : `${day.dayName} ${dayNumber(day.date)} · ${day.status}`
+          }
+          class:list={[
+            "flex h-full min-w-0 flex-col justify-center gap-1.5 rounded-xl border p-2",
+            day.isToday
+              ? "border-secondary bg-secondary/5 ring-secondary/30 dark:border-accent dark:bg-accent/10 dark:ring-accent/30 ring-2"
+              : "border-base-200 bg-base-200/30 dark:bg-base-200/40",
+          ]}
+        >
+          <div class="flex flex-col gap-1.5">
+            <div class="flex items-baseline justify-between gap-1">
+              <span class="text-base-content/60 text-xxs font-black uppercase tracking-wide">
+                {day.shortLabel}
+              </span>
+              <span class="text-base-content/60 font-mono text-xxs">
+                {dayNumber(day.date)}
+              </span>
+            </div>
+
+            <span class:list={["badge badge-sm self-start font-bold", meta.tone]}>
+              {meta.label}
+            </span>
+
+            <span class="text-base-content/60 text-xxs leading-tight">
+              {statusLabel(day.status)}
+            </span>
+          </div>
+
+          <div class="flex min-w-0 flex-col gap-0.5">
+            <span class="text-base-content/80 truncate font-mono text-xs tracking-tight">
+              {day.horario || "—"}
+            </span>
+
+            {day.breakInicio && (
+              <span class="text-base-content/60 text-xxs">
+                Break {day.breakInicio}-{day.breakFin}
+              </span>
+            )}
+
+            {day.holiday && (
+              <span class="text-info truncate text-xxs font-bold">
+                {day.holiday}
+              </span>
+            )}
+          </div>
+        </div>
+      );
+    })
+  }
+  </div>
+
+  <div
+    data-week-summary
+    class="border-base-200 text-base-content/60 mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-2.5 text-xxs"
+  >
+    {
+      summaryItems.map((item) => (
+        <span class="flex items-center gap-1.5">
+          <span
+            class:list={["h-1.5 w-1.5 rounded-full", item.dot]}
+            aria-hidden="true"
+          />
+          {item.count} {item.label}
+        </span>
+      ))
+    }
+    <div class="ml-auto">
+      <slot name="action" />
+    </div>
+  </div>
+</div>
