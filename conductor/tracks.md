@@ -145,3 +145,7 @@
 ---
 - [x] **Track: Métricas de Código (Líneas +/-) y Estimación de Horas en Changelog**
   *Link: [./tracks/changelog_stats_metrics_20261022/index.md](./tracks/changelog_stats_metrics_20261022/index.md)*
+
+---
+- [ ] **Track: Exportación Excel (.xlsx) Control de Asistencia**
+  *Link: [./tracks/asistencia_export_excel_20261103/index.md](./tracks/asistencia_export_excel_20261103/index.md)*
