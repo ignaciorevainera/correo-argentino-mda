@@ -84,3 +84,23 @@ test("parseWiseCallMetadata prioriza la duración de la grabación de audio sobr
   const meta = parseWiseCallMetadata(caseData, activities);
   assert.equal(meta.duration, "05:40");
 });
+
+test("parseWiseCallMetadata calcula exactamente el ring time con assigned_limit sin sobreredondear a 11s", async () => {
+  const { parseWiseCallMetadata } = await import("./qualityMetadataFetcher");
+  const caseData = { id: "547163", number: "547163", created_at: "2026-10-27 12:49:16" };
+  const activities = [
+    {
+      call_data: {
+        duration: 385,
+        logs: [
+          { message: "[call_transferred_area]Mosaic o Giros", time: "09:49:48.530" },
+          { message: "Bruno. Gutiérrez[assigned_limit]0/1", time: "09:49:48.875" },
+          { message: "[call_attended]Bruno. Gutiérrez", time: "09:49:59.245" },
+        ],
+      },
+      recordings: [{ url: "https://s3.amazonaws.com/rec/audio.mp3", duration: 340 }],
+    },
+  ];
+  const meta = parseWiseCallMetadata(caseData, activities);
+  assert.equal(meta.ringTime, "00:10");
+});

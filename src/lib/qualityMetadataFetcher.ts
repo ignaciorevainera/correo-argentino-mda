@@ -375,10 +375,11 @@ export function parseWiseCallMetadata(caseData: any, activities: any[] = []): Ex
         if (msg.includes("[call_attended]")) {
           operatorName = msg.replace("[call_attended]", "").trim();
           attendedTimeStr = log.time || "";
-        } else if (msg.includes("[assigned_limit]") || msg.includes("[call_transferred_area]")) {
-          if (!assignedLogTimeStr) {
-            assignedLogTimeStr = log.time || "";
-          }
+        } else if (msg.includes("[assigned_limit]")) {
+          // El evento exacto en que empieza a sonar en el puesto del operador asignado
+          assignedLogTimeStr = log.time || "";
+        } else if (msg.includes("[call_transferred_area]") && !assignedLogTimeStr) {
+          assignedLogTimeStr = log.time || "";
         } else if (msg.includes("[call_available_agents]") && !operatorName) {
           operatorName = msg.replace("[call_available_agents]", "").split(",")[0].trim();
         }
@@ -399,7 +400,7 @@ export function parseWiseCallMetadata(caseData: any, activities: any[] = []): Ex
       let assignSec = assignedLogTimeStr ? parseLogSeconds(assignedLogTimeStr) : NaN;
 
       if (!isNaN(attendedSec) && !isNaN(assignSec) && attendedSec >= assignSec) {
-        ringTimeSeconds = Math.round(attendedSec - assignSec);
+        ringTimeSeconds = Math.floor(attendedSec - assignSec);
       } else if (cd.assigned_at) {
         const assignDate = new Date(cd.assigned_at.replace(" ", "T")).getTime();
         // Fallback usando cd.assigned_at contra logs o diferencia
