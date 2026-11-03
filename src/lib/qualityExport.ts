@@ -754,11 +754,12 @@ export function buildGeneralSummarySheet(
     setCell(row, 5, op.overallAvg / 100, XLSX_STYLE_INDEX.DATA_PERCENT_DECIMAL);
     totalOverallSum += op.overallAvg;
 
-    const isApproved = op.overallAvg >= QUALITY_APPROVAL_THRESHOLD;
+    // Umbral de aprobación para Promedio General: 85%
+    const isApproved = op.overallAvg >= 85;
     setCell(
       row,
       6,
-      isApproved ? "APROBADO" : "REPROBADO",
+      isApproved ? "APROBADO" : "DESAPROBADO",
       isApproved ? XLSX_STYLE_INDEX.STATUS_APROBADO : XLSX_STYLE_INDEX.STATUS_REPROBADO,
     );
   });
@@ -787,11 +788,12 @@ export function buildGeneralSummarySheet(
   if (operatorSummaries.length > 0) {
     const mdaOverall = Math.round((totalOverallSum / operatorSummaries.length) * 100) / 10000;
     setCell(totalRow, 5, mdaOverall, XLSX_STYLE_INDEX.DATA_PERCENT_DECIMAL);
+    const isMdaApproved = mdaOverall >= 0.85;
     setCell(
       totalRow,
       6,
-      mdaOverall >= QUALITY_APPROVAL_THRESHOLD / 100 ? "APROBADO" : "REPROBADO",
-      mdaOverall >= QUALITY_APPROVAL_THRESHOLD / 100 ? XLSX_STYLE_INDEX.STATUS_APROBADO : XLSX_STYLE_INDEX.STATUS_REPROBADO,
+      isMdaApproved ? "APROBADO" : "DESAPROBADO",
+      isMdaApproved ? XLSX_STYLE_INDEX.STATUS_APROBADO : XLSX_STYLE_INDEX.STATUS_REPROBADO,
     );
   }
 

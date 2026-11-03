@@ -319,3 +319,23 @@ describe("qualityExportParity — Oráculo independiente y paridad de scoring (#
     });
   });
 });
+
+test("buildGeneralSummarySheet asigna APROBADO (>=85%) y DESAPROBADO con estilo rojo (<85%)", async () => {
+  const { buildGeneralSummarySheet } = await import("../qualityExport");
+  const summaries = [
+    { name: "Operador Aprobado", callAvg: 86, emailAvg: 85, agAvg: null, overallAvg: 85.5 },
+    { name: "Operador Desaprobado", callAvg: 80, emailAvg: 75, agAvg: null, overallAvg: 77.5 },
+  ];
+  const sheet = buildGeneralSummarySheet("10-2026", summaries);
+  // Row 1: Header title, Row 2: Columns, Row 3: Op 1, Row 4: Op 2
+  const op1Row = sheet.rawRows.find((r) => r.rowNum === 3);
+  const op2Row = sheet.rawRows.find((r) => r.rowNum === 4);
+  const op1Status = op1Row?.cells.find((c) => c.colIdx === 5);
+  const op2Status = op2Row?.cells.find((c) => c.colIdx === 5);
+
+  assert.equal(op1Status?.value, "APROBADO");
+  assert.equal(op1Status?.styleId, 9); // STATUS_APROBADO (verde)
+
+  assert.equal(op2Status?.value, "DESAPROBADO");
+  assert.equal(op2Status?.styleId, 10); // STATUS_REPROBADO (rojo suave con texto rojo)
+});
