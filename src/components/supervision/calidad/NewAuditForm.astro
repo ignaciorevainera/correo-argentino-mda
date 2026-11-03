@@ -2083,6 +2083,23 @@ const returnUrl = `${cleanBase}supervision/calidad-operadores?month=${encodeURIC
         const fileName = `grabacion-caso-${caseNumber || wiseSearchInput?.value || "llamada"}`;
         const proxyUrl = `${cleanBase}api/calidad/download-audio?url=${encodeURIComponent(recordingUrl.trim())}&filename=${encodeURIComponent(fileName)}.mp3`;
         tvAudioPlayer.src = proxyUrl;
+
+        // Sincronizar duracion llamada con la duracion de la grabacion de audio una vez cargados sus metadatos
+        const onAudioMetaLoaded = () => {
+          if (tvAudioPlayer.duration && !isNaN(tvAudioPlayer.duration) && tvAudioPlayer.duration > 0) {
+            const totalSec = Math.round(tvAudioPlayer.duration);
+            const m = Math.floor(totalSec / 60);
+            const s = totalSec % 60;
+            const formatted = `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+            if (formDuration) {
+              formDuration.value = formatted;
+              markAsInProgress();
+            }
+          }
+        };
+        tvAudioPlayer.removeEventListener("loadedmetadata", (tvAudioPlayer as any)._onAudioMetaLoaded);
+        (tvAudioPlayer as any)._onAudioMetaLoaded = onAudioMetaLoaded;
+        tvAudioPlayer.addEventListener("loadedmetadata", onAudioMetaLoaded, { once: true });
         if (tvAudioDownload) {
           tvAudioDownload.href = `${proxyUrl}&download=1`;
           tvAudioDownload.setAttribute("download", `${fileName}.mp3`);

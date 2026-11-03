@@ -322,6 +322,7 @@ export function parseWiseCallMetadata(caseData: any, activities: any[] = []): Ex
 
   let recordingUrl = "";
   let recordingId = "";
+  let recordingDurationSeconds = 0;
 
   // Buscar actividad de llamada con call_data o grabaciones
   const callActivity = activities.find(
@@ -333,6 +334,9 @@ export function parseWiseCallMetadata(caseData: any, activities: any[] = []): Ex
       const rec = callActivity.recordings[0];
       recordingUrl = rec.url || "";
       recordingId = rec.recording_id || "";
+      if (typeof rec.duration === "number" && rec.duration > 0) {
+        recordingDurationSeconds = rec.duration;
+      }
     }
   }
 
@@ -342,12 +346,24 @@ export function parseWiseCallMetadata(caseData: any, activities: any[] = []): Ex
     if (actWithRec) {
       recordingUrl = actWithRec.recordings[0]?.url || "";
       recordingId = actWithRec.recordings[0]?.recording_id || "";
+      const recDur = actWithRec.recordings[0]?.duration;
+      if (typeof recDur === "number" && recDur > 0) {
+        recordingDurationSeconds = recDur;
+      }
     }
   }
 
   if (callActivity?.call_data) {
     const cd = callActivity.call_data;
-    durationSeconds = typeof cd.duration === "number" ? cd.duration : 0;
+    // Priorizar duracion de la grabacion / talk_duration sobre duracion total de call_data
+    durationSeconds =
+      recordingDurationSeconds > 0
+        ? recordingDurationSeconds
+        : typeof cd.talk_duration === "number" && cd.talk_duration > 0
+          ? cd.talk_duration
+          : typeof cd.duration === "number"
+            ? cd.duration
+            : 0;
 
     // Buscar operador y evento de atencion en logs
     let attendedTimeStr = "";
@@ -415,7 +431,7 @@ export function parseWiseCallMetadata(caseData: any, activities: any[] = []): Ex
     caseNumber,
     operator: operatorName,
     date: dateStr,
-    duration: formatSecondsToMinutes(durationSeconds),
+    duration: formatSecondsToMinutes(durationSeconds || recordingDurationSeconds),
     ringTime: formatSecondsToMinutes(ringTimeSeconds),
     recordingUrl: recordingUrl || undefined,
     recordingId: recordingId || undefined,

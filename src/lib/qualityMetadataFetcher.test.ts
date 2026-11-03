@@ -71,3 +71,16 @@ test("emailThreadFromActivities trunca contenidos que superen 2500 caracteres po
   assert.equal(thread.hasCustomerMessage, true);
   assert.equal(thread.hasOperatorReply, false);
 });
+
+test("parseWiseCallMetadata prioriza la duración de la grabación de audio sobre la duración bruta de call_data", async () => {
+  const { parseWiseCallMetadata } = await import("./qualityMetadataFetcher");
+  const caseData = { id: "547163", number: "547163", created_at: "2026-10-20 14:00:00" };
+  const activities = [
+    {
+      call_data: { duration: 385 }, // 06:25 tiempo total de sesión
+      recordings: [{ url: "https://s3.amazonaws.com/rec/audio.mp3", duration: 340 }], // 05:40 llamada neta
+    },
+  ];
+  const meta = parseWiseCallMetadata(caseData, activities);
+  assert.equal(meta.duration, "05:40");
+});
