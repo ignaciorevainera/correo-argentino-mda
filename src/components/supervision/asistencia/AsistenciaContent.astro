@@ -167,27 +167,15 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
         </svg>
       </a>
 
-      <!-- Exportar CSV -->
+      <!-- Exportar Excel (.xlsx) -->
       <button
         type="button"
-        id="export-csv-btn"
-        class="btn btn-outline btn-sm border-base-300 text-base-content/75 hover:bg-base-200 flex h-10 w-full items-center gap-1.5 rounded-xl px-4 font-bold sm:w-auto"
+        id="export-excel-btn"
+        class="btn btn-outline btn-secondary btn-sm flex h-10 w-full items-center gap-1.5 rounded-xl px-4 font-bold sm:w-auto"
+        title="Exportar Asistencia a Excel (.xlsx)"
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="text-base-content/75 h-4 w-4"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="7 10 12 15 17 10"></polyline>
-          <line x1="12" y1="15" x2="12" y2="3"></line>
-        </svg>
-        Exportar CSV
+        <Icon name="boxicons:file" size={18} />
+        Exportar Excel
       </button>
 
       <!-- Limpiar Filtros -->
@@ -222,7 +210,7 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
   <div
     class="bg-base-100 border-base-300 relative z-0 overflow-hidden rounded-2xl border shadow-md"
   >
-    <TableShell stackOnMobile={false} label="Control de asistencia">
+    <TableShell stackOnMobile={false} maxHeightClass="max-h-none" label="Control de asistencia">
       <table
         class="w-full border-collapse text-left text-xs"
         id="attendance-table"
@@ -683,6 +671,8 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
 </div>
 
 <script>
+  import { getCleanBase } from "@lib/baseUrl";
+  const cleanBase = getCleanBase();
   import { store } from "@lib/attendance-client/store";
   import { dom } from "@lib/attendance-client/dom";
   import {
@@ -720,7 +710,7 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
   const searchInput = document.getElementById(
     "operator-search",
   ) as HTMLInputElement;
-  const exportCsvBtn = document.getElementById("export-csv-btn");
+  const exportExcelBtn = document.getElementById("export-excel-btn");
   const tableBody = document.getElementById("attendance-table-body");
   const attendanceTable = document.getElementById("attendance-table");
   const attendanceEmptyState = document.getElementById(
@@ -1561,73 +1551,14 @@ const initialData = await getAttendanceData(defaultDate, defaultDate);
 
   updateSortUI();
 
-  function cleanCsvCell(value: any) {
-    if (value === null || value === undefined) return '""';
-    let str = String(value);
-    str = str.replace(/\r?\n|\r/g, " ");
-    str = str.replace(/"/g, '""');
-    return `"${str}"`;
-  }
 
-  exportCsvBtn?.addEventListener("click", () => {
-    if (renderedData.length === 0) {
-      showGlobalToast("No hay datos cargados para exportar.", "alert-error");
+  exportExcelBtn?.addEventListener("click", () => {
+    if (!selectedDate) {
+      showGlobalToast("Fecha no seleccionada.", "alert-error");
       return;
     }
-
-    const headers = [
-      "Fecha",
-      "Tipo Turno",
-      "Operador",
-      "Sede",
-      "Asistencia Real",
-      "Ausencia/Eventualidad",
-      "Horario Estipulado",
-      "Entrada Real",
-      "Cumplimiento",
-      "Motivo Login",
-      "Detalle/Comentario",
-    ];
-
-    let csvRows = [];
-    csvRows.push(headers.join(","));
-
-    renderedData.forEach((staleOp) => {
-      const op = store.getRecord(staleOp.rowId) || staleOp;
-      const row = [
-        op.date,
-        op.shiftType === "normal" ? "Normal" : "Horas Extras",
-        op.nombre,
-        op.location,
-        op.asistencia,
-        op.ausencia || "NINGUNA",
-        op.horarioEstipulado || "Franco",
-        op.entradaReal || "--:--",
-        op.cumplimiento,
-        op.motivoLoguin || "",
-        op.detalle || "",
-      ];
-
-      const cleanRow = row.map((val) => cleanCsvCell(val));
-      csvRows.push(cleanRow.join(","));
-    });
-
-    const csvContent = "\uFEFF" + csvRows.join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-
-    const filename = `asistencia_${selectedDate}.csv`;
-
-    link.setAttribute("download", filename);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    showGlobalToast("Archivo CSV descargado correctamente.", "alert-success");
+    const exportUrl = `${cleanBase}api/asistencia/export-excel?date=${selectedDate}`;
+    window.location.href = exportUrl;
   });
 
   const urlParams = new URLSearchParams(window.location.search);

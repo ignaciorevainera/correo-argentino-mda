@@ -175,16 +175,44 @@ export const XLSX_STYLE_INDEX = {
   STATUS_APROBADO: 9,
   STATUS_REPROBADO: 10,
   SUMMARY_LABEL: 11,
+  // Asistencia base styles
+  ASIST_SEDE_PP: 12,
+  ASIST_SEDE_MG: 13,
+  ASIST_HO: 14,
+  ASIST_PRESENCIAL_MG: 15,
+  ASIST_PRESENCIAL_PP: 16,
+  ASIST_HEADER: 17,
+  ASIST_TIME: 18,
+  // Eventualidades / Ausencias styles
+  AUSENCIA_TRAMITE: 19,
+  AUSENCIA_DEMORADO: 20,
+  AUSENCIA_ENFERMO: 21,
+  AUSENCIA_JUSTIFICADO: 22,
+  AUSENCIA_PERMISO: 23,
+  AUSENCIA_NO_JUSTIFICADO: 24,
+  AUSENCIA_SIN_AVISO: 25,
+  AUSENCIA_ESTUDIO: 26,
+  AUSENCIA_MEDICA: 27,
+  AUSENCIA_ANUAL: 28,
+  AUSENCIA_UI: 29,
+  AUSENCIA_GREMIAL: 30,
+  AUSENCIA_PATERNIDAD: 31,
+  AUSENCIA_MATERNIDAD: 32,
+  AUSENCIA_FALLECIMIENTO: 33,
+  AUSENCIA_ART: 34,
+  // Legend headers
+  LEGEND_HEADER: 35,
 } as const;
 
 function generateStylesXml(): string {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <numFmts count="2">
+  <numFmts count="3">
     <numFmt numFmtId="164" formatCode="0%"/>
     <numFmt numFmtId="165" formatCode="0.00%"/>
+    <numFmt numFmtId="166" formatCode="hh:mm"/>
   </numFmts>
-  <fonts count="4">
+  <fonts count="7">
     <!-- 0: Regular Calibri 10 -->
     <font><sz val="10"/><color rgb="FF000000"/><name val="Calibri"/></font>
     <!-- 1: Bold Calibri 10 -->
@@ -193,8 +221,14 @@ function generateStylesXml(): string {
     <font><sz val="10"/><color rgb="FF006100"/><name val="Calibri"/></font>
     <!-- 3: Red font for False -->
     <font><sz val="10"/><color rgb="FF9C0006"/><name val="Calibri"/></font>
+    <!-- 4: Bold Aptos Narrow 11 Dark #242424 -->
+    <font><b/><sz val="11"/><color rgb="FF242424"/><name val="Aptos Narrow"/></font>
+    <!-- 5: Bold Aptos Narrow 11 Black #000000 -->
+    <font><b/><sz val="11"/><color rgb="FF000000"/><name val="Aptos Narrow"/></font>
+    <!-- 6: Regular Aptos Narrow 11 Black #000000 -->
+    <font><sz val="11"/><color rgb="FF000000"/><name val="Aptos Narrow"/></font>
   </fonts>
-  <fills count="6">
+  <fills count="25">
     <!-- 0: none -->
     <fill><patternFill patternType="none"/></fill>
     <!-- 1: gray125 -->
@@ -207,75 +241,204 @@ function generateStylesXml(): string {
     <fill><patternFill patternType="solid"><fgColor rgb="FFFFC7CE"/></patternFill></fill>
     <!-- 5: Soft Gray (#F2F2F2) -->
     <fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/></patternFill></fill>
+    <!-- 6: Parque Patricios Soft Purple (#E9D3F0) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFE9D3F0"/></patternFill></fill>
+    <!-- 7: Monte Grande / Demorado Yellow (#FFFF00) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFFFF00"/></patternFill></fill>
+    <!-- 8: Home Office Soft Blue (#B4C7E7) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFB4C7E7"/></patternFill></fill>
+    <!-- 9: Se reporta enfermo Soft Coral (#F1A983) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFF1A983"/></patternFill></fill>
+    <!-- 10: Presencial Parque Patricios (#F2CEEF) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFF2CEEF"/></patternFill></fill>
+    <!-- 11: Header Soft Blue (#DEEBF7) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFDEEBF7"/></patternFill></fill>
+    <!-- 12: Tramite / Permiso / Estudio Gray (#D0D0D0) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFD0D0D0"/></patternFill></fill>
+    <!-- 13: Ausente Justificado Green (#92D050) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FF92D050"/></patternFill></fill>
+    <!-- 14: Ausencia sin aviso Red (#FF0000) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFF0000"/></patternFill></fill>
+    <!-- 15: Lic. Medica Orange (#E87331) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFE87331"/></patternFill></fill>
+    <!-- 16: Lic. Anual Soft Green (#DAF2D0) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFDAF2D0"/></patternFill></fill>
+    <!-- 17: Lic. UI Medium Green (#82E391) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FF82E391"/></patternFill></fill>
+    <!-- 18: Lic. Gremial Orange-Yellow (#FFC000) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFFC000"/></patternFill></fill>
+    <!-- 19: Lic. Paternidad Pale Blue (#DAE9F8) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFDAE9F8"/></patternFill></fill>
+    <!-- 20: Lic. Maternidad Soft Pink (#F2CEEF) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFF2CEEF"/></patternFill></fill>
+    <!-- 21: Lic. Fallecimiento Light Blue (#C0E4F5) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFC0E4F5"/></patternFill></fill>
+    <!-- 22: ART Sky Blue (#94DCF8) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FF94DCF8"/></patternFill></fill>
+    <!-- 23: Legend Header (#FFE699) -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFFE699"/></patternFill></fill>
   </fills>
   <borders count="2">
     <!-- 0: none -->
     <border><left/><right/><top/><bottom/></border>
-    <!-- 1: Thin all around -->
+    <!-- 1: Thin black borders (#000000) -->
     <border>
-      <left style="thin"><color rgb="FFD4D4D4"/></left>
-      <right style="thin"><color rgb="FFD4D4D4"/></right>
-      <top style="thin"><color rgb="FFD4D4D4"/></top>
-      <bottom style="thin"><color rgb="FFD4D4D4"/></bottom>
+      <left style="thin"><color rgb="FF000000"/></left>
+      <right style="thin"><color rgb="FF000000"/></right>
+      <top style="thin"><color rgb="FF000000"/></top>
+      <bottom style="thin"><color rgb="FF000000"/></bottom>
     </border>
   </borders>
   <cellStyleXfs count="1">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
   </cellStyleXfs>
-  <cellXfs count="12">
+  <cellXfs count="36">
     <!-- 0: DEFAULT -->
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
-    <!-- 1: HEADER_CENTER (Yellow, Bold, Centered, Thin border) -->
+    <!-- 1: HEADER_CENTER (Yellow, Bold, Centered, Black border) -->
     <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center" wrapText="1"/>
     </xf>
-    <!-- 2: HEADER_LEFT (Yellow, Bold, Left, Thin border) -->
+    <!-- 2: HEADER_LEFT (Yellow, Bold, Left, Black border) -->
     <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="left" vertical="center" wrapText="1"/>
     </xf>
-    <!-- 3: DATA_TEXT (Regular, Left, Thin border) -->
+    <!-- 3: DATA_TEXT (Regular, Left, Black border) -->
     <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="left" vertical="center"/>
     </xf>
-    <!-- 4: DATA_CENTER (Regular, Centered, Thin border) -->
+    <!-- 4: DATA_CENTER (Regular, Centered, Black border) -->
     <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center"/>
     </xf>
-    <!-- 5: DATA_PERCENT (Format 0%, Centered, Thin border) -->
+    <!-- 5: DATA_PERCENT (Format 0%, Centered, Black border) -->
     <xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center"/>
     </xf>
-    <!-- 6: DATA_PERCENT_DECIMAL (Format 0.00%, Centered, Thin border) -->
+    <!-- 6: DATA_PERCENT_DECIMAL (Format 0.00%, Centered, Black border) -->
     <xf numFmtId="165" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center"/>
     </xf>
-    <!-- 7: CUMPLE_TRUE (Soft green, Green text, Centered, Thin border) -->
+    <!-- 7: CUMPLE_TRUE (Soft green, Green text, Centered, Black border) -->
     <xf numFmtId="0" fontId="2" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center"/>
     </xf>
-    <!-- 8: CUMPLE_FALSE (Soft red, Red text, Centered, Thin border) -->
+    <!-- 8: CUMPLE_FALSE (Soft red, Red text, Centered, Black border) -->
     <xf numFmtId="0" fontId="3" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center"/>
     </xf>
-    <!-- 9: STATUS_APROBADO (Soft green, Green text, Bold, Centered, Thin border) -->
+    <!-- 9: STATUS_APROBADO (Soft green, Green text, Bold, Centered, Black border) -->
     <xf numFmtId="0" fontId="2" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center"/>
     </xf>
-    <!-- 10: STATUS_REPROBADO (Soft red, Red text, Bold, Centered, Thin border) -->
+    <!-- 10: STATUS_REPROBADO (Soft red, Red text, Bold, Centered, Black border) -->
     <xf numFmtId="0" fontId="3" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center"/>
     </xf>
-    <!-- 11: SUMMARY_LABEL (Bold, Centered, Thin border) -->
+    <!-- 11: SUMMARY_LABEL (Bold, Centered, Black border) -->
     <xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 12: ASIST_SEDE_PP (Parque Patricios soft purple #E9D3F0, Left, Black border) -->
+    <xf numFmtId="0" fontId="0" fillId="6" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="left" vertical="center"/>
+    </xf>
+    <!-- 13: ASIST_SEDE_MG (Monte Grande light yellow #FFFF00, Left, Black border) -->
+    <xf numFmtId="0" fontId="0" fillId="7" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="left" vertical="center"/>
+    </xf>
+    <!-- 14: ASIST_HO (Home Office soft blue #B4C7E7, Bold Aptos Narrow, Centered, Black border) -->
+    <xf numFmtId="0" fontId="4" fillId="8" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 15: ASIST_PRESENCIAL_MG (Presencial Monte Grande yellow #FFFF00, Bold Aptos Narrow, Centered, Black border) -->
+    <xf numFmtId="0" fontId="4" fillId="7" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 16: ASIST_PRESENCIAL_PP (Presencial Parque Patricios #F2CEEF, Bold Aptos Narrow, Centered, Black border) -->
+    <xf numFmtId="0" fontId="4" fillId="10" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 17: ASIST_HEADER (Header Light Soft Blue #DEEBF7, Bold, Left, Black border) -->
+    <xf numFmtId="0" fontId="1" fillId="11" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="left" vertical="center" wrapText="1"/>
+    </xf>
+    <!-- 18: ASIST_TIME (Time format hh:mm 20, Centered, Black border) -->
+    <xf numFmtId="20" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 19: AUSENCIA_TRAMITE (#D0D0D0, Bold Aptos Narrow, Centered, Black border) -->
+    <xf numFmtId="0" fontId="5" fillId="12" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 20: AUSENCIA_DEMORADO (#FFFF00, Bold Aptos Narrow, Centered, Black border) -->
+    <xf numFmtId="0" fontId="5" fillId="7" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 21: AUSENCIA_ENFERMO (#F1A983, Bold Aptos Narrow, Centered, Black border) -->
+    <xf numFmtId="0" fontId="5" fillId="9" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 22: AUSENCIA_JUSTIFICADO (#92D050, Bold Aptos Narrow, Centered, Black border) -->
+    <xf numFmtId="0" fontId="5" fillId="13" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 23: AUSENCIA_PERMISO (#D0D0D0, Bold Aptos Narrow, Centered, Black border) -->
+    <xf numFmtId="0" fontId="5" fillId="12" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 24: AUSENCIA_NO_JUSTIFICADO (#FFFF00, Bold Aptos Narrow, Centered, Black border) -->
+    <xf numFmtId="0" fontId="5" fillId="7" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 25: AUSENCIA_SIN_AVISO (#FF0000, Bold Aptos Narrow, Centered, Black border) -->
+    <xf numFmtId="0" fontId="5" fillId="14" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 26: AUSENCIA_ESTUDIO (#D0D0D0, Bold Aptos Narrow, Centered, Black border) -->
+    <xf numFmtId="0" fontId="5" fillId="12" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 27: AUSENCIA_MEDICA (#E87331, Bold Aptos Narrow, Centered, Black border) -->
+    <xf numFmtId="0" fontId="5" fillId="15" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 28: AUSENCIA_ANUAL (#DAF2D0, Bold Aptos Narrow, Centered, Black border) -->
+    <xf numFmtId="0" fontId="5" fillId="16" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 29: AUSENCIA_UI (#82E391, Bold Aptos Narrow, Centered, Black border) -->
+    <xf numFmtId="0" fontId="5" fillId="17" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 30: AUSENCIA_GREMIAL (#FFC000, Bold Aptos Narrow, Centered, Black border) -->
+    <xf numFmtId="0" fontId="5" fillId="18" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 31: AUSENCIA_PATERNIDAD (#DAE9F8, Bold Aptos Narrow, Centered, Black border) -->
+    <xf numFmtId="0" fontId="5" fillId="19" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 32: AUSENCIA_MATERNIDAD (#F2CEEF, Bold Aptos Narrow, Centered, Black border) -->
+    <xf numFmtId="0" fontId="5" fillId="20" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 33: AUSENCIA_FALLECIMIENTO (#C0E4F5, Bold Aptos Narrow, Centered, Black border) -->
+    <xf numFmtId="0" fontId="5" fillId="21" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 34: AUSENCIA_ART (#94DCF8, Bold Aptos Narrow, Centered, Black border) -->
+    <xf numFmtId="0" fontId="5" fillId="22" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 35: LEGEND_HEADER (#FFE699, Bold Calibri, Centered, Black border) -->
+    <xf numFmtId="0" fontId="1" fillId="23" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
       <alignment horizontal="center" vertical="center"/>
     </xf>
   </cellXfs>
 </styleSheet>`;
 }
 
-/**
- * Generates a valid Microsoft Excel (.xlsx) file Buffer with multiple sheets and custom cell layout.
- */
 export function generateMultiSheetXlsxBuffer(
   sheets: XlsxSheetDefinition[],
 ): Buffer {
