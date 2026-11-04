@@ -335,7 +335,7 @@ export function buildOperatorFullEvaluationSheet(
       setCell(
         callB + 15,
         14,
-        isApproved ? "APROBADO" : "REPROBADO",
+        isApproved ? "APROBADO" : "DESAPROBADO",
         isApproved ? XLSX_STYLE_INDEX.STATUS_APROBADO : XLSX_STYLE_INDEX.STATUS_REPROBADO,
       );
     }
@@ -447,7 +447,7 @@ export function buildOperatorFullEvaluationSheet(
       setCell(
         mailB + 14,
         29,
-        isApproved ? "APROBADO" : "REPROBADO",
+        isApproved ? "APROBADO" : "DESAPROBADO",
         isApproved ? XLSX_STYLE_INDEX.STATUS_APROBADO : XLSX_STYLE_INDEX.STATUS_REPROBADO,
       );
     }
@@ -534,7 +534,7 @@ export function buildOperatorFullEvaluationSheet(
       setCell(
         agB + 14,
         44,
-        isApproved ? "APROBADO" : "REPROBADO",
+        isApproved ? "APROBADO" : "DESAPROBADO",
         isApproved ? XLSX_STYLE_INDEX.STATUS_APROBADO : XLSX_STYLE_INDEX.STATUS_REPROBADO,
       );
     }

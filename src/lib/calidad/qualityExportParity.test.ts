@@ -16,8 +16,8 @@ import {
 } from "../../config/qualityParams";
 
 describe("qualityExportParity — Oráculo independiente y paridad de scoring (#339)", () => {
-  it("QUALITY_APPROVAL_THRESHOLD debe ser 75 como umbral de aprobación de reportes", () => {
-    assert.equal(QUALITY_APPROVAL_THRESHOLD, 75);
+  it("QUALITY_APPROVAL_THRESHOLD debe ser 85 como umbral de aprobación de reportes", () => {
+    assert.equal(QUALITY_APPROVAL_THRESHOLD, 85);
   });
 
   describe("Oráculo Independiente (Valores Numéricos Hardcodeados)", () => {
@@ -51,7 +51,7 @@ describe("qualityExportParity — Oráculo independiente y paridad de scoring (#
       assert.equal(statusCell, "APROBADO");
     });
 
-    it("Wise Call sin ticket (appliesMda=false): cumplimiento parcial (falla procedimiento 10%) -> 78% APROBADO", () => {
+    it("Wise Call sin ticket (appliesMda=false): cumplimiento parcial (falla procedimiento 10%) -> 78% DESAPROBADO", () => {
       // Base S1 = 45. Falla procedimiento (10) -> s1Raw = 35.
       // Normalización sin S2: Math.round((35 / 45) * 100) = 78%.
       const s1Params = WISE_CALL_PARAMETERS.filter((p) => p.section === "items" && p.code !== "call_procedimiento");
@@ -74,12 +74,12 @@ describe("qualityExportParity — Oráculo independiente y paridad de scoring (#
       const totalCell = r15.cells.find((c) => c.colIdx === 12)?.value;
       const statusCell = r15.cells.find((c) => c.colIdx === 13)?.value;
 
-      // Oráculo independiente: 0.78 exacto y APROBADO (>= 75)
+      // Oráculo independiente: 0.78 exacto y DESAPROBADO (< 85)
       assert.equal(totalCell, 0.78);
-      assert.equal(statusCell, "APROBADO");
+      assert.equal(statusCell, "DESAPROBADO");
     });
 
-    it("Wise Call reprobada: múltiples desvíos en S1 y S2 -> 52% REPROBADO", () => {
+    it("Wise Call reprobada: múltiples desvíos en S1 y S2 -> 52% DESAPROBADO", () => {
       // Falla procedimiento (10), sondeo (6), control (3) en S1 -> s1Raw = 45 - 19 = 26
       // Falla ortografía (8), categorización (10), tipo (5), origen (6) en S2 -> s2Raw = 55 - 29 = 26
       // Total = 26 + 26 = 52.
@@ -107,9 +107,9 @@ describe("qualityExportParity — Oráculo independiente y paridad de scoring (#
       const totalCell = r15.cells.find((c) => c.colIdx === 12)?.value;
       const statusCell = r15.cells.find((c) => c.colIdx === 13)?.value;
 
-      // Oráculo independiente: 0.52 y REPROBADO (< 75)
+      // Oráculo independiente: 0.52 y DESAPROBADO (< 85)
       assert.equal(totalCell, 0.52);
-      assert.equal(statusCell, "REPROBADO");
+      assert.equal(statusCell, "DESAPROBADO");
     });
 
     it("Wise Email con ticket: cumplimiento parcial (falla interpretación 10%) -> 95% APROBADO", () => {
@@ -138,7 +138,7 @@ describe("qualityExportParity — Oráculo independiente y paridad de scoring (#
       assert.equal(statusCell, "APROBADO");
     });
 
-    it("Wise Email reprobado: desvíos acumulados en S1 y S2 -> 50% REPROBADO", () => {
+    it("Wise Email reprobado: desvíos acumulados en S1 y S2 -> 50% DESAPROBADO", () => {
       // S1: falla interpretación (10) + procedimientos (10) + redacción (10) + sla_90min (20) = 50 ded -> S1 = 50.
       // S2: falla sla_resolucion (10) + seguimiento (10) + categorizacion_final (10) + ortografia (10) + categorizacion (10) = 50 ded -> S2 = 50.
       // Total = Math.round((50 + 50) / 2) = 50.
@@ -167,7 +167,7 @@ describe("qualityExportParity — Oráculo independiente y paridad de scoring (#
       const statusCell = r14.cells.find((c) => c.colIdx === 28)?.value;
 
       assert.equal(totalCell, 0.5);
-      assert.equal(statusCell, "REPROBADO");
+      assert.equal(statusCell, "DESAPROBADO");
     });
 
     it("Autogestión (invgate_ticket): cumplimiento parcial (falla ag_titulo 10%) -> 95% APROBADO", () => {

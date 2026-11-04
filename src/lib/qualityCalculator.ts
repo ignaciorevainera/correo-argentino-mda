@@ -1,6 +1,6 @@
 import type { AuditParameter, ChannelType, EvaluationParameter } from "@/types/quality";
 
-export const QUALITY_APPROVAL_THRESHOLD = 75;
+export const QUALITY_APPROVAL_THRESHOLD = 85;
 
 export interface MultiChannelScoreResult {
   section1Score: number;
@@ -208,8 +208,7 @@ type AverageTone = "empty" | "success" | "warning" | "error";
 // el otro.
 function channelAverageTone(avg: number | null | undefined): AverageTone {
   if (avg === null || avg === undefined || isNaN(avg)) return "empty";
-  if (avg >= 85) return "success";
-  if (avg >= 70) return "warning";
+  if (avg >= QUALITY_APPROVAL_THRESHOLD) return "success";
   return "error";
 }
 
