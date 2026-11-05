@@ -31,11 +31,11 @@
   - [ ] Verificar paso de tests de dominio (`npm run test:domain`)
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
-## Phase 4: UI de Supervisión: Badges, Acciones y Modales de Confirmación
+## Phase 4: UI de Supervisión: Badges, Acciones y Modales de Confirmación [checkpoint: 568f664]
 - [x] Task: Agregar badges semánticos de estado en la interfaz de supervisión
   - [ ] Renderizar badge de "Borrador" (`badge-warning`/`badge-ghost`) y "Publicado" (`badge-success`) en las tarjetas y listas de auditorías
 - [x] Task: Implementar modales de confirmación y botones de publicación
   - [ ] Botón "Publicar" en cada auditoría en borrador con modal de confirmación rápida
   - [ ] Botón "Publicar pendientes" en la cabecera del operador/mes con modal de confirmación masiva
   - [ ] Feedback con toasts y recarga/actualización fluida del estado en pantalla
-- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
