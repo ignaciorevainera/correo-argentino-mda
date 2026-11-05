@@ -563,6 +563,8 @@ export const qualityAudits = sqliteTable(
     // Posición dentro de su canal+mes (0, 10, 20...): la usa el panel de
     // detalle para numerar las auditorías 1..4 y permitir reordenarlas a mano.
     sortOrder: integer("sort_order").notNull().default(0),
+    // Estado del ciclo de vida: 'draft' (solo visible para supervisores) o 'published' (visible para operador)
+    status: text("status").notNull().default("draft"),
   },
   (table) => ({
     monthIdx: index("quality_audits_month_idx").on(table.month),
@@ -571,6 +573,7 @@ export const qualityAudits = sqliteTable(
       table.agentId,
       table.month,
     ),
+    statusIdx: index("quality_audits_status_idx").on(table.status),
   }),
 );
 

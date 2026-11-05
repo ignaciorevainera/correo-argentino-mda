@@ -1,14 +1,14 @@
 # Implementation Plan: Ciclo de Vida Borrador / Publicado para Auditorías de Calidad
 
 ## Phase 1: Esquema de Base de Datos y Modelo de Dominio (TDD)
-- [ ] Task: Escribir tests de dominio para validación y filtrado por estado de auditoría
+- [x] Task: Escribir tests de dominio para validación y filtrado por estado de auditoría
   - [ ] Crear suite de pruebas para el enum de estados (`draft`, `published`) y funciones de servicio
   - [ ] Verificar que los tests fallen inicialmente (Red phase)
-- [ ] Task: Actualizar esquema Drizzle y alinear base de datos
+- [x] Task: Actualizar esquema Drizzle y alinear base de datos
   - [ ] Agregar columna `status: text("status").notNull().default("draft")` en `quality_audits` (`src/db/schema.ts`)
   - [ ] Ejecutar script de alineación de schema (`scripts/align-db-to-schema.mts`) verificando que los registros históricos queden en `'draft'`
   - [ ] Hacer pasar los tests de dominio (Green phase)
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ## Phase 2: Lógica de Guardado y Actions de Publicación (TDD)
 - [ ] Task: Escribir tests unitarios/de integración para actions de publicación
