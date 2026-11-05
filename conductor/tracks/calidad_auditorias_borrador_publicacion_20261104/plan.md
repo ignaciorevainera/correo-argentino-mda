@@ -22,14 +22,14 @@
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ## Phase 3: Aislamiento y Visibilidad en el Panel del Operador (TDD)
-- [ ] Task: Escribir tests para el resumen y widgets del operador
+- [x] Task: Escribir tests para el resumen y widgets del operador
   - [ ] Verificar que `qualitySummary` y cálculos de KPIs ignoren por completo auditorías en `draft`
   - [ ] Verificar que un operador con solo borradores no vea notas ni auditorías en su inicio
 - [ ] Task: Implementar filtro `status = 'published'` en consultas del operador
   - [ ] Actualizar `src/lib/inicio/qualitySummary.ts` para filtrar por `status = 'published'`
   - [ ] Actualizar `src/components/inicio/QualityPanel.astro` para excluir borradores
   - [ ] Verificar paso de tests de dominio (`npm run test:domain`)
-- [ ] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ## Phase 4: UI de Supervisión: Badges, Acciones y Modales de Confirmación
 - [ ] Task: Agregar badges semánticos de estado en la interfaz de supervisión

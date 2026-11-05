@@ -162,7 +162,10 @@ if (isAgent) {
 }
 
 const operatorsQuality = finalAgents.map((agent) => {
-  const agentAudits = auditsByAgent.get(agent.id) || [];
+  const rawAgentAudits = auditsByAgent.get(agent.id) || [];
+  const agentAudits = isAgent
+    ? rawAgentAudits.filter((a) => a.status === "published")
+    : rawAgentAudits;
   const currentMonthAudits = agentAudits.filter(
     (a) => a.month === selectedMonth,
   );
@@ -244,6 +247,7 @@ const operatorsQuality = finalAgents.map((agent) => {
       isReclamoNovedad: audit.isReclamoNovedad ?? false,
       recordingUrl: audit.recordingUrl,
       sortOrder: audit.sortOrder ?? 0,
+      status: audit.status || "draft",
       comments: parameterComments,
       section1: {
         score: audit.section1Score,

@@ -40,6 +40,7 @@ export interface QualitySummary {
 interface AuditLike {
   channelType?: string | null;
   totalScore?: number | null;
+  status?: string | null;
 }
 
 export function monthTag(ref: Date = new Date()): string {
@@ -62,7 +63,7 @@ export function summarizeQuality(
 ): QualitySummary {
   const valid = (audits: AuditLike[]) =>
     audits.filter(
-      (audit) => typeof audit.totalScore === "number" && audit.totalScore !== null,
+      (audit) => typeof audit.totalScore === "number" && audit.totalScore !== null && audit.status === "published",
     );
   const currentAudits = valid(current);
   const previousAudits = valid(previous);
@@ -123,11 +124,13 @@ export async function getQualitySummary(
       month: qualityAudits.month,
       channelType: qualityAudits.channelType,
       totalScore: qualityAudits.totalScore,
+      status: qualityAudits.status,
     })
     .from(qualityAudits)
     .where(
       and(
         eq(qualityAudits.agentId, agentId),
+        eq(qualityAudits.status, "published"),
         inArray(qualityAudits.month, [month, previousMonth]),
       ),
     );
