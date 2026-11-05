@@ -1246,6 +1246,18 @@ const formatTicketRef = (ticketId?: string | null, callId?: string | null) => {
             </span>
 
             ${
+              call.status === "published"
+                ? `<span class="badge badge-xs bg-success/15 text-success border-0 font-semibold gap-1 shrink-0" title="Auditoría publicada y visible para el operador">
+                    <svg class="size-3" fill="currentColor" viewBox="0 0 24 24"><path d="m10 15.586-3.293-3.293-1.414 1.414L10 18.414l9.707-9.707-1.414-1.414z"/></svg>
+                    Publicada
+                  </span>`
+                : `<span class="badge badge-xs bg-warning/20 text-warning border-0 font-semibold gap-1 shrink-0" title="Borrador: visible solo para supervisores">
+                    <svg class="size-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                    Borrador
+                  </span>`
+            }
+
+            ${
               isReclamo
                 ? `<span class="badge badge-xs badge-neutral font-bold uppercase tracking-wide shrink-0" title="Reclamo o novedad: sección de ticket eximida">Reclamo</span>`
                 : ""
@@ -1258,6 +1270,17 @@ const formatTicketRef = (ticketId?: string | null, callId?: string | null) => {
               isUserAgent
                 ? ""
                 : `
+            ${call.status !== "published" ? `
+            <button 
+              type="button"
+              class="btn btn-xs btn-outline btn-success gap-1 rounded-lg publish-audit-btn" 
+              data-audit-id="${call.id}"
+              title="Publicar esta auditoría"
+            >
+              <svg class="size-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="m10 15.586-3.293-3.293-1.414 1.414L10 18.414l9.707-9.707-1.414-1.414z"/></svg>
+              <span class="hidden sm:inline">Publicar</span>
+            </button>
+            ` : ""}
             <button 
               type="button"
               class="btn btn-circle btn-ghost btn-xs text-base-content/50 hover:text-secondary edit-audit-btn" 
@@ -1496,6 +1519,19 @@ const formatTicketRef = (ticketId?: string | null, callId?: string | null) => {
 
     let activeAgentId = "";
     let activeAgentSummary = "";
+    let pendingSinglePublishAuditId: number | null = null;
+    let refreshActiveOperator: (() => void) | null = null;
+    const modalConfirmSingle = document.getElementById("modal-confirm-publish-single") as HTMLDialogElement | null;
+    const modalConfirmBatch = document.getElementById("modal-confirm-publish-batch") as HTMLDialogElement | null;
+    const btnCancelPublishSingle = document.getElementById("btn-cancel-publish-single");
+    const btnConfirmPublishSingle = document.getElementById("btn-confirm-publish-single") as HTMLButtonElement | null;
+    const btnCancelPublishBatch = document.getElementById("btn-cancel-publish-batch");
+    const btnConfirmPublishBatch = document.getElementById("btn-confirm-publish-batch") as HTMLButtonElement | null;
+    const btnPublishPending = document.getElementById("btn-publish-pending-audits") as HTMLButtonElement | null;
+    const btnPublishPendingLabel = document.getElementById("btn-publish-pending-label");
+
+    btnCancelPublishSingle?.addEventListener("click", () => modalConfirmSingle?.close());
+    btnCancelPublishBatch?.addEventListener("click", () => modalConfirmBatch?.close());
 
     function clearFormErrors(form: HTMLFormElement) {
       form
@@ -2257,6 +2293,34 @@ if (Date.now() - lastAuditDragEnd < 250) return;
         }
       };
 
+      // Actualizar botón de publicación masiva de pendientes
+      const selectedMonthVal = monthSelector?.value || selectedMonth;
+      const currentMonthAllAudits = operator.calls.filter((c: any) => c.month === selectedMonthVal);
+      const pendingDraftsCount = currentMonthAllAudits.filter((c: any) => c.status === "draft").length;
+      if (btnPublishPending && btnPublishPendingLabel) {
+        if (!isUserAgent && pendingDraftsCount > 0) {
+          btnPublishPendingLabel.textContent = `Publicar pendientes (${pendingDraftsCount})`;
+          btnPublishPending.classList.remove("hidden");
+        } else {
+          btnPublishPending.classList.add("hidden");
+        }
+      }
+
+      refreshActiveOperator = updateChannelTabsAndList;
+
+      // Event listeners para botones de publicación individual
+      if (callsContainer) {
+        callsContainer.querySelectorAll(".publish-audit-btn").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const aId = Number(btn.getAttribute("data-audit-id"));
+            if (!aId) return;
+            pendingSinglePublishAuditId = aId;
+            modalConfirmSingle?.showModal();
+          });
+        });
+      }
+
       document.querySelectorAll(".operator-channel-tab").forEach((tabBtn) => {
         tabBtn.onclick = () => {
           document
@@ -2278,6 +2342,81 @@ if (Date.now() - lastAuditDragEnd < 250) return;
       currentActiveChannel = "all";
       updateChannelTabsAndList();
     };
+
+    // Listeners globales para publicación
+    btnConfirmPublishSingle?.addEventListener("click", async () => {
+      if (!pendingSinglePublishAuditId) return;
+      const btn = btnConfirmPublishSingle;
+      btn.disabled = true;
+      try {
+        const res = await actions.publishQualityAudit({ id: pendingSinglePublishAuditId });
+        if (res.error) {
+          (window as any).showToast?.(res.error.message || "Error al publicar auditoría", "error");
+        } else {
+          (window as any).showToast?.("Auditoría publicada con éxito", "success");
+          // Actualizar estado en operatorsDataMap localmente
+          if (activeAgentId && operatorsDataMap[activeAgentId]) {
+            const audit = operatorsDataMap[activeAgentId].calls?.find((c: any) => c.id === pendingSinglePublishAuditId);
+            if (audit) audit.status = "published";
+          }
+          modalConfirmSingle?.close();
+          refreshActiveOperator?.();
+        }
+      } catch (err: any) {
+        (window as any).showToast?.("Error de red al publicar", "error");
+      } finally {
+        btn.disabled = false;
+        pendingSinglePublishAuditId = null;
+      }
+    });
+
+    btnPublishPending?.addEventListener("click", () => {
+      if (!activeAgentId) return;
+      const operator = operatorsDataMap[activeAgentId];
+      if (!operator) return;
+      const selectedMonthVal = monthSelector?.value || selectedMonth;
+      const currentMonthAllAudits = operator.calls.filter((c: any) => c.month === selectedMonthVal);
+      const drafts = currentMonthAllAudits.filter((c: any) => c.status === "draft");
+      if (drafts.length === 0) return;
+
+      const batchMsg = document.getElementById("batch-publish-confirm-msg");
+      if (batchMsg) {
+        batchMsg.textContent = `¿Deseas publicar las ${drafts.length} auditorías en borrador de "${operator.name}" para el período ${selectedMonthVal}? Una vez publicadas, el operador podrá verlas de inmediato.`;
+      }
+      modalConfirmBatch?.showModal();
+    });
+
+    btnConfirmPublishBatch?.addEventListener("click", async () => {
+      if (!activeAgentId) return;
+      const operator = operatorsDataMap[activeAgentId];
+      if (!operator) return;
+      const selectedMonthVal = monthSelector?.value || selectedMonth;
+      const btn = btnConfirmPublishBatch;
+      btn.disabled = true;
+      try {
+        const res = await actions.publishQualityAuditsBatch({
+          agentId: Number(operator.id),
+          month: selectedMonthVal,
+        });
+        if (res.error) {
+          (window as any).showToast?.(res.error.message || "Error al publicar lote de auditorías", "error");
+        } else {
+          const count = res.data?.count || 0;
+          (window as any).showToast?.(`Se publicaron ${count} auditorías con éxito`, "success");
+          operator.calls.forEach((c: any) => {
+            if (c.month === selectedMonthVal && c.status === "draft") {
+              c.status = "published";
+            }
+          });
+          modalConfirmBatch?.close();
+          refreshActiveOperator?.();
+        }
+      } catch (err: any) {
+        (window as any).showToast?.("Error de red al publicar lote", "error");
+      } finally {
+        btn.disabled = false;
+      }
+    });
 
     // Attach click listeners to operator cards
     document.querySelectorAll(".operator-card").forEach((card) => {
