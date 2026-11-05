@@ -35,6 +35,7 @@ export interface QualityCall {
   recordingUrl?: string | null;
   // Posición dentro de su canal+mes (0, 10, 20...); define la numeración 1..4.
   sortOrder?: number;
+  status?: "draft" | "published";
   comments?: Record<string, string>;
   section1: {
     score: number;
@@ -72,6 +73,7 @@ export interface QualityAuditRecord {
   isReclamoNovedad?: boolean;
   recordingUrl?: string | null;
   sortOrder?: number;
+  status?: "draft" | "published";
   section1Score: number;
   section2Score: number;
   totalScore: number;

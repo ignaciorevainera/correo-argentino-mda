@@ -90,7 +90,8 @@ describe("Calidad Channel Averages & Consolidated Overall Score", () => {
 
   it("assigns proper DaisyUI semantic badge classes based on threshold score", () => {
     expect(getChannelAverageBadgeClass(90)).toContain("badge-success");
-    expect(getChannelAverageBadgeClass(80)).toContain("badge-warning");
+    expect(getChannelAverageBadgeClass(85)).toContain("badge-success");
+    expect(getChannelAverageBadgeClass(80)).toContain("badge-error");
     expect(getChannelAverageBadgeClass(65)).toContain("badge-error");
     expect(getChannelAverageBadgeClass(null)).toContain("badge-ghost");
   });
