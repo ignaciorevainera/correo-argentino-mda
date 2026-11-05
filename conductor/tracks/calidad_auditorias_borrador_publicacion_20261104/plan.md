@@ -10,7 +10,7 @@
   - [ ] Hacer pasar los tests de dominio (Green phase)
 - [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
-## Phase 2: Lógica de Guardado y Actions de Publicación (TDD)
+## Phase 2: Lógica de Guardado y Actions de Publicación (TDD) [checkpoint: 2615a69]
 - [x] Task: Escribir tests unitarios/de integración para actions de publicación
   - [ ] Tests de autorización (rechazar roles de operador, permitir supervisor/admin)
   - [ ] Tests de mutación individual (`publishAudit(id)`) y en lote (`publishAuditsBatch(agentId, month)`)
@@ -19,7 +19,7 @@
   - [ ] Adaptar acción de creación en `src/actions/index.ts` para forzar `status = "draft"`
   - [ ] Crear acción o endpoint `publishQualityAudit` (individual) y `publishQualityAuditsBatch` (lote) con `logAdminAction`
   - [ ] Hacer pasar los tests unitarios (Green phase)
-- [~] Task: Phase Verification & Checkpoint (Refer to workflow.md)
+- [x] Task: Phase Verification & Checkpoint (Refer to workflow.md)
 
 ## Phase 3: Aislamiento y Visibilidad en el Panel del Operador (TDD)
 - [ ] Task: Escribir tests para el resumen y widgets del operador
