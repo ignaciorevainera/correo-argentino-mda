@@ -4010,7 +4010,11 @@ function evaluateOrthographyRule(title: string, description: string) {
           } else if (result.data?.success) {
             isFormDirty = false;
             const redirectUrl = new URL(`${window.location.origin}${cleanBase}supervision/calidad-operadores`);
-            if (formData.get("month")) redirectUrl.searchParams.set("month", formData.get("month") as string);
+            if (formData.get("month")) {
+              const m = formData.get("month") as string;
+              redirectUrl.searchParams.set("month", m);
+              document.cookie = "calidad_month=" + encodeURIComponent(m) + "; path=/; max-age=2592000; SameSite=Lax";
+            }
             if (agentIdVal) redirectUrl.searchParams.set("agentId", agentIdVal);
             redirectUrl.searchParams.set("toast_msg", "Auditoría guardada como borrador con éxito.");
             redirectUrl.searchParams.set("toast_type", "success");
@@ -4134,7 +4138,10 @@ function evaluateOrthographyRule(title: string, description: string) {
               if (result.data?.success) {
                 isFormDirty = false;
                 const redirectUrl = new URL(`${window.location.origin}${cleanBase}supervision/calidad-operadores`);
-                if (initialAuditData.month) redirectUrl.searchParams.set("month", initialAuditData.month);
+                if (initialAuditData.month) {
+                  redirectUrl.searchParams.set("month", initialAuditData.month);
+                  document.cookie = "calidad_month=" + encodeURIComponent(initialAuditData.month) + "; path=/; max-age=2592000; SameSite=Lax";
+                }
                 if (initialAuditData.agentId) redirectUrl.searchParams.set("agentId", String(initialAuditData.agentId));
                 redirectUrl.searchParams.set("toast_msg", "Auditoría eliminada con éxito.");
                 redirectUrl.searchParams.set("toast_type", "success");

@@ -104,3 +104,27 @@ test("parseWiseCallMetadata calcula exactamente el ring time con assigned_limit 
   const meta = parseWiseCallMetadata(caseData, activities);
   assert.equal(meta.ringTime, "00:10");
 });
+
+test("parseWiseEmailMetadata calcula takeTime y duration con precisión usando mensaje del cliente y respuesta", async () => {
+  const { parseWiseEmailMetadata } = await import("./qualityMetadataFetcher");
+  const caseData = { id: "544797", number: "544797", created_at: "2026-10-19 12:00:00" };
+  const lastCustomerAt = "2026-10-19 12:05:00";
+  const replyAt = "2026-10-19 13:05:00";
+  const meta = parseWiseEmailMetadata(caseData, "Operador Test", replyAt, undefined, lastCustomerAt);
+
+  assert.equal(meta.takeTime, "01:00:00");
+  assert.equal(meta.duration, "01:00:00");
+  assert.equal(meta.rawDetails?.responseSeconds, 3600);
+});
+
+test("parseWiseEmailMetadata para caso 543784 con 9:52 entrada y 11:27 respuesta da 01:35:00", async () => {
+  const { parseWiseEmailMetadata } = await import("./qualityMetadataFetcher");
+  const caseData = { id: "543784", number: "543784", created_at: "2026-10-19 09:50:00" };
+  const lastCustomerAt = "2026-10-19 09:52:00";
+  const replyAt = "2026-10-19 11:27:00";
+  const meta = parseWiseEmailMetadata(caseData, "Operador Test", replyAt, undefined, lastCustomerAt);
+
+  assert.equal(meta.takeTime, "01:35:00");
+  assert.equal(meta.duration, "01:35:00");
+  assert.equal(meta.rawDetails?.responseSeconds, 5700);
+});

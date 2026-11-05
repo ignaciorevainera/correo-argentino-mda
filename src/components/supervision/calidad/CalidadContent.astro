@@ -18,7 +18,7 @@ import {
   auditScores,
   monthlySummaries,
 } from "@db/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { activeAgentCondition } from "@lib/activeUsers";
 import { getResolvedSearchParams } from "@lib/navigation";
 import { formatMonthLabel, MONTH_LABELS } from "@lib/monthUtils";
@@ -43,7 +43,34 @@ const currentActualMonth = (() => {
   return `${mm}-${yyyy}`;
 })();
 
-const selectedMonth = propMonth || searchParams.get("month") || currentActualMonth;
+const rawCookieMonth = Astro.cookies.get("calidad_month")?.value;
+const validCookieMonth =
+  rawCookieMonth && /^\d{2}-\d{4}$/.test(rawCookieMonth) ? rawCookieMonth : null;
+
+let fallbackMonth = currentActualMonth;
+if (!propMonth && !searchParams.get("month") && !validCookieMonth) {
+  const latestAudit = await db
+    .select({ month: qualityAudits.month })
+    .from(qualityAudits)
+    .orderBy(desc(qualityAudits.id))
+    .limit(1);
+  if (latestAudit.length > 0 && latestAudit[0].month) {
+    fallbackMonth = latestAudit[0].month;
+  }
+}
+
+const selectedMonth =
+  propMonth || searchParams.get("month") || validCookieMonth || fallbackMonth;
+
+if (Astro.cookies && (!validCookieMonth || validCookieMonth !== selectedMonth)) {
+  try {
+    Astro.cookies.set("calidad_month", selectedMonth, {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+      sameSite: "lax",
+    });
+  } catch (e) {}
+}
 
 // Generate the last 6 months based on the selected month
 const getDynamicMonths = (baseMonthStr: string) => {
@@ -557,6 +584,7 @@ const cleanBase = getCleanBase();
                       ? "bg-success/10 text-success border-success/20"
                       : "bg-error/10 text-error border-error/20";
                   const progressPct = Math.min(Math.round((op.calls.length / 12) * 100), 100);
+                  const draftsCount = op.calls.filter((c) => c.status === "draft").length;
 
                   return (
                     <button
@@ -590,8 +618,17 @@ const cleanBase = getCleanBase();
                                 {op.name}
                               </span>
                             </div>
-                            <div class="text-base-content/50 font-mono text-xs lowercase mt-0.5 truncate">
-                              @{op.username || op.id}
+                            <div class="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                              <span class="text-base-content/50 font-mono text-xs lowercase truncate">
+                                @{op.username || op.id}
+                              </span>
+                              <span
+                                class={`operator-drafts-badge badge badge-xs bg-secondary/15 text-secondary border-0 font-medium text-3xs gap-1 shrink-0 ${draftsCount === 0 ? "hidden" : ""}`}
+                                title={`${draftsCount} borrador${draftsCount > 1 ? "es" : ""} pendiente${draftsCount > 1 ? "s" : ""} de publicar`}
+                              >
+                                <span class="size-1 rounded-full bg-secondary"></span>
+                                <span>{draftsCount} borrador{draftsCount > 1 ? "es" : ""}</span>
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -832,6 +869,53 @@ const cleanBase = getCleanBase();
     </div>
   </Fragment>
 </Modal>
+
+<!-- Modales de Confirmación de Publicación para Supervisores -->
+<dialog id="modal-confirm-publish-single" class="modal modal-bottom sm:modal-middle z-[210]">
+  <div class="modal-box max-w-sm border border-base-200">
+    <h3 class="font-bold text-base text-base-content flex items-center gap-2">
+      <Icon name="boxicons:check-circle" size={20} class="text-success" />
+      Publicar Auditoría
+    </h3>
+    <p class="py-3 text-xs text-base-content/80">
+      ¿Confirmás publicar la auditoría seleccionada? Una vez publicada, el operador podrá ver su calificación y los detalles en su panel.
+    </p>
+    <div class="modal-action">
+      <button type="button" id="btn-cancel-publish-single" class="btn btn-sm btn-ghost">
+        Cancelar
+      </button>
+      <button type="button" id="btn-confirm-publish-single" class="btn btn-sm btn-success text-white">
+        Publicar
+      </button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>cerrar</button>
+  </form>
+</dialog>
+
+<dialog id="modal-confirm-publish-batch" class="modal modal-bottom sm:modal-middle z-[210]">
+  <div class="modal-box max-w-md border border-base-200">
+    <h3 class="font-bold text-base text-base-content flex items-center gap-2">
+      <Icon name="boxicons:checks" size={20} class="text-success" />
+      Publicar Auditorías Pendientes
+    </h3>
+    <p class="py-3 text-xs text-base-content/80" id="batch-publish-confirm-msg">
+      ¿Deseas publicar todas las auditorías en borrador de este operador para el período seleccionado? Serán visibles inmediatamente para el operador.
+    </p>
+    <div class="modal-action">
+      <button type="button" id="btn-cancel-publish-batch" class="btn btn-sm btn-ghost">
+        Cancelar
+      </button>
+      <button type="button" id="btn-confirm-publish-batch" class="btn btn-sm btn-success text-white">
+        Publicar Todas
+      </button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>cerrar</button>
+  </form>
+</dialog>
 
 <style is:global>
   /* RBAC - Vista de calidad para Operador (Solo Lectura) */
@@ -1251,7 +1335,7 @@ const formatTicketRef = (ticketId?: string | null, callId?: string | null) => {
                     <svg class="size-3" fill="currentColor" viewBox="0 0 24 24"><path d="m10 15.586-3.293-3.293-1.414 1.414L10 18.414l9.707-9.707-1.414-1.414z"/></svg>
                     Publicada
                   </span>`
-                : `<span class="badge badge-xs bg-warning/20 text-warning border-0 font-semibold gap-1 shrink-0" title="Borrador: visible solo para supervisores">
+                : `<span class="badge badge-xs bg-secondary/20 text-secondary border-0 font-semibold gap-1 shrink-0" title="Borrador: visible solo para supervisores">
                     <svg class="size-3" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.486 2 2 6.486 2 12s4.486 10 10 10 10-4.486 10-10S17.514 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
                     Borrador
                   </span>`
@@ -1427,9 +1511,14 @@ const formatTicketRef = (ticketId?: string | null, callId?: string | null) => {
       }
     };
 
+    const setMonthCookie = (m: string) => {
+      document.cookie = `calidad_month=${encodeURIComponent(m)}; path=/; max-age=2592000; SameSite=Lax`;
+    };
+
     if (monthSelector) {
       monthSelector.addEventListener("change", (e) => {
         const select = e.target as HTMLSelectElement;
+        setMonthCookie(select.value);
         const url = new URL(window.location.href);
         url.searchParams.set("month", select.value);
         if (activeAgentId) {
@@ -1446,6 +1535,7 @@ const formatTicketRef = (ticketId?: string | null, callId?: string | null) => {
         btnPrevMonth.addEventListener("click", () => {
           if (monthSelector.selectedIndex < monthSelector.options.length - 1) {
             monthSelector.selectedIndex += 1;
+            setMonthCookie(monthSelector.value);
             monthSelector.dispatchEvent(new Event("change"));
           }
         });
@@ -1455,6 +1545,7 @@ const formatTicketRef = (ticketId?: string | null, callId?: string | null) => {
         btnNextMonth.addEventListener("click", () => {
           if (monthSelector.selectedIndex > 0) {
             monthSelector.selectedIndex -= 1;
+            setMonthCookie(monthSelector.value);
             monthSelector.dispatchEvent(new Event("change"));
           }
         });
@@ -1471,6 +1562,7 @@ const formatTicketRef = (ticketId?: string | null, callId?: string | null) => {
       dMonthSelector.innerHTML = monthSelector.innerHTML;
       dMonthSelector.value = monthSelector.value;
       dMonthSelector.addEventListener("change", () => {
+        setMonthCookie(dMonthSelector.value);
         const url = new URL(window.location.href);
         url.searchParams.set("month", dMonthSelector.value);
         if (activeAgentId) {
@@ -2243,55 +2335,70 @@ const updateChannelTabsAndList = () => {
             renumberAuditSlots();
             bindAuditCardDragAndDrop();
 
-            // Acordeón Exclusivo: máximo una auditoría abierta simultáneamente
-            callsContainer
-              .querySelectorAll(".call-card-header")
-              .forEach((trigger) => {
-                trigger.addEventListener("click", (e) => {
-                  if ((e.target as HTMLElement).closest(".edit-audit-btn")) return;
-if (Date.now() - lastAuditDragEnd < 250) return;
-                  const card = (trigger as HTMLElement).closest(".call-card-container");
-                  if (!card) return;
-                  const details = card.querySelector(".call-card-details");
-                  const arrow = card.querySelector(".accordion-arrow");
-                  const isCurrentlyOpen = details && !details.classList.contains("hidden");
-
-                  // Cerrar cualquier otra auditoría abierta
-                  callsContainer.querySelectorAll(".call-card-container").forEach((otherCard) => {
-                    otherCard.querySelector(".call-card-details")?.classList.add("hidden");
-                    otherCard.querySelector(".accordion-arrow")?.classList.remove("rotate-180");
-                  });
-
-                  // Si la actual estaba cerrada, abrirla; si ya estaba abierta, queda cerrada
-                  if (!isCurrentlyOpen && details) {
-                    details.classList.remove("hidden");
-                    arrow?.classList.add("rotate-180");
-                  }
-                });
-              });
-
-            // Botón de Edición
-            callsContainer
-              .querySelectorAll(".edit-audit-btn")
-              .forEach((btn) => {
-                btn.addEventListener("click", (e) => {
-                  e.stopPropagation();
-                  const callIdStr =
-                    btn.getAttribute("data-call-id") ||
-                    (btn.closest(".call-card-container") as HTMLElement)?.getAttribute("data-call-id");
-                  if (callIdStr) {
-                    const monthVal = monthSelector?.value || "";
-                    const url = new URL(`${window.location.origin}${cleanBase}supervision/calidad-operadores/nueva`);
-                    url.searchParams.set("auditId", callIdStr);
-                    url.searchParams.set("agentId", operator.id);
-                    if (monthVal) url.searchParams.set("month", monthVal);
-                    window.location.href = url.toString();
-                  }
-                });
-              });
           }
         }
       };
+
+      // Delegación de eventos en callsContainer: infalible ante cualquier redibujado de la lista
+      if (callsContainer && !callsContainer.hasAttribute("data-events-bound")) {
+        callsContainer.setAttribute("data-events-bound", "true");
+        callsContainer.addEventListener("click", (e) => {
+          const target = e.target as HTMLElement;
+
+          // 1. Botón Publicar Auditoría Individual
+          const publishBtn = target.closest(".publish-audit-btn") as HTMLElement | null;
+          if (publishBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const aId = Number(publishBtn.getAttribute("data-audit-id"));
+            if (!aId) return;
+            pendingSinglePublishAuditId = aId;
+            modalConfirmSingle?.showModal();
+            return;
+          }
+
+          // 2. Botón Editar Auditoría
+          const editBtn = target.closest(".edit-audit-btn") as HTMLElement | null;
+          if (editBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const callIdStr =
+              editBtn.getAttribute("data-call-id") ||
+              (editBtn.closest(".call-card-container") as HTMLElement)?.getAttribute("data-call-id");
+            if (callIdStr && activeAgentId) {
+              const monthVal = monthSelector?.value || "";
+              const url = new URL(`${window.location.origin}${cleanBase}supervision/calidad-operadores/nueva`);
+              url.searchParams.set("auditId", callIdStr);
+              url.searchParams.set("agentId", activeAgentId);
+              if (monthVal) url.searchParams.set("month", monthVal);
+              window.location.href = url.toString();
+            }
+            return;
+          }
+
+          // 3. Acordeón: Header de la tarjeta
+          const header = target.closest(".call-card-header") as HTMLElement | null;
+          if (header) {
+            if (target.closest(".audit-drag-handle")) return;
+            if (Date.now() - lastAuditDragEnd < 250) return;
+            const card = header.closest(".call-card-container") as HTMLElement | null;
+            if (!card) return;
+            const details = card.querySelector(".call-card-details");
+            const arrow = card.querySelector(".accordion-arrow");
+            const isCurrentlyOpen = details && !details.classList.contains("hidden");
+
+            callsContainer.querySelectorAll(".call-card-container").forEach((otherCard) => {
+              otherCard.querySelector(".call-card-details")?.classList.add("hidden");
+              otherCard.querySelector(".accordion-arrow")?.classList.remove("rotate-180");
+            });
+
+            if (!isCurrentlyOpen && details) {
+              details.classList.remove("hidden");
+              arrow?.classList.add("rotate-180");
+            }
+          }
+        });
+      }
 
       // Actualizar botón de publicación masiva de pendientes
       const selectedMonthVal = monthSelector?.value || selectedMonth;
@@ -2307,19 +2414,6 @@ if (Date.now() - lastAuditDragEnd < 250) return;
       }
 
       refreshActiveOperator = updateChannelTabsAndList;
-
-      // Event listeners para botones de publicación individual
-      if (callsContainer) {
-        callsContainer.querySelectorAll(".publish-audit-btn").forEach((btn) => {
-          btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const aId = Number(btn.getAttribute("data-audit-id"));
-            if (!aId) return;
-            pendingSinglePublishAuditId = aId;
-            modalConfirmSingle?.showModal();
-          });
-        });
-      }
 
       document.querySelectorAll(".operator-channel-tab").forEach((tabBtn) => {
         tabBtn.onclick = () => {
@@ -2343,6 +2437,46 @@ if (Date.now() - lastAuditDragEnd < 250) return;
       updateChannelTabsAndList();
     };
 
+    const updateOperatorAuditsStatus = (
+      agentId: string,
+      predicate: (audit: any) => boolean,
+      newStatus: string,
+    ) => {
+      const el = document.getElementById("operators-data");
+      if (!el) return;
+      try {
+        const map = JSON.parse(el.getAttribute("data-operators") || "{}");
+        const op = map[agentId];
+        if (op && Array.isArray(op.calls)) {
+          op.calls = op.calls.map((c: any) => {
+            if (predicate(c)) {
+              return { ...c, status: newStatus };
+            }
+            return c;
+          });
+          el.setAttribute("data-operators", JSON.stringify(map));
+        }
+      } catch {}
+    };
+
+    const updateCardDraftsBadge = (agentId: string) => {
+      const card = document.querySelector(`.operator-card[data-operator-id="${agentId}"]`);
+      if (!card) return;
+      const op = getOperatorFullData(agentId);
+      const selectedMonthVal = monthSelector?.value || selectedMonth;
+      const drafts = (op?.calls || []).filter((c: any) => c.month === selectedMonthVal && c.status === "draft");
+      const badge = card.querySelector<HTMLElement>(".operator-drafts-badge");
+      if (badge) {
+        if (drafts.length > 0) {
+          badge.classList.remove("hidden");
+          badge.innerHTML = `<span class="size-1 rounded-full bg-secondary"></span><span>${drafts.length} borrador${drafts.length > 1 ? "es" : ""}</span>`;
+          badge.title = `${drafts.length} borrador${drafts.length > 1 ? "es" : ""} pendiente${drafts.length > 1 ? "s" : ""} de publicar`;
+        } else {
+          badge.classList.add("hidden");
+        }
+      }
+    };
+
     // Listeners globales para publicación
     btnConfirmPublishSingle?.addEventListener("click", async () => {
       if (!pendingSinglePublishAuditId) return;
@@ -2354,13 +2488,12 @@ if (Date.now() - lastAuditDragEnd < 250) return;
           (window as any).showToast?.(res.error.message || "Error al publicar auditoría", "error");
         } else {
           (window as any).showToast?.("Auditoría publicada con éxito", "success");
-          // Actualizar estado en operatorsDataMap localmente
-          if (activeAgentId && operatorsDataMap[activeAgentId]) {
-            const audit = operatorsDataMap[activeAgentId].calls?.find((c: any) => c.id === pendingSinglePublishAuditId);
-            if (audit) audit.status = "published";
+          if (activeAgentId) {
+            updateOperatorAuditsStatus(activeAgentId, (c) => c.id === pendingSinglePublishAuditId, "published");
+            displayOperatorDetails(activeAgentId);
+            updateCardDraftsBadge(activeAgentId);
           }
           modalConfirmSingle?.close();
-          refreshActiveOperator?.();
         }
       } catch (err: any) {
         (window as any).showToast?.("Error de red al publicar", "error");
@@ -2370,12 +2503,14 @@ if (Date.now() - lastAuditDragEnd < 250) return;
       }
     });
 
-    btnPublishPending?.addEventListener("click", () => {
+    btnPublishPending?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       if (!activeAgentId) return;
-      const operator = operatorsDataMap[activeAgentId];
+      const operator = getOperatorFullData(activeAgentId) as OperatorQuality | null;
       if (!operator) return;
       const selectedMonthVal = monthSelector?.value || selectedMonth;
-      const currentMonthAllAudits = operator.calls.filter((c: any) => c.month === selectedMonthVal);
+      const currentMonthAllAudits = (operator.calls || []).filter((c: any) => c.month === selectedMonthVal);
       const drafts = currentMonthAllAudits.filter((c: any) => c.status === "draft");
       if (drafts.length === 0) return;
 
@@ -2388,7 +2523,7 @@ if (Date.now() - lastAuditDragEnd < 250) return;
 
     btnConfirmPublishBatch?.addEventListener("click", async () => {
       if (!activeAgentId) return;
-      const operator = operatorsDataMap[activeAgentId];
+      const operator = getOperatorFullData(activeAgentId) as OperatorQuality | null;
       if (!operator) return;
       const selectedMonthVal = monthSelector?.value || selectedMonth;
       const btn = btnConfirmPublishBatch;
@@ -2403,13 +2538,14 @@ if (Date.now() - lastAuditDragEnd < 250) return;
         } else {
           const count = res.data?.count || 0;
           (window as any).showToast?.(`Se publicaron ${count} auditorías con éxito`, "success");
-          operator.calls.forEach((c: any) => {
-            if (c.month === selectedMonthVal && c.status === "draft") {
-              c.status = "published";
-            }
-          });
+          updateOperatorAuditsStatus(
+            activeAgentId,
+            (c) => c.month === selectedMonthVal && c.status === "draft",
+            "published",
+          );
           modalConfirmBatch?.close();
-          refreshActiveOperator?.();
+          displayOperatorDetails(activeAgentId);
+          updateCardDraftsBadge(activeAgentId);
         }
       } catch (err: any) {
         (window as any).showToast?.("Error de red al publicar lote", "error");

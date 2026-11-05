@@ -519,26 +519,34 @@ export function parseWiseEmailMetadata(
   operatorName = "",
   firstReplyAt?: string | null,
   emailThread?: EmailThreadData,
+  lastCustomerMessageAt?: string | null,
 ): ExtractedQualityMetadata {
   const caseNumber = (caseData?.number ?? caseData?.id ?? "").toString();
   const createdAt = caseData?.created_at || "";
   const dateStr = createdAt.split(" ")[0] || new Date().toISOString().split("T")[0];
-  const takeTime = caseData?.first_read || caseData?.last_read || createdAt;
-  const duration = calculateWiseEmailResponseTime(
-    createdAt,
-    firstReplyAt,
-    caseData?.solved_at,
-    caseData?.closed_at,
-  );
+
+  // Punto de partida para el cálculo de respuesta:
+  // Si hubo un mensaje de cliente específico al que se respondió, se toma ese timestamp.
+  const referenceCustomerTime = lastCustomerMessageAt || createdAt;
   const endStr = firstReplyAt || caseData?.solved_at || caseData?.closed_at;
+
   let responseSeconds: number | null = null;
-  if (createdAt && endStr) {
-    const startMs = Date.parse(createdAt.replace(" ", "T"));
+  if (referenceCustomerTime && endStr) {
+    const startMs = Date.parse(referenceCustomerTime.replace(" ", "T"));
     const endMs = Date.parse(endStr.replace(" ", "T"));
     if (!isNaN(startMs) && !isNaN(endMs) && endMs >= startMs) {
       responseSeconds = Math.floor((endMs - startMs) / 1000);
     }
   }
+
+  // Duración formateada de la respuesta (HH:MM:SS)
+  const duration = responseSeconds !== null
+    ? formatSecondsToHoursMinutesSeconds(responseSeconds)
+    : calculateWiseEmailResponseTime(createdAt, firstReplyAt, caseData?.solved_at, caseData?.closed_at);
+
+  // En la planilla MDA y el formulario de calidad, takeTime representa el tiempo transcurrido
+  // hasta la lectura/respuesta en formato duración (HH:MM:SS)
+  const takeTime = duration;
 
   return {
     caseNumber,
@@ -554,9 +562,11 @@ export function parseWiseEmailMetadata(
       subject: caseData?.subject,
       channel: caseData?.source_channel,
       firstReplyAt: firstReplyAt || undefined,
+      lastCustomerMessageAt: lastCustomerMessageAt || undefined,
       solvedAt: caseData?.solved_at,
       closedAt: caseData?.closed_at,
       responseSeconds,
+      responseHuman: responseSeconds !== null ? formatHumanDuration(responseSeconds) : "",
       isSla90MinMet: responseSeconds !== null ? responseSeconds <= 5400 : null,
     },
   };
@@ -1261,8 +1271,9 @@ export async function fetchQualityCaseMetadata(
           }
         }
 
-        // Obtener actividades para detectar la primera respuesta del operador (user_reply) y el hilo
+        // Obtener actividades para detectar el mensaje del cliente, la respuesta del operador y el hilo
         let firstReplyAt: string | undefined;
+        let lastCustomerMessageAt: string | undefined;
         let emailActivities: any[] = [];
         let emailThread: EmailThreadData | undefined;
         try {
@@ -1275,11 +1286,37 @@ export async function fetchQualityCaseMetadata(
               : Array.isArray(actRes.data?.data)
                 ? actRes.data.data
                 : [];
-            const replyAct = emailActivities.find((a: any) => a.type === "user_reply" && a.created_at);
+
+            // Orden cronológico ascendente (por created_at o id)
+            const sortedActs = [...emailActivities].sort((a, b) => {
+              if (a.created_at && b.created_at) return a.created_at.localeCompare(b.created_at);
+              return (a.id || 0) - (b.id || 0);
+            });
+
+            // Buscar la respuesta del operador (user_reply)
+            const replyAct = sortedActs.find((a: any) => a.type === "user_reply" && a.created_at);
             if (replyAct?.created_at) {
               firstReplyAt = replyAct.created_at;
+
+              // Buscar el último mensaje del cliente (contact_message) que precedió a esa respuesta
+              const priorCustomerActs = sortedActs.filter(
+                (a: any) =>
+                  a.type === "contact_message" &&
+                  a.created_at &&
+                  a.created_at <= replyAct.created_at,
+              );
+              if (priorCustomerActs.length > 0) {
+                lastCustomerMessageAt = priorCustomerActs[priorCustomerActs.length - 1].created_at;
+              }
+            } else {
+              // Si aún no hubo reply, buscar el último mensaje de cliente recibido
+              const customerActs = sortedActs.filter((a: any) => a.type === "contact_message" && a.created_at);
+              if (customerActs.length > 0) {
+                lastCustomerMessageAt = customerActs[customerActs.length - 1].created_at;
+              }
             }
-            emailThread = emailThreadFromActivities(emailActivities);
+
+            emailThread = emailThreadFromActivities(sortedActs);
           }
         } catch (actErr) {
           console.warn(`[qualityMetadataFetcher] Error obteniendo actividades para caso Wise ${caseData.id}:`, actErr);
@@ -1291,7 +1328,7 @@ export async function fetchQualityCaseMetadata(
           );
         }
 
-        const metadata = parseWiseEmailMetadata(caseData, operatorName, firstReplyAt, emailThread);
+        const metadata = parseWiseEmailMetadata(caseData, operatorName, firstReplyAt, emailThread, lastCustomerMessageAt);
         if (metadata.rawDetails) {
           metadata.rawDetails.operatorNick = operatorNick;
         }
