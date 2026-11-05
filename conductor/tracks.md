@@ -151,5 +151,5 @@
   *Link: [./tracks/asistencia_export_excel_20261103/index.md](./tracks/asistencia_export_excel_20261103/index.md)*
 
 ---
-- [ ] **Track: Ciclo de Vida Borrador / Publicado para Auditorías de Calidad**
+- [~] **Track: Ciclo de Vida Borrador / Publicado para Auditorías de Calidad**
   *Link: [./tracks/calidad_auditorias_borrador_publicacion_20261104/index.md](./tracks/calidad_auditorias_borrador_publicacion_20261104/index.md)*
