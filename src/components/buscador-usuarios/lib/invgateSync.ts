@@ -124,6 +124,7 @@ export async function handleSyncInvGate(onSyncSuccess?: () => void): Promise<voi
         `;
       }
       showToast(`Sincronizados ${data.totalSynced} usuarios de InvGate.`, "alert-success");
+      fetchSyncStatus();
       onSyncSuccess?.();
 
       setTimeout(() => {
