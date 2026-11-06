@@ -71,3 +71,60 @@ test("emailThreadFromActivities trunca contenidos que superen 2500 caracteres po
   assert.equal(thread.hasCustomerMessage, true);
   assert.equal(thread.hasOperatorReply, false);
 });
+
+test("parseWiseCallMetadata prioriza la duración de la grabación de audio sobre la duración bruta de call_data", async () => {
+  const { parseWiseCallMetadata } = await import("./qualityMetadataFetcher");
+  const caseData = { id: "547163", number: "547163", created_at: "2026-10-20 14:00:00" };
+  const activities = [
+    {
+      call_data: { duration: 385 }, // 06:25 tiempo total de sesión
+      recordings: [{ url: "https://s3.amazonaws.com/rec/audio.mp3", duration: 340 }], // 05:40 llamada neta
+    },
+  ];
+  const meta = parseWiseCallMetadata(caseData, activities);
+  assert.equal(meta.duration, "05:40");
+});
+
+test("parseWiseCallMetadata calcula exactamente el ring time con assigned_limit sin sobreredondear a 11s", async () => {
+  const { parseWiseCallMetadata } = await import("./qualityMetadataFetcher");
+  const caseData = { id: "547163", number: "547163", created_at: "2026-10-27 12:49:16" };
+  const activities = [
+    {
+      call_data: {
+        duration: 385,
+        logs: [
+          { message: "[call_transferred_area]Mosaic o Giros", time: "09:49:48.530" },
+          { message: "Bruno. Gutiérrez[assigned_limit]0/1", time: "09:49:48.875" },
+          { message: "[call_attended]Bruno. Gutiérrez", time: "09:49:59.245" },
+        ],
+      },
+      recordings: [{ url: "https://s3.amazonaws.com/rec/audio.mp3", duration: 340 }],
+    },
+  ];
+  const meta = parseWiseCallMetadata(caseData, activities);
+  assert.equal(meta.ringTime, "00:10");
+});
+
+test("parseWiseEmailMetadata calcula takeTime y duration con precisión usando mensaje del cliente y respuesta", async () => {
+  const { parseWiseEmailMetadata } = await import("./qualityMetadataFetcher");
+  const caseData = { id: "544797", number: "544797", created_at: "2026-10-19 12:00:00" };
+  const lastCustomerAt = "2026-10-19 12:05:00";
+  const replyAt = "2026-10-19 13:05:00";
+  const meta = parseWiseEmailMetadata(caseData, "Operador Test", replyAt, undefined, lastCustomerAt);
+
+  assert.equal(meta.takeTime, "01:00:00");
+  assert.equal(meta.duration, "01:00:00");
+  assert.equal(meta.rawDetails?.responseSeconds, 3600);
+});
+
+test("parseWiseEmailMetadata para caso 543784 con 9:52 entrada y 11:27 respuesta da 01:35:00", async () => {
+  const { parseWiseEmailMetadata } = await import("./qualityMetadataFetcher");
+  const caseData = { id: "543784", number: "543784", created_at: "2026-10-19 09:50:00" };
+  const lastCustomerAt = "2026-10-19 09:52:00";
+  const replyAt = "2026-10-19 11:27:00";
+  const meta = parseWiseEmailMetadata(caseData, "Operador Test", replyAt, undefined, lastCustomerAt);
+
+  assert.equal(meta.takeTime, "01:35:00");
+  assert.equal(meta.duration, "01:35:00");
+  assert.equal(meta.rawDetails?.responseSeconds, 5700);
+});

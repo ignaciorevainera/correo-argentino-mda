@@ -31,6 +31,7 @@ const cleanBase = getCleanBase();
 const invgateWebBase = (import.meta.env.INVGATE_BASE_URL || "")
   .replace(/\/api\/v1\/?$/, "")
   .replace(/\/$/, "");
+const wiseWebBase = (import.meta.env.WISE_CX_WEB_URL || "https://ca-ma.wcx.cloud").replace(/\/$/, "");
 
 // Group parameters by channel and section
 const wiseCallParams = allParameters.filter(
@@ -114,6 +115,7 @@ const returnUrl = `${cleanBase}supervision/calidad-operadores?month=${encodeURIC
   data-approved-titles={JSON.stringify(approvedTitles)}
   data-clean-base={cleanBase}
   data-invgate-web-base={invgateWebBase}
+  data-wise-web-base={wiseWebBase}
   data-initial-audit={JSON.stringify(initialAudit || null)}
 >
   <form id="audit-form" method="POST">
@@ -342,7 +344,7 @@ const returnUrl = `${cleanBase}supervision/calidad-operadores?month=${encodeURIC
         </fieldset>
 
         <!-- Nro Caso / Llamada -->
-        <fieldset class="fieldset col-span-12 min-w-0 md:col-span-4">
+        <fieldset id="fieldset-call-id" class="fieldset col-span-12 min-w-0 md:col-span-4">
           <FormLegend>Nro caso / llamada</FormLegend>
           <div class="join w-full">
             <input
@@ -355,17 +357,28 @@ const returnUrl = `${cleanBase}supervision/calidad-operadores?month=${encodeURIC
               spellcheck="false"
               inputmode="numeric"
               placeholder="Ej: 534787…"
-              class="input input-sm join-item w-full min-w-0 border-base-200 bg-base-200/40 font-mono text-sm focus:outline-none focus-visible:border-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40"
+              class="input input-sm join-item w-full min-w-0 border-base-200 bg-base-200/40 font-mono text-sm focus:outline-none focus-visible:border-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-base-300/40"
             />
             <button
               type="button"
               id="btn-fetch-wise-api"
-              class="btn btn-square btn-sm join-item btn-secondary shrink-0 shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+              class="btn btn-square btn-sm join-item btn-secondary shrink-0 shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60 disabled:opacity-50 disabled:cursor-not-allowed"
               title="Buscar caso en Wise CX"
               aria-label="Buscar caso en Wise CX"
             >
               <Icon name="boxicons:search" size={16} is:inline aria-hidden="true" />
             </button>
+            <a
+              id="btn-open-wise-case"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn btn-square btn-sm join-item btn-ghost border-base-200 bg-base-100 shrink-0 shadow-none text-secondary pointer-events-none opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+              title="Abrir en Wise CX"
+              aria-label="Abrir caso en Wise CX"
+            >
+              <Icon name="boxicons:window-arrow-out" size={16} is:inline aria-hidden="true" />
+            </a>
           </div>
         </fieldset>
 
@@ -395,6 +408,17 @@ const returnUrl = `${cleanBase}supervision/calidad-operadores?month=${encodeURIC
               <Icon name="boxicons:search" size={16} is:inline aria-hidden="true" />
               <span id="btn-fetch-invgate-label" class="sr-only">Buscar</span>
             </button>
+            <a
+              id="btn-open-invgate-ticket"
+              href="#"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="btn btn-square btn-sm join-item btn-ghost border-base-200 bg-base-100 shrink-0 shadow-none text-secondary pointer-events-none opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
+              title="Abrir en InvGate"
+              aria-label="Abrir ticket en InvGate"
+            >
+              <Icon name="boxicons:window-arrow-out" size={16} is:inline aria-hidden="true" />
+            </a>
           </div>
         </fieldset>
 
@@ -1150,7 +1174,7 @@ const returnUrl = `${cleanBase}supervision/calidad-operadores?month=${encodeURIC
               data-tone="success"
               class="badge badge-sm border-0 font-bold data-[tone=success]:bg-success/15 data-[tone=success]:text-success data-[tone=warning]:bg-warning/15 data-[tone=warning]:text-warning data-[tone=error]:bg-error/15 data-[tone=error]:text-error"
             >
-              Excelente
+              Aprobado
             </span>
           </div>
 
@@ -1321,26 +1345,9 @@ const returnUrl = `${cleanBase}supervision/calidad-operadores?month=${encodeURIC
                   </span>
                 </div>
                 <div class="flex shrink-0 items-center gap-0.5">
-                  {/*
-                    Deshabilitado a propósito: el detalle técnico crudo de InvGate
-                    (fetch-metadata?raw=1) queda en pausa hasta que se defina su uso.
-                    Para habilitarlo: quitar `disabled` y las clases
-                    `pointer-events-none opacity-40` acá, y en `populateTicketViewer`
-                    cambiar el `disabled = true` por `disabled = false` + quitar esas
-                    clases (mismo tratamiento que `#btn-inspect-wise-detail`).
-                  */}
-                  <button
-                    type="button"
-                    id="btn-inspect-invgate-detail"
-                    class="btn btn-circle btn-ghost btn-xs pointer-events-none text-secondary opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary/60"
-                    title="Ver detalle técnico del ticket"
-                    aria-label="Ver detalle técnico del ticket"
-                    disabled
-                  >
-                    <Icon name="boxicons:terminal" size={13} aria-hidden="true" />
-                  </button>
+
                   <a
-                    id="btn-open-invgate-ticket"
+                    id="btn-open-invgate-ticket-card"
                     href="#"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -1416,20 +1423,24 @@ const returnUrl = `${cleanBase}supervision/calidad-operadores?month=${encodeURIC
                   </div>
                 </div>
 
-                <div class="hidden">
-                  <dd id="tv-response-time">-</dd>
+                <div id="tv-response-time-container" class="rounded-lg bg-base-100 p-1.5 text-xs">
+                  <dt class="text-base-content/50">Toma / Respuesta Ticket</dt>
+                  <dd id="tv-response-time" class="font-mono font-semibold text-secondary">-</dd>
                 </div>
               </div>
             </div>
 
             <!-- Tiempos técnicos -->
             <div class="rounded-xl border border-base-200 bg-base-200/40 p-2.5">
-              <h3
-                class="mb-2 flex items-center gap-1.5 text-xs font-bold tracking-wider text-base-content/70 uppercase text-balance"
-              >
-                <Icon name="boxicons:timer" size={15} class="text-secondary" aria-hidden="true" />
-                Tiempos técnicos
-              </h3>
+              <div class="mb-2 flex items-center justify-between gap-1">
+                <h3
+                  class="flex items-center gap-1.5 text-xs font-bold tracking-wider text-base-content/70 uppercase text-balance"
+                >
+                  <Icon name="boxicons:timer" size={15} class="text-secondary" aria-hidden="true" />
+                  <span id="card-tech-times-title">Tiempos técnicos</span>
+                </h3>
+                <span id="card-tech-times-badge" class="badge badge-xs border-0 bg-base-300/60 font-semibold text-base-content/70"></span>
+              </div>
               <div class="grid grid-cols-2 gap-2">
                 <div id="meta-duration-container">
                   <FormField
@@ -1706,9 +1717,9 @@ const returnUrl = `${cleanBase}supervision/calidad-operadores?month=${encodeURIC
 
   // Clases literales: Tailwind escanea el fuente, no puede resolver `progress-${x}`.
   const SCORE_TONE: Record<string, { progress: string; label: string; text: string }> = {
-    success: { progress: "progress-success", label: "Excelente", text: "text-success" },
+    success: { progress: "progress-success", label: "Aprobado", text: "text-success" },
     warning: { progress: "progress-warning", label: "Aceptable", text: "text-warning" },
-    error: { progress: "progress-error", label: "Requiere atención", text: "text-error" },
+    error: { progress: "progress-error", label: "Desaprobado", text: "text-error" },
   };
 
   const ALERT_TONE: Record<string, string> = {
@@ -1753,6 +1764,30 @@ const returnUrl = `${cleanBase}supervision/calidad-operadores?month=${encodeURIC
 
     const invgateWebBase = container?.dataset.invgateWebBase || "";
     const btnOpenInvgateTicket = document.getElementById("btn-open-invgate-ticket") as HTMLAnchorElement | null;
+    const btnOpenInvgateTicketCard = document.getElementById("btn-open-invgate-ticket-card") as HTMLAnchorElement | null;
+    const wiseWebBase = container?.dataset.wiseWebBase || "https://wcx.cloud";
+    const btnOpenWiseCase = document.getElementById("btn-open-wise-case") as HTMLAnchorElement | null;
+    let lastLoadedWiseData: any = null;
+    let lastLoadedInvgateData: any = null;
+
+    function syncWiseDeepLink() {
+      if (!btnOpenWiseCase) return;
+      const caseId = wiseSearchInput?.value.trim();
+      const internalId = lastLoadedWiseData?.rawDetails?.caseId;
+      const targetId = internalId || caseId;
+      if (!targetId) {
+        btnOpenWiseCase.setAttribute("aria-disabled", "true");
+        btnOpenWiseCase.classList.add("opacity-40", "pointer-events-none");
+        btnOpenWiseCase.removeAttribute("href");
+      } else {
+        btnOpenWiseCase.removeAttribute("aria-disabled");
+        btnOpenWiseCase.classList.remove("opacity-40", "pointer-events-none");
+        btnOpenWiseCase.href = `${wiseWebBase}/app/#/tickets/${encodeURIComponent(targetId)}`;
+      }
+    }
+
+    wiseSearchInput?.addEventListener("input", syncWiseDeepLink);
+    syncWiseDeepLink();
     const btnInspectInvgate = document.getElementById("btn-inspect-invgate-detail") as HTMLButtonElement | null;
     const btnInspectWise = document.getElementById("btn-inspect-wise-detail") as HTMLButtonElement | null;
 
@@ -1770,17 +1805,21 @@ const returnUrl = `${cleanBase}supervision/calidad-operadores?month=${encodeURIC
     const modalCopyText = document.getElementById("modal-case-detail-copy-text");
 
     function syncInvgateDeepLink() {
-      if (!btnOpenInvgateTicket) return;
       const ticketId = invgateSearchInput?.value.trim();
-      if (!invgateWebBase || !ticketId) {
-        btnOpenInvgateTicket.setAttribute("aria-disabled", "true");
-        btnOpenInvgateTicket.classList.add("opacity-40", "pointer-events-none");
-        btnOpenInvgateTicket.removeAttribute("href");
-      } else {
-        btnOpenInvgateTicket.removeAttribute("aria-disabled");
-        btnOpenInvgateTicket.classList.remove("opacity-40", "pointer-events-none");
-        btnOpenInvgateTicket.href = `${invgateWebBase}/requests/show/index/id/${encodeURIComponent(ticketId)}`;
-      }
+      const applyBtn = (b: HTMLAnchorElement | null) => {
+        if (!b) return;
+        if (!invgateWebBase || !ticketId) {
+          b.setAttribute("aria-disabled", "true");
+          b.classList.add("opacity-40", "pointer-events-none");
+          b.removeAttribute("href");
+        } else {
+          b.removeAttribute("aria-disabled");
+          b.classList.remove("opacity-40", "pointer-events-none");
+          b.href = `${invgateWebBase}/requests/show/index/id/${encodeURIComponent(ticketId)}`;
+        }
+      };
+      applyBtn(btnOpenInvgateTicket);
+      applyBtn(btnOpenInvgateTicketCard);
     }
 
     invgateSearchInput?.addEventListener("input", syncInvgateDeepLink);
@@ -1806,6 +1845,50 @@ const returnUrl = `${cleanBase}supervision/calidad-operadores?month=${encodeURIC
     const formCreationTime = document.getElementById("form-creation-time") as HTMLInputElement | null;
     const formTakeTime = document.getElementById("form-take-time") as HTMLInputElement | null;
     const formTakeHint = document.getElementById("take-time-hint");
+
+    function updateTakeTimeHint(targetChannel?: string, customData?: any) {
+      if (!formTakeHint) return;
+      const channel = targetChannel || formChannelType?.value || "wise_call";
+      formTakeHint.classList.remove("text-info", "text-error", "text-secondary");
+
+      if (channel === "wise_email") {
+        const data = customData || lastLoadedWiseData;
+        const respSec = data?.rawDetails?.responseSeconds;
+        if (typeof respSec === "number" && !isNaN(respSec)) {
+          const mins = Math.round(respSec / 60);
+          const human =
+            mins < 60
+              ? `~${mins} min`
+              : mins % 60 === 0
+                ? `~${mins} min (${Math.floor(mins / 60)}h)`
+                : `~${mins} min (${Math.floor(mins / 60)}h ${mins % 60}m)`;
+          formTakeHint.textContent = human;
+          const isWithin90 = data?.rawDetails?.isSla90MinMet ?? respSec <= 5400;
+          formTakeHint.classList.add(isWithin90 ? "text-info" : "text-error");
+          formTakeHint.classList.remove("hidden");
+          return;
+        }
+      } else if (channel === "invgate_ticket") {
+        const data = customData || lastLoadedInvgateData;
+        if (data?.rawDetails?.reassignedWithoutComment) {
+          formTakeHint.textContent = "Sin comentarios. Verificar en InvGate.";
+          formTakeHint.classList.add("text-secondary");
+          formTakeHint.classList.remove("hidden");
+          return;
+        }
+        const human = data?.rawDetails?.responseHuman;
+        if (human) {
+          formTakeHint.textContent = `~${human}`;
+          formTakeHint.classList.add("text-secondary");
+          formTakeHint.classList.remove("hidden");
+          return;
+        }
+      }
+
+      formTakeHint.textContent = "";
+      formTakeHint.classList.add("hidden");
+    }
+
     const formDate = document.getElementById("form-date") as HTMLInputElement | null;
     const formAgentSelect = document.getElementById("form-agent-id") as HTMLSelectElement | null;
     const formCallIdEl = document.getElementById("form-call-id") as HTMLInputElement | null;
@@ -2083,6 +2166,23 @@ const returnUrl = `${cleanBase}supervision/calidad-operadores?month=${encodeURIC
         const fileName = `grabacion-caso-${caseNumber || wiseSearchInput?.value || "llamada"}`;
         const proxyUrl = `${cleanBase}api/calidad/download-audio?url=${encodeURIComponent(recordingUrl.trim())}&filename=${encodeURIComponent(fileName)}.mp3`;
         tvAudioPlayer.src = proxyUrl;
+
+        // Sincronizar duracion llamada con la duracion de la grabacion de audio una vez cargados sus metadatos
+        const onAudioMetaLoaded = () => {
+          if (tvAudioPlayer.duration && !isNaN(tvAudioPlayer.duration) && tvAudioPlayer.duration > 0) {
+            const totalSec = Math.round(tvAudioPlayer.duration);
+            const m = Math.floor(totalSec / 60);
+            const s = totalSec % 60;
+            const formatted = `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+            if (formDuration) {
+              formDuration.value = formatted;
+              markAsInProgress();
+            }
+          }
+        };
+        tvAudioPlayer.removeEventListener("loadedmetadata", (tvAudioPlayer as any)._onAudioMetaLoaded);
+        (tvAudioPlayer as any)._onAudioMetaLoaded = onAudioMetaLoaded;
+        tvAudioPlayer.addEventListener("loadedmetadata", onAudioMetaLoaded, { once: true });
         if (tvAudioDownload) {
           tvAudioDownload.href = `${proxyUrl}&download=1`;
           tvAudioDownload.setAttribute("download", `${fileName}.mp3`);
@@ -2136,6 +2236,10 @@ const returnUrl = `${cleanBase}supervision/calidad-operadores?month=${encodeURIC
         tvSource.removeAttribute("title");
       }
       if (tvResponseTime) tvResponseTime.textContent = "-";
+      if (formTakeHint && formChannelType?.value !== "wise_email") {
+        formTakeHint.textContent = "";
+        formTakeHint.classList.add("hidden");
+      }
       if (tvDescription) tvDescription.textContent = "-";
       if (btnInspectInvgate) {
         btnInspectInvgate.classList.add("opacity-40", "pointer-events-none");
@@ -2479,21 +2583,8 @@ function evaluateOrthographyRule(title: string, description: string) {
         tvResponseTime.textContent = data.takeTime ? `${data.takeTime}${human ? ` (${human})` : ""}` : "-";
       }
 
-      if (formTakeHint) {
-        if (data.rawDetails?.reassignedWithoutComment) {
-          formTakeHint.textContent = `Sin comentarios. Verificar en InvGate.`;
-          formTakeHint.classList.remove("hidden");
-        } else {
-          const human = data.rawDetails?.responseHuman;
-          if (human) {
-            formTakeHint.textContent = `~${human}`;
-            formTakeHint.classList.remove("hidden");
-          } else if (data.takeTime) {
-            formTakeHint.textContent = "";
-            formTakeHint.classList.add("hidden");
-          }
-        }
-      }
+      const currentActiveChannel = formChannelType?.value || "wise_call";
+      updateTakeTimeHint(currentActiveChannel, data);
 
       if (tvDescription) tvDescription.textContent = cleanHtmlText(description);
 
@@ -2604,8 +2695,10 @@ function evaluateOrthographyRule(title: string, description: string) {
           }
         }
 
+        lastLoadedWiseData = d;
         applyTechnicalFields(d, { overwrite: true });
         if (formCallIdEl && d.caseNumber) formCallIdEl.value = d.caseNumber;
+        syncWiseDeepLink();
         const incidentId = d.rawDetails?.incidentId;
         if (invgateSearchInput && !invgateSearchInput.value && incidentId) {
           invgateSearchInput.value = String(incidentId);
@@ -2620,6 +2713,7 @@ function evaluateOrthographyRule(title: string, description: string) {
         }
 
         evaluateWiseEmailSla(d);
+        updateTakeTimeHint(formChannelType?.value, d);
 
         const agentSelected = d.operator || d.rawDetails?.operatorNick
           ? autoSelectAgentFromOperator(d.operator, d.rawDetails?.operatorNick)
@@ -2696,12 +2790,17 @@ function evaluateOrthographyRule(title: string, description: string) {
 
         const effectiveChannel = formChannelType?.value || "wise_call";
         const allowDateFromInvgate = effectiveChannel === "invgate_ticket";
-        applyTechnicalFields(d, { overwrite: false, includeDate: allowDateFromInvgate });
+        if (effectiveChannel === "invgate_ticket") {
+          applyTechnicalFields(d, { overwrite: true, includeDate: true });
+        } else if (effectiveChannel !== "wise_email" || (!formCreationTime?.value && !formTakeTime?.value)) {
+          applyTechnicalFields(d, { overwrite: false, includeDate: allowDateFromInvgate });
+        }
         if (formIsPas && typeof d.isPas === "boolean") formIsPas.checked = d.isPas;
         if (typeof d.staysInMda === "boolean") {
           setInvgateTicketMode(d.staysInMda ? "si" : "no");
         }
 
+        lastLoadedInvgateData = d;
         if (invgateSearchInput && d.caseNumber) invgateSearchInput.value = d.caseNumber;
         syncInvgateDeepLink();
 
@@ -3441,6 +3540,11 @@ function evaluateOrthographyRule(title: string, description: string) {
         const metaCreationContainer = document.getElementById("meta-creation-container");
         const metaTakeContainer = document.getElementById("meta-take-container");
         const metaPasContainer = document.getElementById("meta-pas-container");
+        const fieldsetCallId = document.getElementById("fieldset-call-id");
+
+        const cardTechTimesBadge = document.getElementById("card-tech-times-badge");
+        const creationLegend = metaCreationContainer?.querySelector("legend");
+        const takeLegend = metaTakeContainer?.querySelector("legend");
 
         if (channel === "wise_call") {
           metaDurationContainer?.classList.remove("hidden");
@@ -3448,18 +3552,59 @@ function evaluateOrthographyRule(title: string, description: string) {
           metaCreationContainer?.classList.add("hidden");
           metaTakeContainer?.classList.add("hidden");
           metaPasContainer?.classList.add("hidden");
+
+          if (cardTechTimesBadge) cardTechTimesBadge.textContent = "Llamada";
+          if (wiseSearchInput) wiseSearchInput.disabled = false;
+          if (btnFetchWise) btnFetchWise.disabled = false;
+          fieldsetCallId?.classList.remove("opacity-60");
+          if (formRecordingUrl?.value && tvAudioContainer) {
+            tvAudioContainer.classList.remove("hidden");
+          }
+          updateTakeTimeHint("wise_call");
         } else if (channel === "wise_email") {
           metaDurationContainer?.classList.add("hidden");
           metaRingContainer?.classList.add("hidden");
           metaCreationContainer?.classList.remove("hidden");
           metaTakeContainer?.classList.remove("hidden");
           metaPasContainer?.classList.add("hidden");
+
+          if (cardTechTimesBadge) cardTechTimesBadge.textContent = "Mail Wise";
+          if (creationLegend) creationLegend.textContent = "Creación Mail";
+          if (takeLegend) takeLegend.textContent = "Lectura / Respuesta Mail";
+          if (wiseSearchInput) wiseSearchInput.disabled = false;
+          if (btnFetchWise) btnFetchWise.disabled = false;
+          fieldsetCallId?.classList.remove("opacity-60");
+          tvAudioContainer?.classList.add("hidden");
+          tvAudioPlayer?.pause();
+
+          if (lastLoadedWiseData && lastLoadedWiseData.detectedChannel === "wise_email") {
+            applyTechnicalFields(lastLoadedWiseData, { overwrite: true, includeDate: false });
+            updateTakeTimeHint("wise_email", lastLoadedWiseData);
+          } else {
+            updateTakeTimeHint("wise_email");
+          }
         } else if (channel === "invgate_ticket") {
           metaDurationContainer?.classList.add("hidden");
           metaRingContainer?.classList.add("hidden");
           metaCreationContainer?.classList.remove("hidden");
           metaTakeContainer?.classList.remove("hidden");
           metaPasContainer?.classList.remove("hidden");
+
+          if (cardTechTimesBadge) cardTechTimesBadge.textContent = "Autogestión";
+          if (creationLegend) creationLegend.textContent = "Creación Ticket";
+          if (takeLegend) takeLegend.textContent = "Toma / Respuesta Ticket";
+          if (wiseSearchInput) wiseSearchInput.disabled = true;
+          if (btnFetchWise) btnFetchWise.disabled = true;
+          fieldsetCallId?.classList.add("opacity-60");
+          tvAudioContainer?.classList.add("hidden");
+          tvAudioPlayer?.pause();
+
+          if (lastLoadedInvgateData) {
+            applyTechnicalFields(lastLoadedInvgateData, { overwrite: true, includeDate: true });
+            updateTakeTimeHint("invgate_ticket", lastLoadedInvgateData);
+          } else {
+            updateTakeTimeHint("invgate_ticket");
+          }
         }
 
         markAsInProgress();
@@ -3707,7 +3852,7 @@ function evaluateOrthographyRule(title: string, description: string) {
       const s2Score = hasSection2 ? rawS2 : 0;
       const total = Math.max(0, Math.min(100, rawTotal));
 
-      const tone = total >= 90 ? "success" : total >= 80 ? "warning" : "error";
+      const tone = total >= 85 ? "success" : "error";
 
       const pS1 = document.getElementById("preview-s1");
       const pS2 = document.getElementById("preview-s2");
@@ -3819,7 +3964,9 @@ function evaluateOrthographyRule(title: string, description: string) {
         if (toggleStaysMda) formData.set("staysInMda", toggleStaysMda.value);
 
         const activeChannel = (formData.get("channelType") as string) || "wise_call";
-        const callIdVal = (formData.get("callId") as string)?.trim() || "";
+        // Si el canal es invgate_ticket, wiseSearchInput está deshabilitado y no viaja en formData
+        const rawCallIdVal = (formData.get("callId") as string) ?? wiseSearchInput?.value ?? "";
+        const callIdVal = rawCallIdVal.trim();
         const ticketIdVal = (formData.get("ticketId") as string)?.trim() || "";
 
         if (activeChannel === "wise_call" && !callIdVal) {
@@ -3833,11 +3980,18 @@ function evaluateOrthographyRule(title: string, description: string) {
         }
 
         if (activeChannel === "invgate_ticket") {
-          if (!ticketIdVal && !callIdVal) {
+          if (!ticketIdVal) {
             showSubmitError("El Nro de caso / Ticket AG es requerido.", invgateSearchInput);
             return;
           }
-          if (!callIdVal) formData.set("callId", ticketIdVal);
+          // En autogestiones el identificador principal es el ticket InvGate y no lleva audio
+          formData.set("callId", ticketIdVal);
+          formData.delete("recordingUrl");
+          formData.set("recordingUrl", "");
+        } else if (activeChannel === "wise_email") {
+          // En mails tampoco aplica grabación de llamada
+          formData.delete("recordingUrl");
+          formData.set("recordingUrl", "");
         }
 
         const auditIdInputVal = (document.getElementById("form-audit-id") as HTMLInputElement)?.value;
@@ -3856,9 +4010,13 @@ function evaluateOrthographyRule(title: string, description: string) {
           } else if (result.data?.success) {
             isFormDirty = false;
             const redirectUrl = new URL(`${window.location.origin}${cleanBase}supervision/calidad-operadores`);
-            if (formData.get("month")) redirectUrl.searchParams.set("month", formData.get("month") as string);
+            if (formData.get("month")) {
+              const m = formData.get("month") as string;
+              redirectUrl.searchParams.set("month", m);
+              document.cookie = "calidad_month=" + encodeURIComponent(m) + "; path=/; max-age=2592000; SameSite=Lax";
+            }
             if (agentIdVal) redirectUrl.searchParams.set("agentId", agentIdVal);
-            redirectUrl.searchParams.set("toast_msg", "Auditoría guardada con éxito.");
+            redirectUrl.searchParams.set("toast_msg", "Auditoría guardada como borrador con éxito.");
             redirectUrl.searchParams.set("toast_type", "success");
             window.location.href = redirectUrl.toString();
           } else {
@@ -3980,7 +4138,10 @@ function evaluateOrthographyRule(title: string, description: string) {
               if (result.data?.success) {
                 isFormDirty = false;
                 const redirectUrl = new URL(`${window.location.origin}${cleanBase}supervision/calidad-operadores`);
-                if (initialAuditData.month) redirectUrl.searchParams.set("month", initialAuditData.month);
+                if (initialAuditData.month) {
+                  redirectUrl.searchParams.set("month", initialAuditData.month);
+                  document.cookie = "calidad_month=" + encodeURIComponent(initialAuditData.month) + "; path=/; max-age=2592000; SameSite=Lax";
+                }
                 if (initialAuditData.agentId) redirectUrl.searchParams.set("agentId", String(initialAuditData.agentId));
                 redirectUrl.searchParams.set("toast_msg", "Auditoría eliminada con éxito.");
                 redirectUrl.searchParams.set("toast_type", "success");

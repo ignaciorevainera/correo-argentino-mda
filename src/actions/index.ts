@@ -13,6 +13,7 @@ import {
 import { and, eq, inArray } from "drizzle-orm";
 import { calculateMultiChannelAuditScores } from "@lib/qualityCalculator";
 import { logAdminFromAstro } from "@lib/auditLogger";
+import { buildBatchPublishConditions } from "@lib/calidad/auditPublishingService";
 import { invalidateFeedbackCountCache } from "@lib/getUnassignedFeedbackCount";
 import {
   invalidateAutomationDetail,
@@ -420,7 +421,7 @@ export const server = {
               : input.appliesMda,
         staysInMda: input.staysInMda,
         isReclamoNovedad,
-        recordingUrl: input.recordingUrl || null,
+        recordingUrl: input.channelType === "wise_call" ? (input.recordingUrl || null) : null,
       };
 
       const [agentForAudit] = await db
@@ -468,6 +469,7 @@ export const server = {
             // Insertar nueva auditoría con aiSnapshot y operatorCoaching (o null)
             const insertPayload = {
               ...auditData,
+              status: "draft" as const,
               aiSnapshot: incomingSnapshot,
               operatorCoaching: incomingCoaching,
             };
@@ -598,6 +600,114 @@ export const server = {
         console.error("Error saving month summary:", error);
         throw new Error(error.message || "Error al guardar el resumen del mes");
       }
+    },
+  }),
+
+  publishQualityAudit: defineAction({
+    accept: "json",
+    input: z.object({
+      id: z.number().int().positive("El ID de auditoría debe ser positivo"),
+    }),
+    handler: async ({ id }, context) => {
+      const denied = await requireWriteAccess(context.locals, "calidad");
+      if (denied) return denied;
+
+      const [audit] = await db
+        .select({
+          id: qualityAudits.id,
+          agentId: qualityAudits.agentId,
+          callId: qualityAudits.callId,
+          status: qualityAudits.status,
+        })
+        .from(qualityAudits)
+        .where(eq(qualityAudits.id, id));
+
+      if (!audit) {
+        throw new ActionError({
+          code: "NOT_FOUND",
+          message: `No se encontró la auditoría con ID ${id}.`,
+        });
+      }
+
+      let agentName = "Desconocido";
+      const [agent] = await db
+        .select({ name: agents.name })
+        .from(agents)
+        .where(eq(agents.id, audit.agentId));
+      if (agent?.name) agentName = agent.name;
+
+      await db
+        .update(qualityAudits)
+        .set({ status: "published" })
+        .where(eq(qualityAudits.id, id))
+        .run();
+
+      await logAdminFromAstro(
+        context.locals,
+        `Publicó auditoría de calidad #${id} para "${agentName}" (call ${audit.callId})`,
+      );
+
+      return { success: true, id, status: "published" };
+    },
+  }),
+
+  publishQualityAuditsBatch: defineAction({
+    accept: "json",
+    input: z.object({
+      auditIds: z.array(z.number()).optional(),
+      agentId: z.number().optional(),
+      month: z.string().optional(),
+    }),
+    handler: async (input, context) => {
+      const denied = await requireWriteAccess(context.locals, "calidad");
+      if (denied) return denied;
+
+      const conditions = buildBatchPublishConditions(input);
+      if (!conditions.valid) {
+        throw new ActionError({
+          code: "BAD_REQUEST",
+          message: conditions.error,
+        });
+      }
+
+      let targetAudits: { id: number; agentId: number }[] = [];
+
+      if (conditions.type === "ids") {
+        targetAudits = await db
+          .select({ id: qualityAudits.id, agentId: qualityAudits.agentId })
+          .from(qualityAudits)
+          .where(and(inArray(qualityAudits.id, conditions.auditIds), eq(qualityAudits.status, "draft")));
+      } else {
+        targetAudits = await db
+          .select({ id: qualityAudits.id, agentId: qualityAudits.agentId })
+          .from(qualityAudits)
+          .where(
+            and(
+              eq(qualityAudits.agentId, conditions.agentId),
+              eq(qualityAudits.month, conditions.month),
+              eq(qualityAudits.status, "draft"),
+            ),
+          );
+      }
+
+      if (targetAudits.length === 0) {
+        return { success: true, count: 0, message: "No había auditorías pendientes de publicación." };
+      }
+
+      const idsToPublish = targetAudits.map((a) => a.id);
+
+      await db
+        .update(qualityAudits)
+        .set({ status: "published" })
+        .where(inArray(qualityAudits.id, idsToPublish))
+        .run();
+
+      await logAdminFromAstro(
+        context.locals,
+        `Publicó ${idsToPublish.length} auditorías de calidad en lote`,
+      );
+
+      return { success: true, count: idsToPublish.length, publishedIds: idsToPublish };
     },
   }),
   submitFeedback: defineAction({
