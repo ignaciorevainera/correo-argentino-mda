@@ -10,7 +10,6 @@ export async function getAllOfficesFromDB(): Promise<OfficeDirectoryItem[]> {
     orderBy: (offices, { asc }) => [asc(offices.code), asc(offices.name)],
     with: {
       assets: true,
-      contacts: { with: { contact: true } },
       province: { with: { region: true } },
       terminals: true,
     },
@@ -50,11 +49,6 @@ export async function getAllOfficesFromDB(): Promise<OfficeDirectoryItem[]> {
     notes: office.notes ?? "",
     officeType: office.officeType,
     parentNis: office.parentNis,
-    contacts: office.contacts.map((oc) => ({
-      name: oc.contact.name,
-      phone: oc.contact.phone ?? "",
-      timeSlot: oc.timeSlot ?? "",
-    })),
     assets: office.assets.map((a) => ({
       type: a.type as OfficeAssetType,
       hostname: a.hostname ?? "",

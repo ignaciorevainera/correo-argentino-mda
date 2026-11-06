@@ -2,7 +2,6 @@
 import ActionButton from "@components/ui/ActionButton.astro";
 import { Icon } from "astro-icon/components";
 import CopyButton from "@components/ui/CopyButton.astro";
-import OfficeContactsSection from "@components/offices/OfficeContactsSection.astro";
 import OfficeEquipmentCard from "@components/offices/OfficeEquipmentCard.astro";
 import { isAllowed } from "@lib/rolesMatrix";
 import { resolveUrl } from "@lib/url";
@@ -37,7 +36,6 @@ const normalizedType =
     : office.type;
 
 const searchText = `${office.name} ${office.code} ${office.region} ${office.provinceName} ${office.location} ${office.postalCode} ${officeTypeLabelByType[normalizedType] || office.type} ${office.parentNis ?? ""} ${office.costCenter}`;
-const hasContacts = office.contacts && office.contacts.length > 0;
 const hasInfo = Boolean(office.email || office.notes);
 const hasInvgateDetail: boolean = office.invgateLinked === true;
 
@@ -50,14 +48,12 @@ const hasSiblings = siblings.length > 0;
 const layout = getDetailColumnLayout({
   hasInvgate: hasInvgateDetail,
   hasInfo,
-  contactsCount: office.contacts?.length ?? 0,
   hasSiblings,
   hasAssets: hasAssetsSection,
 });
 
-const contactsToCenter = layout.contactsToCenter;
 const hasDetails =
-  hasInvgateDetail || hasInfo || hasContacts || hasAssetsSection || hasSiblings;
+  hasInvgateDetail || hasInfo || hasAssetsSection || hasSiblings;
 
 const showActionsColumn =
   isAllowedAdmin ||
@@ -176,8 +172,6 @@ const officeDirectoryRowGridClass = showActionsColumn
           <span>
             {officeTypeLabelByType[normalizedType] || office.type}
           </span>
-          <span class="text-base-content/35">/</span>
-          <span>{office.contacts.length} contactos</span>
           <span class="text-base-content/35">/</span>
           <span>{totalAssets} activos</span>
         </div>
@@ -465,10 +459,6 @@ const officeDirectoryRowGridClass = showActionsColumn
                     class="border-base-300 bg-base-100/50 rounded-lg border p-3 shadow-sm"
                   />
                 </section>
-
-                {hasContacts && !contactsToCenter && (
-                  <OfficeContactsSection contacts={office.contacts} />
-                )}
               </div>
             )
           }
@@ -522,13 +512,6 @@ const officeDirectoryRowGridClass = showActionsColumn
                       ))}
                     </div>
                   </section>
-                )}
-
-                {contactsToCenter && hasContacts && (
-                  <OfficeContactsSection
-                    contacts={office.contacts}
-                    dense={true}
-                  />
                 )}
               </div>
             )

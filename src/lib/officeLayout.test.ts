@@ -7,7 +7,6 @@ const flags = (
 ) => ({
   hasInvgate: false,
   hasInfo: false,
-  contactsCount: 0,
   hasSiblings: false,
   hasAssets: false,
   ...overrides,
@@ -72,34 +71,9 @@ test("single column: only info → left w-full", () => {
   assert.equal(l.rightClass, "");
 });
 
-test("contacts > 5 moves contacts to center and enables compact assets only with center", () => {
-  const l = getDetailColumnLayout(
-    flags({ hasInfo: true, contactsCount: 6, hasAssets: true }),
-  );
-  assert.equal(l.hasCenter, true);
-  assert.equal(l.contactsToCenter, true);
-  assert.equal(l.compactAssets, true);
-  assert.equal(l.hasLeft, true);
-});
-
-test("contacts === 5 stays in left, no center", () => {
-  const l = getDetailColumnLayout(
-    flags({ hasInfo: true, contactsCount: 5, hasAssets: true }),
-  );
-  assert.equal(l.contactsToCenter, false);
-  assert.equal(l.hasCenter, false);
-  assert.equal(l.compactAssets, false);
-});
-
 test("left does not render when only siblings exist", () => {
   const l = getDetailColumnLayout(
     flags({ hasSiblings: true, hasAssets: true }),
   );
   assert.equal(l.hasLeft, false);
-});
-
-test("left renders when info present even with contacts moved to center", () => {
-  const l = getDetailColumnLayout(flags({ hasInfo: true, contactsCount: 8 }));
-  assert.equal(l.hasLeft, true);
-  assert.equal(l.hasCenter, true);
 });
