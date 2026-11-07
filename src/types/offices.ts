@@ -3,12 +3,6 @@ export type OfficeType = string;
 export type OfficeAssetType =
   "server" | "printer" | "desktop" | "client" | "backup";
 
-export interface OfficeContact {
-  name: string;
-  timeSlot: string;
-  phone: string;
-}
-
 export interface OfficeAsset {
   type: OfficeAssetType;
   hostname: string;
@@ -44,7 +38,6 @@ export interface OfficeDirectoryItem {
   notes: string;
   officeType?: string | null;
   parentNis?: string | null;
-  contacts: OfficeContact[];
   assets: OfficeAsset[];
   terminals: OfficeTerminal[];
   invgateLinked?: boolean;
