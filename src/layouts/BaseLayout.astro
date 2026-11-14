@@ -36,9 +36,10 @@ import AdminChatbotWidget from "@/components/admin/ai/AdminChatbotWidget";
 
 interface Props {
   title?: string;
+  bare?: boolean;
 }
 
-const { title } = Astro.props;
+const { title, bare = false } = Astro.props;
 const resolvedPath = getResolvedPathname(Astro.request, Astro.url);
 const currentPath = resolvedPath;
 const rawTitle =
@@ -266,8 +267,7 @@ const globalFontFaceCss = `
     class="bg-base-100 text-base-content min-h-screen max-w-full overflow-x-hidden"
   >
     {
-      isLoginRoute ? (
-        // El login define su propio layout (panel de marca + formulario).
+      isLoginRoute || bare ? (
         <div class="min-h-screen">
           <slot />
         </div>
@@ -346,7 +346,7 @@ const globalFontFaceCss = `
 
   <!-- Modals & Toast's container-->
   {
-    !isLoginRoute && !isPublicGeneratorRoute && (
+    !isLoginRoute && !isPublicGeneratorRoute && !bare && (
       <>
         <CommandPaletteModal
           items={quickAccessItems}
@@ -362,7 +362,7 @@ const globalFontFaceCss = `
   )}
   <ToastContainer />
   <AsyncFormScript />
-  {effectiveRole === "admin" && (
+  {!bare && effectiveRole === "admin" && (
     <div class="hidden md:block">
       <AdminChatbotWidget client:idle />
     </div>
