@@ -3,9 +3,11 @@ import type { AutomationSummary } from "@lib/inicio/homeSummaries";
 
 interface Props {
   summary: AutomationSummary;
+  /** Versión chica: solo Activas y En plazo (SLA). */
+  compact?: boolean;
 }
 
-const { summary } = Astro.props;
+const { summary, compact = false } = Astro.props;
 
 const slaText =
   summary.onTimeRate === null ? "—" : `${Math.round(summary.onTimeRate)}%`;
@@ -27,24 +29,28 @@ const slaTone =
         {summary.active}
       </dd>
     </div>
-    <div class="bg-base-200/30 rounded-lg px-2.5 py-2">
-      <dt class="text-base-content/60 text-xxs">Cerradas</dt>
-      <dd class="text-base-content font-mono text-lg font-bold tabular-nums">
-        {summary.finalized}
-      </dd>
-    </div>
+    {!compact && (
+      <div class="bg-base-200/30 rounded-lg px-2.5 py-2">
+        <dt class="text-base-content/60 text-xxs">Cerradas</dt>
+        <dd class="text-base-content font-mono text-lg font-bold tabular-nums">
+          {summary.finalized}
+        </dd>
+      </div>
+    )}
     <div class="bg-base-200/30 rounded-lg px-2.5 py-2">
       <dt class="text-base-content/60 text-xxs">En plazo (SLA)</dt>
       <dd class:list={["font-mono text-lg font-bold tabular-nums", slaTone]}>
         {slaText}
       </dd>
     </div>
-    <div class="bg-base-200/30 rounded-lg px-2.5 py-2">
-      <dt class="text-base-content/60 text-xxs">Activa más vieja</dt>
-      <dd class="text-base-content font-mono text-lg font-bold tabular-nums">
-        {summary.oldestDays === null ? "—" : `${summary.oldestDays}d`}
-      </dd>
-    </div>
+    {!compact && (
+      <div class="bg-base-200/30 rounded-lg px-2.5 py-2">
+        <dt class="text-base-content/60 text-xxs">Activa más vieja</dt>
+        <dd class="text-base-content font-mono text-lg font-bold tabular-nums">
+          {summary.oldestDays === null ? "—" : `${summary.oldestDays}d`}
+        </dd>
+      </div>
+    )}
   </dl>
 
   <div class="mt-auto flex justify-end">

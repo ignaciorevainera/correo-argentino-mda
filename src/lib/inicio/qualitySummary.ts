@@ -2,7 +2,9 @@
  * Score de calidad del operador para el home personalizado.
  *
  * Usa la misma fórmula que la vista de Calidad (`calculateOperatorChannelStats`:
- * promedio de los promedios por canal) y compara contra el mes anterior.
+ * promedio de los promedios por canal). Muestra el mes más reciente con
+ * auditorías publicadas dentro de los últimos 3 meses y, si hay datos del mes
+ * anterior a ese, calcula el delta.
  * Ojo: `quality_audits.month` está en formato MM-YYYY.
  */
 import { db } from "@db/index";
@@ -112,12 +114,43 @@ export function summarizeQuality(
   };
 }
 
+/**
+ * Auditorías (ya filtradas por `published`) de un mes concreto.
+ */
+export interface MonthlyQualityAudits {
+  month: string;
+  audits: AuditLike[];
+}
+
+/**
+ * Resuelve el resumen a mostrar a partir de los últimos meses, ordenados del
+ * más reciente al más viejo. Devuelve el mes más reciente con auditorías
+ * publicadas e indica a qué mes corresponde. El delta compara contra el mes
+ * inmediatamente anterior de la lista (null si ese mes no tiene datos).
+ * Si ningún mes tiene auditorías, devuelve un resumen vacío del mes actual.
+ */
+export function resolveQualitySummary(
+  months: MonthlyQualityAudits[],
+  currentMonth: string,
+): QualitySummary {
+  const idx = months.findIndex((entry) => entry.audits.length > 0);
+  if (idx === -1) return summarizeQuality([], [], currentMonth);
+
+  const display = months[idx];
+  const prior = months[idx + 1];
+  return summarizeQuality(display.audits, prior?.audits ?? [], display.month);
+}
+
 export async function getQualitySummary(
   agentId: number,
   ref: Date = new Date(),
 ): Promise<QualitySummary> {
   const month = monthTag(ref);
   const previousMonth = previousMonthTag(ref);
+  const previous2Month = monthTag(
+    new Date(ref.getFullYear(), ref.getMonth() - 2, 1),
+  );
+  const monthTags = [month, previousMonth, previous2Month];
 
   const audits = await db
     .select({
@@ -131,12 +164,15 @@ export async function getQualitySummary(
       and(
         eq(qualityAudits.agentId, agentId),
         eq(qualityAudits.status, "published"),
-        inArray(qualityAudits.month, [month, previousMonth]),
+        inArray(qualityAudits.month, monthTags),
       ),
     );
 
-  const current = audits.filter((audit) => audit.month === month);
-  const previous = audits.filter((audit) => audit.month === previousMonth);
-
-  return summarizeQuality(current, previous, month);
+  return resolveQualitySummary(
+    monthTags.map((tag) => ({
+      month: tag,
+      audits: audits.filter((audit) => audit.month === tag),
+    })),
+    month,
+  );
 }
