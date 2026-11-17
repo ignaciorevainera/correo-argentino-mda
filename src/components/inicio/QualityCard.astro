@@ -4,9 +4,11 @@ import type { QualitySummary } from "@lib/inicio/qualitySummary";
 
 interface Props {
   summary: QualitySummary;
+  /** Versión chica para la columna derecha: sin listado de canales. */
+  compact?: boolean;
 }
 
-const { summary } = Astro.props;
+const { summary, compact = false } = Astro.props;
 
 const hasAudits = summary.auditsCount > 0;
 
@@ -46,15 +48,23 @@ const auditLabel =
 {
   hasAudits ? (
     <div class="flex h-full flex-col gap-3">
-      <span
-        id="home-quality-score"
-        class:list={[
-          "font-mono text-3xl font-black leading-none tracking-tight tabular-nums",
-          scoreTone(summary.average),
-        ]}
-      >
-        {summary.average}%
-      </span>
+      <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <span
+          id="home-quality-score"
+          class:list={[
+            "font-mono text-3xl font-black leading-none tracking-tight tabular-nums",
+            scoreTone(summary.average),
+          ]}
+        >
+          {summary.average}%
+        </span>
+        <span
+          id="home-quality-month"
+          class="text-base-content/60 truncate text-xs font-semibold"
+        >
+          / {summary.monthLabel}
+        </span>
+      </div>
 
       <div class="flex items-center gap-2">
         <div class="min-w-0 flex-[2]">
@@ -85,44 +95,50 @@ const auditLabel =
       </div>
 
       <p id="home-quality-count" class="text-base-content/70 text-xs">
-        {auditLabel} en {summary.monthLabel}
+        {auditLabel}
       </p>
 
-      <ul class="flex flex-col gap-2">
-        {
-          summary.channels.map((channel) => (
-            <li class="flex items-center gap-2">
-              <span class="text-base-content/80 w-20 shrink-0 text-xxs font-semibold">
-                {channel.label}
-              </span>
-              <div class="bg-base-200 h-1.5 min-w-0 flex-1 overflow-hidden rounded-full">
-                <div
-                  class:list={["h-full rounded-full", scoreBar(channel.average)]}
-                  style={`width:${Math.max(0, Math.min(100, channel.average))}%`}
-                />
-              </div>
-              <span class="text-base-content/80 w-14 shrink-0 text-right font-mono text-xxs tabular-nums">
-                {channel.count > 0 ? `${channel.average}%` : "—"}
-              </span>
-              <span class="text-base-content/60 w-6 shrink-0 text-right font-mono text-xxs tabular-nums">
-                {channel.count}
-              </span>
-            </li>
-          ))
-        }
-      </ul>
+      {!compact && (
+        <ul class="flex flex-col gap-2">
+          {
+            summary.channels.map((channel) => (
+              <li class="flex items-center gap-2">
+                <span class="text-base-content/80 w-20 shrink-0 text-xxs font-semibold">
+                  {channel.label}
+                </span>
+                <div class="bg-base-200 h-1.5 min-w-0 flex-1 overflow-hidden rounded-full">
+                  <div
+                    class:list={["h-full rounded-full", scoreBar(channel.average)]}
+                    style={`width:${Math.max(0, Math.min(100, channel.average))}%`}
+                  />
+                </div>
+                <span class="text-base-content/80 w-14 shrink-0 text-right font-mono text-xxs tabular-nums">
+                  {channel.count > 0 ? `${channel.average}%` : "—"}
+                </span>
+                <span class="text-base-content/60 w-6 shrink-0 text-right font-mono text-xxs tabular-nums">
+                  {channel.count}
+                </span>
+              </li>
+            ))
+          }
+        </ul>
+      )}
     </div>
   ) : (
     <div data-quality-empty class="flex h-full flex-col items-center gap-2 py-2 text-center">
-      <span class="bg-base-200 text-base-content/40 flex h-10 w-10 items-center justify-center rounded-full">
-        <Icon name="boxicons:bar-chart-big" size={24} aria-hidden="true" is:inline />
-      </span>
+      {!compact && (
+        <span class="bg-base-200 text-base-content/40 flex h-10 w-10 items-center justify-center rounded-full">
+          <Icon name="boxicons:bar-chart-big" size={24} aria-hidden="true" is:inline />
+        </span>
+      )}
       <p class="text-base-content text-sm font-semibold">
         Todavía no tenés auditorías este mes.
       </p>
-      <p class="text-base-content/70 text-xs">
-        Cuando se audite alguna de tus atenciones, el score aparece acá.
-      </p>
+      {!compact && (
+        <p class="text-base-content/70 text-xs">
+          Cuando se audite alguna de tus atenciones, el score aparece acá.
+        </p>
+      )}
       <div class="mt-1 flex w-full justify-end">
         <slot name="action" />
       </div>

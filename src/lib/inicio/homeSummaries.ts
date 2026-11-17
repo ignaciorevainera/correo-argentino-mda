@@ -11,7 +11,7 @@ import {
   qualityAudits,
   users,
 } from "@db/schema";
-import { desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { calculateOperatorChannelStats } from "@lib/qualityCalculator";
 import { MONTH_LABELS } from "@lib/monthUtils";
 import { getAutomationMetrics } from "@lib/workflow/metrics";
@@ -37,7 +37,12 @@ export async function getQualityTeamSummary(
       totalScore: qualityAudits.totalScore,
     })
     .from(qualityAudits)
-    .where(eq(qualityAudits.month, month));
+    .where(
+      and(
+        eq(qualityAudits.month, month),
+        eq(qualityAudits.status, "published"),
+      ),
+    );
 
   const byAgent = new Map<
     number,

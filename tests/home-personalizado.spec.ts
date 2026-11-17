@@ -265,6 +265,7 @@ test.describe("Home personalizado", () => {
         totalScore: 90,
         section1Score: 90,
         section2Score: 90,
+        status: "published",
       },
       {
         agentId,
@@ -277,6 +278,7 @@ test.describe("Home personalizado", () => {
         totalScore: 80,
         section1Score: 80,
         section2Score: 80,
+        status: "published",
       },
       {
         agentId,
@@ -289,6 +291,7 @@ test.describe("Home personalizado", () => {
         totalScore: 70,
         section1Score: 70,
         section2Score: 70,
+        status: "published",
       },
     ]);
 
@@ -445,6 +448,7 @@ test.describe("Home personalizado", () => {
         totalScore: 100,
         section1Score: 100,
         section2Score: 100,
+        status: "published",
       },
       {
         agentId,
@@ -457,6 +461,7 @@ test.describe("Home personalizado", () => {
         totalScore: 100,
         section1Score: 100,
         section2Score: 100,
+        status: "published",
       },
       {
         agentId,
@@ -469,6 +474,7 @@ test.describe("Home personalizado", () => {
         totalScore: 50,
         section1Score: 50,
         section2Score: 50,
+        status: "published",
       },
     ]);
 
