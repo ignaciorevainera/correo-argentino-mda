@@ -178,6 +178,29 @@ test("rechaza sin CSRF y no escribe", async ({ context }) => {
   expect(row.type).toBe("AGENCIA");
 });
 
+test("rechaza a un agente sin escritura y no escribe", async ({ context }) => {
+  const agent = await createTestUserAndSession("agent", {
+    helpdeskName: MDA_TI_MESA,
+  });
+
+  try {
+    await setSessionCookie(context, agent.signedSessionId);
+    const res = await context.request.post(FIX_URL, {
+      headers: { "X-CSRF-Token": generateCsrfToken(agent.sessionId) },
+      data: { code: "E2E177M1" },
+    });
+    expect([302, 401, 403]).toContain(res.status());
+  } finally {
+    await cleanupTestUser(agent.userId, agent.sessionId);
+  }
+
+  const [row] = await db
+    .select({ type: offices.type })
+    .from(offices)
+    .where(eq(offices.code, "E2E177M1"));
+  expect(row.type).toBe("AGENCIA");
+});
+
 test("corrige SUC MOSAIC a SUCURSAL AUTOMATIZADA y audita", async ({
   context,
 }) => {
