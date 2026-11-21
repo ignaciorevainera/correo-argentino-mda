@@ -15,7 +15,10 @@ import { db } from "@db/index";
 import { provinces } from "@db/schema";
 import { officeTypeLabelByType } from "@lib/officeHelpers";
 import { clearCache, getOrRefreshComparison } from "@lib/invgate/locationCache";
-import { buildLocationComparisonView } from "@lib/invgate/locationComparisonView";
+import {
+  buildLocationComparisonView,
+  LOCATION_PAGE_SIZE,
+} from "@lib/invgate/locationComparisonView";
 import { getCleanBase } from "@lib/baseUrl";
 
 const cleanBase = getCleanBase();
@@ -44,7 +47,7 @@ if (comparisonError && !comparison) {
 } else if (comparison) {
   apiData = buildLocationComparisonView(comparison, {
     page,
-    limit: 50,
+    limit: LOCATION_PAGE_SIZE,
     filter,
     q,
   });
@@ -55,7 +58,7 @@ const stats = apiData?.stats;
 const results = apiData?.results || [];
 const pagination = apiData?.pagination || {
   page: 1,
-  limit: 50,
+  limit: LOCATION_PAGE_SIZE,
   totalPages: 1,
   totalItems: 0,
 };

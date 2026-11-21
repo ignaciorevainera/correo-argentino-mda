@@ -193,8 +193,32 @@ test("el panel enlaza la ruta de diferencias", async ({ page, context }) => {
   await page.goto("/admin");
 
   await expect(
-    page.getByRole("link", { name: "Diferencias de tipo" }).first(),
+    page
+      .locator('[data-admin-module-group="invgate"]')
+      .getByRole("link", { name: "Diferencias de tipo" }),
   ).toBeVisible();
+});
+
+test("un referente no accede a la ruta de diferencias", async ({
+  page,
+  context,
+}) => {
+  const referent = await createTestUserAndSession("referent", {
+    helpdeskName: MDA_TI_MESA,
+  });
+
+  try {
+    await setSessionCookie(context, referent.signedSessionId);
+    await page.goto("/admin/invgate/tipos-oficina");
+
+    const base = test.info().project.use.baseURL ?? "http://localhost:4321";
+    await expect(page).toHaveURL(`${base.replace(/\/$/, "")}/`);
+    await expect(page.locator("#global-toast-container")).toContainText(
+      "Acceso no autorizado",
+    );
+  } finally {
+    await cleanupTestUser(referent.userId, referent.sessionId);
+  }
 });
 
 test("ubicaciones ya no muestra la tabla de diferencias", async ({

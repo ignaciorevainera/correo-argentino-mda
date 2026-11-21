@@ -2,7 +2,10 @@ import type { APIRoute } from "astro";
 import { can } from "@lib/roleConfig";
 import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 import { getOrRefreshComparison } from "@lib/invgate/locationCache";
-import { buildLocationComparisonView } from "@lib/invgate/locationComparisonView";
+import {
+  buildLocationComparisonView,
+  LOCATION_PAGE_SIZE,
+} from "@lib/invgate/locationComparisonView";
 
 export const GET: APIRoute = async ({ locals, request }) => {
   if (!locals.user || locals.user.id === 0) {
@@ -16,7 +19,11 @@ export const GET: APIRoute = async ({ locals, request }) => {
     const url = new URL(request.url);
     const action = url.searchParams.get("action");
     const page = parseInt(url.searchParams.get("page") ?? "1", 10) || 1;
-    const limit = parseInt(url.searchParams.get("limit") ?? "50", 10) || 50;
+    const limit =
+      parseInt(
+        url.searchParams.get("limit") ?? String(LOCATION_PAGE_SIZE),
+        10,
+      ) || LOCATION_PAGE_SIZE;
     const filter = url.searchParams.get("filter") ?? "all";
     const q = url.searchParams.get("q") ?? "";
 

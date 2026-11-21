@@ -1,31 +1,40 @@
 ---
 import UbicacionRow from "@components/admin/invgate/UbicacionRow.astro";
-import { getInternalFetchHeaders, getInternalOrigin } from "@lib/internalOrigin";
+import { getOrRefreshComparison } from "@lib/invgate/locationCache";
+import {
+  buildLocationComparisonView,
+  LOCATION_PAGE_SIZE,
+} from "@lib/invgate/locationComparisonView";
 
 const searchParams = Astro.url.searchParams;
-const page = searchParams.get("page") || "1";
+const page = parseInt(searchParams.get("page") || "1", 10) || 1;
 const filter = searchParams.get("filter") || "all";
 const q = searchParams.get("q") || "";
 
-const apiUrl = new URL("/api/invgate/locations", getInternalOrigin());
-apiUrl.searchParams.set("page", page);
-apiUrl.searchParams.set("filter", filter);
-apiUrl.searchParams.set("q", q);
+let results: any[] = [];
+let pagination: { page: number; totalPages: number } = {
+  page: 1,
+  totalPages: 1,
+};
 
-let apiData: any = null;
 try {
-  const res = await fetch(apiUrl.toString(), {
-    headers: getInternalFetchHeaders(Astro.request),
-  });
-  if (res.ok) {
-    apiData = await res.json();
+  const { data, error } = await getOrRefreshComparison();
+  if (data) {
+    const view = buildLocationComparisonView(data, {
+      page,
+      limit: LOCATION_PAGE_SIZE,
+      filter,
+      q,
+    });
+    results = view.results;
+    pagination = view.pagination;
+  } else if (error) {
+    console.error("Error fetching locations in rows endpoint", error);
   }
 } catch (err) {
   console.error("Error fetching locations in rows endpoint", err);
 }
 
-const results = apiData?.results || [];
-const pagination = apiData?.pagination || { page: 1, totalPages: 1 };
 const hasMore = pagination.page < pagination.totalPages;
 
 Astro.response.headers.set("X-Has-More", hasMore ? "true" : "false");

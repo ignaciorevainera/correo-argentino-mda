@@ -3,6 +3,8 @@ import type {
   LocationMatch,
 } from "./locationMatcher";
 
+export const LOCATION_PAGE_SIZE = 50;
+
 export interface LocationComparisonViewParams {
   page: number;
   limit: number;
