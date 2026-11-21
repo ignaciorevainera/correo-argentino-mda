@@ -308,6 +308,25 @@ test("responde 422 si la location no tiene sufijo reconocido", async ({
   expect(res.status()).toBe(422);
 });
 
+test("el botón limpia una fila stale cuando el endpoint responde 409", async ({
+  page,
+  context,
+}) => {
+  await setSessionCookie(context, admin.signedSessionId);
+  await page.goto("/admin/invgate/ubicaciones");
+
+  await db
+    .update(offices)
+    .set({ type: "SUCURSAL", officeType: "AUTOMATIZADA" })
+    .where(eq(offices.code, "E2E177M1"));
+
+  const row = page.locator("[data-mismatch-code='E2E177M1']");
+  await expect(row).toBeVisible();
+  await row.locator("[data-fix-code]").click();
+
+  await expect(row).toHaveCount(0);
+});
+
 test("el botón Corregir actualiza la fila y la DB", async ({
   page,
   context,
