@@ -1,0 +1,145 @@
+---
+import ActionButton from "@components/ui/ActionButton.astro";
+import DataTable from "@components/ui/DataTable.astro";
+import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
+import { formatTypeLabel, officeTypeLabelByType } from "@lib/officeHelpers";
+import { getCleanBase } from "@lib/baseUrl";
+import type { OfficeTypeMismatch } from "@lib/invgate/officeTypeMismatch";
+
+interface Props {
+  mismatches: OfficeTypeMismatch[];
+}
+
+const { mismatches } = Astro.props;
+
+const cleanBase = getCleanBase();
+const headerGridClass = "grid-cols-[110px_1.4fr_1fr_1.2fr_1.2fr_100px] gap-4";
+const rowGridClass =
+  "grid grid-cols-[110px_1.4fr_1fr_1.2fr_1.2fr_100px] items-center gap-4";
+
+function typeLabel(type: string, officeType: string | null): string {
+  if (type.toUpperCase() === "SUCURSAL") {
+    return officeType?.toUpperCase() === "AUTOMATIZADA"
+      ? officeTypeLabelByType.SUCURSAL_AUTOMATIZADA
+      : officeTypeLabelByType.SUCURSAL_NO_AUTOMATIZADA;
+  }
+  return officeTypeLabelByType[type.toUpperCase()] ?? formatTypeLabel(type);
+}
+
+function expectedLabel(mismatch: OfficeTypeMismatch): string {
+  if (mismatch.expectedType === "SUCURSAL") {
+    return mismatch.expectedOfficeType === "AUTOMATIZADA"
+      ? officeTypeLabelByType.SUCURSAL_AUTOMATIZADA
+      : officeTypeLabelByType.SUCURSAL_NO_AUTOMATIZADA;
+  }
+  return officeTypeLabelByType.AGENCIA;
+}
+
+function reasonLabel(mismatch: OfficeTypeMismatch): string {
+  return (
+    mismatch.invgateDisplayName.split(" - ").pop()?.trim() ||
+    mismatch.invgateDisplayName
+  );
+}
+---
+
+{
+  mismatches.length > 0 && (
+    <section
+      class="card bg-base-100 border-base-200 my-6 border p-4 shadow"
+      data-fix-url={`${cleanBase}api/admin/invgate/locations/fix-type`}
+    >
+      <div class="mb-4 flex items-start justify-between gap-3">
+        <div>
+          <h2 class="text-base-content text-lg font-bold">
+            Diferencias de tipo
+          </h2>
+          <p class="text-base-content/70 text-sm">
+            El sufijo de la ubicación de InvGate no coincide con el tipo
+            registrado en MDA.
+          </p>
+        </div>
+        <span class="badge badge-warning font-mono" id="type-mismatch-count">
+          {mismatches.length}
+        </span>
+      </div>
+
+      <DataTable
+        id="office-type-mismatch-table"
+        ariaLabel="Diferencias de tipo entre InvGate y MDA"
+        minWidthClass="min-w-[900px]"
+        headerGridClass={headerGridClass}
+        rowGridClass={rowGridClass}
+        headerVariant="subtle"
+      >
+        <div slot="header">
+          <DataTableHeaderCell>NIS</DataTableHeaderCell>
+        </div>
+        <div slot="header">
+          <DataTableHeaderCell>Oficina MDA</DataTableHeaderCell>
+        </div>
+        <div slot="header">
+          <DataTableHeaderCell>Tipo MDA</DataTableHeaderCell>
+        </div>
+        <div slot="header">
+          <DataTableHeaderCell>Tipo InvGate</DataTableHeaderCell>
+        </div>
+        <div slot="header">
+          <DataTableHeaderCell>Motivo</DataTableHeaderCell>
+        </div>
+        <div slot="header">
+          <DataTableHeaderCell>Acción</DataTableHeaderCell>
+        </div>
+
+        {mismatches.map((mismatch) => (
+          <div
+            class:list={[
+              rowGridClass,
+              "border-base-200 border-b px-4 py-3 last:border-b-0",
+            ]}
+            data-table-row
+            data-mismatch-row
+            data-mismatch-code={mismatch.code}
+          >
+            <div class="text-base-content/85 font-mono text-sm">
+              {mismatch.code}
+            </div>
+            <div class="flex min-w-0 flex-col">
+              <span class="text-base-content truncate text-sm font-medium">
+                {mismatch.name}
+              </span>
+              <span
+                class="text-base-content/50 truncate text-xs"
+                title={mismatch.invgateDisplayName}
+              >
+                {mismatch.invgateDisplayName}
+              </span>
+            </div>
+            <div class="text-base-content/85 text-sm">
+              {typeLabel(mismatch.currentType, mismatch.currentOfficeType)}
+            </div>
+            <div class="text-base-content text-sm font-medium">
+              {expectedLabel(mismatch)}
+            </div>
+            <div>
+              <span class="badge badge-ghost badge-sm font-mono">
+                {reasonLabel(mismatch)}
+              </span>
+            </div>
+            <div>
+              <ActionButton
+                variant="outline"
+                color="btn-primary"
+                size="xs"
+                icon="boxicons:check-circle"
+                label="Corregir"
+                data-fix-code={mismatch.code}
+                onclick="window.fixOfficeType(this)"
+              />
+            </div>
+          </div>
+        ))}
+      </DataTable>
+    </section>
+  )
+}

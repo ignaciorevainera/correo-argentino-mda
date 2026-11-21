@@ -9,11 +9,13 @@ import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import SearchBar from "@components/ui/SearchBar.astro";
 import { Icon } from "astro-icon/components";
 import UbicacionRow from "./UbicacionRow.astro";
+import OfficeTypeMismatchSection from "./OfficeTypeMismatchSection.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import { db } from "@db/index";
 import { provinces } from "@db/schema";
 import { officeTypeLabelByType } from "@lib/officeHelpers";
+import { findOfficeTypeMismatches } from "@lib/invgate/officeTypeMismatch";
 import {
   getInternalFetchHeaders,
   getInternalOrigin,
@@ -23,6 +25,7 @@ import { getCleanBase } from "@lib/baseUrl";
 const cleanBase = getCleanBase();
 
 const allProvinces = await db.select().from(provinces).orderBy(provinces.name);
+const typeMismatches = await findOfficeTypeMismatches();
 
 const searchParams = getResolvedSearchParams(Astro.request, Astro.url);
 const page = parseInt(searchParams.get("page") ?? "1", 10) || 1;
@@ -89,6 +92,8 @@ const rowGridClass =
       </div>
     )
   }
+
+  <OfficeTypeMismatchSection mismatches={typeMismatches} />
 
   {
     !hasRun ? (
@@ -344,6 +349,51 @@ const rowGridClass =
         console.error("Fallo al copiar: ", err);
       });
   }
+
+  window.fixOfficeType = async function (btn) {
+    const code = btn.getAttribute("data-fix-code");
+    const container = btn.closest("[data-fix-url]");
+    if (!code || !container) return;
+
+    btn.disabled = true;
+    btn.classList.add("btn-disabled");
+
+    try {
+      const res = await fetch(container.getAttribute("data-fix-url"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token":
+            document
+              .querySelector('meta[name="csrf-token"]')
+              ?.getAttribute("content") || "",
+        },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        window.showToast?.(
+          data.error || "No se pudo corregir el tipo de oficina",
+          "alert-error",
+        );
+        btn.disabled = false;
+        btn.classList.remove("btn-disabled");
+        return;
+      }
+
+      btn.closest("[data-mismatch-row]")?.remove();
+      const counter = document.getElementById("type-mismatch-count");
+      const remaining = Math.max(0, Number(counter?.textContent || "0") - 1);
+      if (counter) counter.textContent = String(remaining);
+      if (remaining === 0) container.remove();
+      window.showToast?.("Tipo de oficina corregido.", "alert-success");
+    } catch {
+      window.showToast?.("Error de conexión al servidor", "alert-error");
+      btn.disabled = false;
+      btn.classList.remove("btn-disabled");
+    }
+  };
 
   window.openCreateOfficeModal = function (btn) {
     const nis = btn.getAttribute("data-nis");
