@@ -13,7 +13,8 @@ import { hasPermission, normalizeRole } from "@lib/rbac";
 import { getUnassignedFeedbackCount } from "@lib/getUnassignedFeedbackCount";
 
 const user = Astro.locals.user;
-const effectiveRole = Astro.locals.viewAs?.role ?? normalizeRole(user?.role || "agent");
+const effectiveRole =
+  Astro.locals.viewAs?.role ?? normalizeRole(user?.role || "agent");
 const unassignedFeedbackCount = await getUnassignedFeedbackCount();
 
 interface AdminModule {
@@ -109,6 +110,13 @@ const modulesGroupInvgate: AdminModule[] = [
     active: true,
   },
   {
+    title: "Diferencias de tipo",
+    icon: "boxicons:info-circle",
+    iconTone: "bg-warning/10 text-warning",
+    href: "/admin/invgate/tipos-oficina",
+    active: true,
+  },
+  {
     title: "Agrupación de oficinas",
     icon: "boxicons:building-house-filled",
     iconTone: "bg-success/10 text-success",
@@ -157,7 +165,9 @@ const modulesGroupInvgate: AdminModule[] = [
               href={mod.href}
               active={mod.active}
               locked={isLocked}
-              badgeCount={mod.href === "/admin/feedback" ? unassignedFeedbackCount : 0}
+              badgeCount={
+                mod.href === "/admin/feedback" ? unassignedFeedbackCount : 0
+              }
             />
           );
         })

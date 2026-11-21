@@ -9,25 +9,18 @@ import DataTableHeaderCell from "@components/ui/DataTableHeaderCell.astro";
 import SearchBar from "@components/ui/SearchBar.astro";
 import { Icon } from "astro-icon/components";
 import UbicacionRow from "./UbicacionRow.astro";
-import OfficeTypeMismatchSection from "./OfficeTypeMismatchSection.astro";
 import FormField from "@components/ui/forms/FormField.astro";
 import SelectField from "@components/ui/forms/SelectField.astro";
 import { db } from "@db/index";
 import { provinces } from "@db/schema";
 import { officeTypeLabelByType } from "@lib/officeHelpers";
-import { can } from "@lib/roleConfig";
-import { findOfficeTypeMismatches } from "@lib/invgate/officeTypeMismatch";
-import {
-  getInternalFetchHeaders,
-  getInternalOrigin,
-} from "@lib/internalOrigin";
+import { clearCache, getOrRefreshComparison } from "@lib/invgate/locationCache";
+import { buildLocationComparisonView } from "@lib/invgate/locationComparisonView";
 import { getCleanBase } from "@lib/baseUrl";
 
 const cleanBase = getCleanBase();
 
 const allProvinces = await db.select().from(provinces).orderBy(provinces.name);
-const typeMismatches = await findOfficeTypeMismatches();
-const canFixOfficeType = can(Astro.locals.user?.role ?? "agent", "supervisor");
 
 const searchParams = getResolvedSearchParams(Astro.request, Astro.url);
 const page = parseInt(searchParams.get("page") ?? "1", 10) || 1;
@@ -35,30 +28,26 @@ const filter = searchParams.get("filter") ?? "unmatched";
 const q = searchParams.get("q") ?? "";
 const sync = searchParams.get("sync") === "true";
 
-// Call API locally
-const apiUrl = new URL("/api/invgate/locations", getInternalOrigin());
-apiUrl.searchParams.set("page", page.toString());
-apiUrl.searchParams.set("filter", filter);
-apiUrl.searchParams.set("q", q);
-if (sync) {
-  apiUrl.searchParams.set("action", "sync");
-}
+if (sync) clearCache();
 
-let apiData: any = null;
+const {
+  data: comparison,
+  error: comparisonError,
+  status: comparisonStatus,
+} = await getOrRefreshComparison();
+
+let apiData: ReturnType<typeof buildLocationComparisonView> | null = null;
 let apiError = "";
 
-try {
-  const res = await fetch(apiUrl.toString(), {
-    headers: getInternalFetchHeaders(Astro.request),
+if (comparisonError && !comparison) {
+  if (comparisonStatus !== 428) apiError = comparisonError;
+} else if (comparison) {
+  apiData = buildLocationComparisonView(comparison, {
+    page,
+    limit: 50,
+    filter,
+    q,
   });
-  if (res.ok) {
-    apiData = await res.json();
-  } else {
-    const errorText = await res.text();
-    apiError = `Error ${res.status}: ${errorText}`;
-  }
-} catch (err: any) {
-  apiError = err.message;
 }
 
 const hasRun = apiData && apiData.stats !== null;
@@ -94,11 +83,6 @@ const rowGridClass =
       </div>
     )
   }
-
-  <OfficeTypeMismatchSection
-    mismatches={typeMismatches}
-    canFix={canFixOfficeType}
-  />
 
   {
     !hasRun ? (
@@ -354,56 +338,6 @@ const rowGridClass =
         console.error("Fallo al copiar: ", err);
       });
   }
-
-  window.fixOfficeType = async function (btn) {
-    const code = btn.getAttribute("data-fix-code");
-    const container = btn.closest("[data-fix-url]");
-    if (!code || !container) return;
-
-    const removeRow = () => {
-      btn.closest("[data-mismatch-row]")?.remove();
-      const counter = document.getElementById("type-mismatch-count");
-      const remaining = Math.max(0, Number(counter?.textContent || "0") - 1);
-      if (counter) counter.textContent = String(remaining);
-      if (remaining === 0) container.remove();
-    };
-
-    btn.disabled = true;
-    btn.classList.add("btn-disabled");
-
-    try {
-      const res = await fetch(container.getAttribute("data-fix-url"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token":
-            document
-              .querySelector('meta[name="csrf-token"]')
-              ?.getAttribute("content") || "",
-        },
-        body: JSON.stringify({ code }),
-      });
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        if (res.status === 409 || res.status === 422) removeRow();
-        window.showToast?.(
-          data.error || "No se pudo corregir el tipo de oficina",
-          "alert-error",
-        );
-        btn.disabled = false;
-        btn.classList.remove("btn-disabled");
-        return;
-      }
-
-      removeRow();
-      window.showToast?.("Tipo de oficina corregido.", "alert-success");
-    } catch {
-      window.showToast?.("Error de conexión al servidor", "alert-error");
-      btn.disabled = false;
-      btn.classList.remove("btn-disabled");
-    }
-  };
 
   window.openCreateOfficeModal = function (btn) {
     const nis = btn.getAttribute("data-nis");

@@ -167,10 +167,10 @@ test("lista SUC MOSAIC y AGE, y excluye nombres sin sufijo", async ({
   context,
 }) => {
   await setSessionCookie(context, admin.signedSessionId);
-  await page.goto("/admin/invgate/ubicaciones");
+  await page.goto("/admin/invgate/tipos-oficina");
 
   await expect(
-    page.getByRole("heading", { name: "Diferencias de tipo" }),
+    page.getByRole("heading", { name: "Diferencias de tipo", exact: true }),
   ).toBeVisible();
   await expect(page.locator("[data-mismatch-code='E2E177M1']")).toContainText(
     "Sucursal Automatizada",
@@ -186,6 +186,25 @@ test("lista SUC MOSAIC y AGE, y excluye nombres sin sufijo", async ({
   await expect(page.locator("[data-mismatch-code='E2E177Z1']")).toHaveCount(0);
   await expect(page.locator("[data-mismatch-code='E2E177T1']")).toHaveCount(0);
   await expect(page.locator("[data-mismatch-code='E2E177T2']")).toHaveCount(0);
+});
+
+test("el panel enlaza la ruta de diferencias", async ({ page, context }) => {
+  await setSessionCookie(context, admin.signedSessionId);
+  await page.goto("/admin");
+
+  await expect(
+    page.getByRole("link", { name: "Diferencias de tipo" }).first(),
+  ).toBeVisible();
+});
+
+test("ubicaciones ya no muestra la tabla de diferencias", async ({
+  page,
+  context,
+}) => {
+  await setSessionCookie(context, admin.signedSessionId);
+  await page.goto("/admin/invgate/ubicaciones");
+
+  await expect(page.locator("#office-type-mismatch-table")).toHaveCount(0);
 });
 
 test("rechaza sin CSRF y no escribe", async ({ context }) => {
@@ -313,7 +332,7 @@ test("el botón limpia una fila stale cuando el endpoint responde 409", async ({
   context,
 }) => {
   await setSessionCookie(context, admin.signedSessionId);
-  await page.goto("/admin/invgate/ubicaciones");
+  await page.goto("/admin/invgate/tipos-oficina");
 
   await db
     .update(offices)
@@ -332,7 +351,7 @@ test("el botón Corregir actualiza la fila y la DB", async ({
   context,
 }) => {
   await setSessionCookie(context, admin.signedSessionId);
-  await page.goto("/admin/invgate/ubicaciones");
+  await page.goto("/admin/invgate/tipos-oficina");
 
   const row = page.locator("[data-mismatch-code='E2E177M1']");
   await expect(row).toBeVisible();

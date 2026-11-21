@@ -204,6 +204,11 @@ export const navSections: NavSection[] = [
             icon: "boxicons:location-alt-filled",
           },
           {
+            href: "/admin/invgate/tipos-oficina",
+            label: "Diferencias de tipo",
+            icon: "boxicons:info-circle",
+          },
+          {
             href: "/admin/oficinas/edificios",
             label: "Agrupación de oficinas",
             icon: "boxicons:building-house-filled",

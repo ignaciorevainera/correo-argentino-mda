@@ -151,3 +151,55 @@ function reasonLabel(mismatch: OfficeTypeMismatch): string {
     </section>
   )
 }
+
+<script is:inline>
+  window.fixOfficeType = async function (btn) {
+    const code = btn.getAttribute("data-fix-code");
+    const container = btn.closest("[data-fix-url]");
+    if (!code || !container) return;
+
+    const removeRow = () => {
+      btn.closest("[data-mismatch-row]")?.remove();
+      const counter = document.getElementById("type-mismatch-count");
+      const remaining = Math.max(0, Number(counter?.textContent || "0") - 1);
+      if (counter) counter.textContent = String(remaining);
+      if (remaining === 0) container.remove();
+    };
+
+    btn.disabled = true;
+    btn.classList.add("btn-disabled");
+
+    try {
+      const res = await fetch(container.getAttribute("data-fix-url"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token":
+            document
+              .querySelector('meta[name="csrf-token"]')
+              ?.getAttribute("content") || "",
+        },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        if (res.status === 409 || res.status === 422) removeRow();
+        window.showToast?.(
+          data.error || "No se pudo corregir el tipo de oficina",
+          "alert-error",
+        );
+        btn.disabled = false;
+        btn.classList.remove("btn-disabled");
+        return;
+      }
+
+      removeRow();
+      window.showToast?.("Tipo de oficina corregido.", "alert-success");
+    } catch {
+      window.showToast?.("Error de conexión al servidor", "alert-error");
+      btn.disabled = false;
+      btn.classList.remove("btn-disabled");
+    }
+  };
+</script>

@@ -82,6 +82,10 @@ export const routePermissions: RoutePermission[] = [
     roles: ["admin"],
   },
   {
+    path: "/admin/invgate/tipos-oficina",
+    roles: ["admin", "supervisor", "team_leader"],
+  },
+  {
     path: "/admin/invgate/ubicaciones",
     roles: ["admin", "supervisor", "team_leader"],
   },
