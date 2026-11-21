@@ -19,6 +19,7 @@ const CODES = [
   "E2E177L1",
   "E2E177Z1",
   "E2E177T1",
+  "E2E177T2",
 ];
 const MDA_TI_MESA = "TI_GSM_MDA TI";
 const FIX_URL = "/api/admin/invgate/locations/fix-type";
@@ -26,6 +27,16 @@ const FIX_URL = "/api/admin/invgate/locations/fix-type";
 let admin: TestUser;
 
 async function seed() {
+  const existing = await db
+    .select({ code: offices.code })
+    .from(offices)
+    .where(inArray(offices.code, CODES));
+  if (existing.length > 0) {
+    throw new Error(
+      `Fixture E2E colisiona con oficinas existentes: ${existing.map((r) => r.code).join(", ")}`,
+    );
+  }
+
   await db.delete(offices).where(inArray(offices.code, CODES));
 
   const rows = await db
@@ -80,6 +91,13 @@ async function seed() {
         officeType: null,
         provinceCode: "B",
       },
+      {
+        code: "E2E177T2",
+        name: "E2E TELEGRAFIA SUC GIROS",
+        type: "TELEGRAFIA",
+        officeType: null,
+        provinceCode: "B",
+      },
     ])
     .returning({ id: offices.id, code: offices.code });
 
@@ -120,6 +138,11 @@ async function seed() {
       officeId: idByCode.get("E2E177T1")!,
       invgateLocationId: 9901777,
       invgateDisplayName: "E2E TELEG CF - SUC 7",
+    },
+    {
+      officeId: idByCode.get("E2E177T2")!,
+      invgateLocationId: 9901778,
+      invgateDisplayName: "E2E TELEG CF - SUC GIROS",
     },
   ]);
 }
@@ -162,6 +185,7 @@ test("lista SUC MOSAIC y AGE, y excluye nombres sin sufijo", async ({
   await expect(page.locator("[data-mismatch-code='E2E177L1']")).toHaveCount(0);
   await expect(page.locator("[data-mismatch-code='E2E177Z1']")).toHaveCount(0);
   await expect(page.locator("[data-mismatch-code='E2E177T1']")).toHaveCount(0);
+  await expect(page.locator("[data-mismatch-code='E2E177T2']")).toHaveCount(0);
 });
 
 test("rechaza sin CSRF y no escribe", async ({ context }) => {
@@ -189,7 +213,7 @@ test("rechaza a un agente sin escritura y no escribe", async ({ context }) => {
       headers: { "X-CSRF-Token": generateCsrfToken(agent.sessionId) },
       data: { code: "E2E177M1" },
     });
-    expect([302, 401, 403]).toContain(res.status());
+    expect(res.status()).toBe(403);
   } finally {
     await cleanupTestUser(agent.userId, agent.sessionId);
   }
@@ -199,6 +223,23 @@ test("rechaza a un agente sin escritura y no escribe", async ({ context }) => {
     .from(offices)
     .where(eq(offices.code, "E2E177M1"));
   expect(row.type).toBe("AGENCIA");
+});
+
+test("rechaza a un team_leader y no escribe", async ({ context }) => {
+  const leader = await createTestUserAndSession("team_leader", {
+    helpdeskName: MDA_TI_MESA,
+  });
+
+  try {
+    await setSessionCookie(context, leader.signedSessionId);
+    const res = await context.request.post(FIX_URL, {
+      headers: { "X-CSRF-Token": generateCsrfToken(leader.sessionId) },
+      data: { code: "E2E177M1" },
+    });
+    expect(res.status()).toBe(403);
+  } finally {
+    await cleanupTestUser(leader.userId, leader.sessionId);
+  }
 });
 
 test("corrige SUC MOSAIC a SUCURSAL AUTOMATIZADA y audita", async ({
@@ -224,7 +265,7 @@ test("corrige SUC MOSAIC a SUCURSAL AUTOMATIZADA y audita", async ({
   expect(audit.action).toContain("E2E177M1");
 });
 
-test("corrige AGE a AGENCIA sin tocar officeType", async ({ context }) => {
+test("corrige AGE a AGENCIA y limpia officeType", async ({ context }) => {
   await setSessionCookie(context, admin.signedSessionId);
   const res = await context.request.post(FIX_URL, {
     headers: { "X-CSRF-Token": generateCsrfToken(admin.sessionId) },
@@ -236,7 +277,7 @@ test("corrige AGE a AGENCIA sin tocar officeType", async ({ context }) => {
     .select({ type: offices.type, officeType: offices.officeType })
     .from(offices)
     .where(eq(offices.code, "E2E177A1"));
-  expect(row).toEqual({ type: "AGENCIA", officeType: "NO AUTOMATIZADA" });
+  expect(row).toEqual({ type: "AGENCIA", officeType: null });
 });
 
 test("responde 409 en la segunda corrección", async ({ context }) => {

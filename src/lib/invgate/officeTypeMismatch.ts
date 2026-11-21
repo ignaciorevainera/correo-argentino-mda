@@ -19,6 +19,7 @@ export interface OfficeTypeMismatch {
   invgateDisplayName: string;
 }
 
+// Allowlist explícito: "SUC 7" y "SUC 37" son nodos de telegrafía, no sucursales.
 const SUCURSAL_SUFFIXES = [
   "SUC GIROS",
   "SUC POR FAX",
@@ -28,7 +29,10 @@ const SUCURSAL_SUFFIXES = [
 
 export function inferExpectedOfficeType(
   displayName: string,
+  currentType?: string | null,
 ): ExpectedOfficeType | null {
+  if (currentType?.toUpperCase() === "TELEGRAFIA") return null;
+
   const suffix = displayName.split(" - ").pop()?.trim().toUpperCase() ?? "";
 
   if (suffix.startsWith("SUC MOSAIC")) {
@@ -72,7 +76,7 @@ export async function findOfficeTypeMismatches(): Promise<
   for (const row of rows) {
     if (!row.invgateDisplayName) continue;
 
-    const expected = inferExpectedOfficeType(row.invgateDisplayName);
+    const expected = inferExpectedOfficeType(row.invgateDisplayName, row.type);
     if (!expected) continue;
 
     const typeMatches = row.type.toUpperCase() === expected.type;

@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@db/index";
 import { offices, officeInvgateLinks } from "@db/schema";
@@ -17,7 +17,7 @@ const bodySchema = z.object({
 export const POST: APIRoute = async ({ request, locals }) => {
   const role = locals.user?.role;
   if (!role) return jsonError("No autorizado", 401, "no-store");
-  if (!can(role, "team_leader"))
+  if (!can(role, "supervisor"))
     return jsonError("Sin permisos", 403, "no-store");
   if (!(await validateRequestCsrf(request, locals))) {
     return jsonError("Token CSRF inválido o ausente", 403, "no-store");
@@ -52,7 +52,10 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
     if (!row) return jsonError("Oficina inexistente", 404);
 
-    const expected = inferExpectedOfficeType(row.invgateDisplayName ?? "");
+    const expected = inferExpectedOfficeType(
+      row.invgateDisplayName ?? "",
+      row.type,
+    );
     if (!expected) {
       return jsonError(
         "La ubicación de InvGate no tiene un sufijo de tipo reconocido",
@@ -60,27 +63,53 @@ export const POST: APIRoute = async ({ request, locals }) => {
       );
     }
 
+    const targetOfficeType =
+      expected.reason === "age"
+        ? null
+        : (expected.officeType ?? row.officeType);
+    const currentOfficeType = row.officeType?.toUpperCase() ?? null;
     const alreadyCorrect =
       row.type.toUpperCase() === expected.type &&
-      (expected.officeType === null ||
-        row.officeType?.toUpperCase() === "AUTOMATIZADA");
+      (expected.reason === "age"
+        ? row.officeType === null
+        : expected.reason === "suc_mosaic"
+          ? currentOfficeType === "AUTOMATIZADA"
+          : true);
 
     if (alreadyCorrect) {
       return jsonError("La oficina ya tiene el tipo esperado", 409);
     }
 
-    await db
+    const updateResult = await db
       .update(offices)
       .set({
         type: expected.type,
-        ...(expected.officeType ? { officeType: expected.officeType } : {}),
+        ...(targetOfficeType !== row.officeType
+          ? { officeType: targetOfficeType }
+          : {}),
       })
-      .where(eq(offices.id, row.id));
+      .where(
+        and(
+          eq(offices.id, row.id),
+          eq(offices.type, row.type),
+          row.officeType === null
+            ? isNull(offices.officeType)
+            : eq(offices.officeType, row.officeType),
+        ),
+      )
+      .run();
+
+    if (updateResult.changes === 0) {
+      return jsonError(
+        "La oficina cambió mientras se corregía; recargá e intentá de nuevo",
+        409,
+      );
+    }
 
     invalidateOfficeCaches();
     await logAdminFromAstro(
       locals,
-      `Corrigió tipo de oficina ${row.code}: ${row.type} → ${expected.type}`,
+      `Corrigió tipo de oficina ${row.code}: ${row.type}/${row.officeType ?? "sin officeType"} → ${expected.type}/${targetOfficeType ?? "sin officeType"}`,
     );
 
     return jsonResponse({
@@ -89,7 +118,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
       before: { type: row.type, officeType: row.officeType },
       after: {
         type: expected.type,
-        officeType: expected.officeType ?? row.officeType,
+        officeType: targetOfficeType,
       },
     });
   } catch (error) {

@@ -8,9 +8,10 @@ import type { OfficeTypeMismatch } from "@lib/invgate/officeTypeMismatch";
 
 interface Props {
   mismatches: OfficeTypeMismatch[];
+  canFix?: boolean;
 }
 
-const { mismatches } = Astro.props;
+const { mismatches, canFix = false } = Astro.props;
 
 const cleanBase = getCleanBase();
 const headerGridClass = "grid-cols-[110px_1.4fr_1fr_1.2fr_1.2fr_100px] gap-4";
@@ -127,16 +128,22 @@ function reasonLabel(mismatch: OfficeTypeMismatch): string {
               </span>
             </div>
             <div>
-              <ActionButton
-                variant="outline"
-                color="btn-primary"
-                size="xs"
-                icon="boxicons:check-circle"
-                label="Corregir"
-                ariaLabel={`Corregir tipo de ${mismatch.code}`}
-                data-fix-code={mismatch.code}
-                onclick="window.fixOfficeType(this)"
-              />
+              {canFix ? (
+                <ActionButton
+                  variant="outline"
+                  color="btn-primary"
+                  size="xs"
+                  icon="boxicons:check-circle"
+                  label="Corregir"
+                  ariaLabel={`Corregir tipo de ${mismatch.code}`}
+                  data-fix-code={mismatch.code}
+                  onclick="window.fixOfficeType(this)"
+                />
+              ) : (
+                <span class="text-base-content/40 text-xs">
+                  Solo supervisión
+                </span>
+              )}
             </div>
           </div>
         ))}
