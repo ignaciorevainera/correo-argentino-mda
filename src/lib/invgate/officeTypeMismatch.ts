@@ -19,6 +19,13 @@ export interface OfficeTypeMismatch {
   invgateDisplayName: string;
 }
 
+const SUCURSAL_SUFFIXES = [
+  "SUC GIROS",
+  "SUC POR FAX",
+  "SUC BACK OFFICE",
+  "SUC POSTAL",
+];
+
 export function inferExpectedOfficeType(
   displayName: string,
 ): ExpectedOfficeType | null {
@@ -32,7 +39,10 @@ export function inferExpectedOfficeType(
     };
   }
 
-  if (suffix === "SUC" || suffix.startsWith("SUC ")) {
+  if (
+    suffix === "SUC" ||
+    SUCURSAL_SUFFIXES.some((prefix) => suffix.startsWith(prefix))
+  ) {
     return { type: "SUCURSAL", officeType: null, reason: "suc" };
   }
 

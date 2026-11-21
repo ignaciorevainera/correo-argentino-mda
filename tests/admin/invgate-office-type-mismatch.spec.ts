@@ -18,6 +18,7 @@ const CODES = [
   "E2E177X1",
   "E2E177L1",
   "E2E177Z1",
+  "E2E177T1",
 ];
 const MDA_TI_MESA = "TI_GSM_MDA TI";
 const FIX_URL = "/api/admin/invgate/locations/fix-type";
@@ -72,6 +73,13 @@ async function seed() {
         officeType: "NO AUTOMATIZADA",
         provinceCode: "B",
       },
+      {
+        code: "E2E177T1",
+        name: "E2E TELEGRAFIA SUC 7",
+        type: "TELEGRAFIA",
+        officeType: null,
+        provinceCode: "B",
+      },
     ])
     .returning({ id: offices.id, code: offices.code });
 
@@ -107,6 +115,11 @@ async function seed() {
       officeId: idByCode.get("E2E177Z1")!,
       invgateLocationId: 9901776,
       invgateDisplayName: null,
+    },
+    {
+      officeId: idByCode.get("E2E177T1")!,
+      invgateLocationId: 9901777,
+      invgateDisplayName: "E2E TELEG CF - SUC 7",
     },
   ]);
 }
@@ -148,6 +161,7 @@ test("lista SUC MOSAIC y AGE, y excluye nombres sin sufijo", async ({
   await expect(page.locator("[data-mismatch-code='E2E177N1']")).toHaveCount(0);
   await expect(page.locator("[data-mismatch-code='E2E177L1']")).toHaveCount(0);
   await expect(page.locator("[data-mismatch-code='E2E177Z1']")).toHaveCount(0);
+  await expect(page.locator("[data-mismatch-code='E2E177T1']")).toHaveCount(0);
 });
 
 test("rechaza sin CSRF y no escribe", async ({ context }) => {
