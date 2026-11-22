@@ -1,0 +1,30 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+import PageContainer from "@components/ui/PageContainer.astro";
+import PageHeader from "@components/ui/PageHeader.astro";
+import OfficeTypeMismatchSection from "@components/admin/invgate/OfficeTypeMismatchSection.astro";
+import { can } from "@lib/roleConfig";
+import { findOfficeTypeMismatches } from "@lib/invgate/officeTypeMismatch";
+
+const mismatches = await findOfficeTypeMismatches();
+const canFix = can(Astro.locals.user?.role ?? "agent", "supervisor");
+---
+
+<BaseLayout>
+  <PageContainer width="xl">
+    <PageHeader
+      title="Diferencias de tipo de oficina"
+      description="Oficinas cuyo tipo en MDA no coincide con el sufijo de su ubicación en InvGate."
+    />
+
+    {
+      mismatches.length === 0 ? (
+        <div class="alert alert-success my-6 shadow-sm" role="status">
+          No hay diferencias de tipo pendientes.
+        </div>
+      ) : (
+        <OfficeTypeMismatchSection mismatches={mismatches} canFix={canFix} />
+      )
+    }
+  </PageContainer>
+</BaseLayout>

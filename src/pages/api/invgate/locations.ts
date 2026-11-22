@@ -2,6 +2,10 @@ import type { APIRoute } from "astro";
 import { can } from "@lib/roleConfig";
 import { jsonResponse, sanitizeError } from "@lib/apiResponse";
 import { getOrRefreshComparison } from "@lib/invgate/locationCache";
+import {
+  buildLocationComparisonView,
+  LOCATION_PAGE_SIZE,
+} from "@lib/invgate/locationComparisonView";
 
 export const GET: APIRoute = async ({ locals, request }) => {
   if (!locals.user || locals.user.id === 0) {
@@ -15,7 +19,11 @@ export const GET: APIRoute = async ({ locals, request }) => {
     const url = new URL(request.url);
     const action = url.searchParams.get("action");
     const page = parseInt(url.searchParams.get("page") ?? "1", 10) || 1;
-    const limit = parseInt(url.searchParams.get("limit") ?? "50", 10) || 50;
+    const limit =
+      parseInt(
+        url.searchParams.get("limit") ?? String(LOCATION_PAGE_SIZE),
+        10,
+      ) || LOCATION_PAGE_SIZE;
     const filter = url.searchParams.get("filter") ?? "all";
     const q = url.searchParams.get("q") ?? "";
 
@@ -49,44 +57,14 @@ export const GET: APIRoute = async ({ locals, request }) => {
       });
     }
 
-    let filtered = cachedComparison.results;
-
-    if (filter === "matched") {
-      filtered = filtered.filter((r) => r.matched);
-    } else if (filter === "unmatched") {
-      filtered = filtered.filter((r) => !r.matched);
-    }
-
-    const query = q.toLowerCase().trim();
-    if (query) {
-      filtered = filtered.filter((r) => {
-        const inv = r.invgateLocation;
-        return (
-          inv.displayName.toLowerCase().includes(query) ||
-          inv.name.toLowerCase().includes(query) ||
-          (inv.nis && inv.nis.toLowerCase().includes(query)) ||
-          (inv.cp && inv.cp.toLowerCase().includes(query)) ||
-          (inv.cc && inv.cc.toLowerCase().includes(query))
-        );
-      });
-    }
-
-    const totalItems = filtered.length;
-    const totalPages = Math.ceil(totalItems / limit) || 1;
-    const safePage = Math.max(1, Math.min(page, totalPages));
-    const offset = (safePage - 1) * limit;
-    const paginatedResults = filtered.slice(offset, offset + limit);
-
-    return jsonResponse({
-      results: paginatedResults,
-      stats: cachedComparison.stats,
-      pagination: {
-        page: safePage,
+    return jsonResponse(
+      buildLocationComparisonView(cachedComparison, {
+        page,
         limit,
-        totalPages,
-        totalItems,
-      },
-    });
+        filter,
+        q,
+      }),
+    );
   } catch (error: any) {
     console.error("[Locations API] Error:", error);
     return jsonResponse(

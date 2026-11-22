@@ -14,10 +14,11 @@ import SelectField from "@components/ui/forms/SelectField.astro";
 import { db } from "@db/index";
 import { provinces } from "@db/schema";
 import { officeTypeLabelByType } from "@lib/officeHelpers";
+import { clearCache, getOrRefreshComparison } from "@lib/invgate/locationCache";
 import {
-  getInternalFetchHeaders,
-  getInternalOrigin,
-} from "@lib/internalOrigin";
+  buildLocationComparisonView,
+  LOCATION_PAGE_SIZE,
+} from "@lib/invgate/locationComparisonView";
 import { getCleanBase } from "@lib/baseUrl";
 
 const cleanBase = getCleanBase();
@@ -30,30 +31,26 @@ const filter = searchParams.get("filter") ?? "unmatched";
 const q = searchParams.get("q") ?? "";
 const sync = searchParams.get("sync") === "true";
 
-// Call API locally
-const apiUrl = new URL("/api/invgate/locations", getInternalOrigin());
-apiUrl.searchParams.set("page", page.toString());
-apiUrl.searchParams.set("filter", filter);
-apiUrl.searchParams.set("q", q);
-if (sync) {
-  apiUrl.searchParams.set("action", "sync");
-}
+if (sync) clearCache();
 
-let apiData: any = null;
+const {
+  data: comparison,
+  error: comparisonError,
+  status: comparisonStatus,
+} = await getOrRefreshComparison();
+
+let apiData: ReturnType<typeof buildLocationComparisonView> | null = null;
 let apiError = "";
 
-try {
-  const res = await fetch(apiUrl.toString(), {
-    headers: getInternalFetchHeaders(Astro.request),
+if (comparisonError && !comparison) {
+  if (comparisonStatus !== 428) apiError = comparisonError;
+} else if (comparison) {
+  apiData = buildLocationComparisonView(comparison, {
+    page,
+    limit: LOCATION_PAGE_SIZE,
+    filter,
+    q,
   });
-  if (res.ok) {
-    apiData = await res.json();
-  } else {
-    const errorText = await res.text();
-    apiError = `Error ${res.status}: ${errorText}`;
-  }
-} catch (err: any) {
-  apiError = err.message;
 }
 
 const hasRun = apiData && apiData.stats !== null;
@@ -61,7 +58,7 @@ const stats = apiData?.stats;
 const results = apiData?.results || [];
 const pagination = apiData?.pagination || {
   page: 1,
-  limit: 50,
+  limit: LOCATION_PAGE_SIZE,
   totalPages: 1,
   totalItems: 0,
 };
