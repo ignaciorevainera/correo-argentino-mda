@@ -1,6 +1,7 @@
 import type { APIRoute } from "astro";
 import fs from "node:fs";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { getAppsDir } from "@lib/storage";
 import { requireSession } from "@lib/rbac-middleware";
 
@@ -26,14 +27,15 @@ export const GET: APIRoute = async ({ params, locals }) => {
     return new Response("Archivo no disponible.", { status: 404 });
   }
 
-  const fileBuffer = fs.readFileSync(filePath);
+  const stat = fs.statSync(filePath);
+  const webStream = Readable.toWeb(fs.createReadStream(filePath));
 
-  return new Response(fileBuffer, {
+  return new Response(webStream as any, {
     status: 200,
     headers: {
       "Content-Type": "application/octet-stream",
       "Content-Disposition": `attachment; filename="${sanitized}"`,
-      "Content-Length": fileBuffer.byteLength.toString(),
+      "Content-Length": stat.size.toString(),
       "Cache-Control": "no-store",
     },
   });
