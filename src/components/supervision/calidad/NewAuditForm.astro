@@ -79,7 +79,7 @@ const invgateAgS2Params = invgateAgParams.filter((p) => p.section === "mda");
 const sumWeight = (list: AuditParameter[]) =>
   list.reduce((acc, p) => acc + (p.weight ?? 0), 0);
 
-// 14 meses hacia atrás: el supervisor puede cargar auditorías de un periodo anterior.
+// +1 mes futuro + 14 meses hacia atrás: permite adelantar carga del mes próximo y cargar periodos anteriores.
 const monthOptions = (() => {
   const names = [
     "enero",
@@ -96,8 +96,8 @@ const monthOptions = (() => {
     "diciembre",
   ];
   const now = new Date();
-  return Array.from({ length: 14 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+  return Array.from({ length: 15 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() + 1 - i, 1);
     return {
       value: `${String(d.getMonth() + 1).padStart(2, "0")}-${d.getFullYear()}`,
       label: `${names[d.getMonth()]} ${d.getFullYear()}`,
