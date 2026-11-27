@@ -89,9 +89,17 @@ const getDynamicMonths = (baseMonthStr: string) => {
   return res;
 };
 
+const nextActualMonth = (() => {
+  const now = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const mm = (next.getMonth() + 1).toString().padStart(2, "0");
+  const yyyy = next.getFullYear();
+  return `${mm}-${yyyy}`;
+})();
+
 const dynamicMonthsList = getDynamicMonths(selectedMonth);
 
-const selectorMonthsList = getDynamicMonths(currentActualMonth);
+const selectorMonthsList = [nextActualMonth, ...getDynamicMonths(currentActualMonth)];
 if (!selectorMonthsList.includes(selectedMonth)) {
   selectorMonthsList.push(selectedMonth);
   selectorMonthsList.sort((a, b) => {
