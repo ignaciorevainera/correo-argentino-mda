@@ -2151,11 +2151,31 @@ const formatTicketRef = (ticketId?: string | null, callId?: string | null) => {
 
       currentActiveChannel = "all";
 
-      // Orden manual de las tarjetas dentro de cada canal (columna sort_order).
-// Sort es estable: las auditorías legacy (sortOrder = 0) conservan el orden
-// de llegada, así que migrar la columna no reordena nada por sorpresa.
-const sortedByManualOrder = <T extends { sortOrder?: number }>(calls: T[]): T[] =>
-[...calls].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+// Orden de las tarjetas dentro de cada canal:
+// 1. Si tienen sortOrder manual explícito (> 0), manda ese orden.
+// 2. Si sortOrder es igual (ej. 0 por defecto), ordena cronológicamente por fecha de atención (ascendente)
+//    y desempata por creación/toma (o ID ascendente).
+const compareAuditsChronologically = <T extends { date?: string | null; creationTime?: string | null; id?: number }>(a: T, b: T): number => {
+  const dateA = a.date || "";
+  const dateB = b.date || "";
+  if (dateA !== dateB) return dateA.localeCompare(dateB);
+
+  const timeA = a.creationTime || "";
+  const timeB = b.creationTime || "";
+  if (timeA !== timeB) return timeA.localeCompare(timeB);
+
+  return (a.id ?? 0) - (b.id ?? 0);
+};
+
+const sortedByManualOrder = <T extends { sortOrder?: number; date?: string | null; creationTime?: string | null; id?: number }>(calls: T[]): T[] =>
+  [...calls].sort((a, b) => {
+    const orderA = a.sortOrder ?? 0;
+    const orderB = b.sortOrder ?? 0;
+    if (orderA > 0 || orderB > 0) {
+      if (orderA !== orderB) return orderA - orderB;
+    }
+    return compareAuditsChronologically(a, b);
+  });
 
 // La numeración 1..4 es POR CANAL: en la pestaña "Todas" cada canal vuelve a
 // empezar en 1.
